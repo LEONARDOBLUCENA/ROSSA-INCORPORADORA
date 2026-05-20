@@ -5,42 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BI Rossa — Incorporadora</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --brand:#C0392B; --brand-dark:#922B21; --brand-light:#FADBD8;
-  --gold:#B7950B; --gold-light:#FEF9E7;
-  --green:#1A7A3C; --green-light:#D5F5E3;
-  --blue:#1A5276; --blue-light:#D6EAF8;
-  --bg:#F5F2EE; --surface:#FFFFFF; --surface2:#EDEAE5;
-  --text:#1A1208; --text2:#5D4E3A; --text3:#9E8E7A;
+  --brand:#C0392B;--brand-dark:#922B21;--brand-light:#FADBD8;
+  --gold:#B7950B;--gold-light:#FEF9E7;
+  --green:#1A7A3C;--green-light:#D5F5E3;
+  --blue:#1A5276;--blue-light:#D6EAF8;
+  --bg:#F5F2EE;--surface:#FFFFFF;--surface2:#EDEAE5;
+  --text:#1A1208;--text2:#5D4E3A;--text3:#9E8E7A;
   --border:#E0D9D0;
-  --sh: 0 2px 10px rgba(26,18,8,.07);
-  --sh-lg: 0 6px 28px rgba(26,18,8,.11);
+  --sh:0 2px 10px rgba(26,18,8,.07);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 
-/* ── NAV ── */
-nav{background:var(--text);display:flex;align-items:center;height:60px;padding:0 32px;gap:0;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+nav{background:var(--text);display:flex;align-items:center;height:60px;padding:0 32px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25)}
 .nav-logo{display:flex;align-items:center;gap:12px;margin-right:36px;flex-shrink:0}
 .nav-logo-mark{width:34px;height:34px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:#fff}
 .nav-logo-text{font-family:'Playfair Display',serif;font-size:18px;font-weight:600;color:#fff;letter-spacing:.02em}
 .nav-logo-text span{color:var(--brand)}
-.nav-tabs{display:flex;height:60px;gap:0}
+.nav-tabs{display:flex;height:60px}
 .nav-tab{background:none;border:none;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:0 22px;cursor:pointer;height:100%;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap}
 .nav-tab:hover{color:rgba(255,255,255,.85)}
 .nav-tab.active{color:#fff;border-bottom-color:var(--brand)}
 
-/* ── PAGE ── */
 .page{display:none;padding:28px 32px 60px;max-width:1440px;margin:0 auto}
 .page.active{display:block}
-
-/* ── SECTION TITLE ── */
 .sec-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:600;margin-bottom:4px}
 .sec-sub{font-size:13px;color:var(--text3);margin-bottom:24px}
 
-/* ── FILTERS BAR ── */
 .filters-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);margin-bottom:24px}
 .filter-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);margin-right:2px}
 .filter-select{border:1px solid var(--border);background:var(--bg);padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);cursor:pointer;outline:none;min-width:130px}
@@ -48,8 +43,7 @@ nav{background:var(--text);display:flex;align-items:center;height:60px;padding:0
 .btn-ghost{background:none;border:1px solid var(--border);padding:6px 14px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text3);cursor:pointer;margin-left:auto}
 .btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
 
-/* ── KPI GRID ── */
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.kpi-grid{display:grid;gap:14px;margin-bottom:24px}
 .kpi-card{background:var(--surface);border:1px solid var(--border);padding:18px 20px;box-shadow:var(--sh);position:relative;overflow:hidden}
 .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
 .kpi-card.c-red::before{background:var(--brand)}
@@ -61,35 +55,31 @@ nav{background:var(--text);display:flex;align-items:center;height:60px;padding:0
 .kpi-val.pos{color:var(--green)}
 .kpi-val.neg{color:var(--brand)}
 .kpi-sub{font-size:12px;color:var(--text3);margin-top:5px}
-/* subdivisão caixa/permuta */
 .kpi-split{display:flex;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
 .kpi-split-item{flex:1}
 .kpi-split-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:2px}
-.kpi-split-val{font-size:14px;font-weight:600;font-family:'Playfair Display',serif}
+.kpi-split-val{font-size:13px;font-weight:600;font-family:'Playfair Display',serif}
 .kpi-split-val.caixa{color:var(--blue)}
 .kpi-split-val.permuta{color:var(--gold)}
 
-/* ── CHARTS ── */
 .charts-row{display:grid;gap:14px;margin-bottom:14px}
 .charts-row.c2{grid-template-columns:1fr 1fr}
-.charts-row.c3{grid-template-columns:2fr 1fr}
 .chart-card{background:var(--surface);border:1px solid var(--border);padding:20px;box-shadow:var(--sh)}
 .chart-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:600;margin-bottom:2px}
 .chart-subtitle{font-size:11px;color:var(--text3);margin-bottom:16px}
 
-/* ── TABLE ── */
 .tbl-card{background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden;margin-bottom:14px}
-.tbl-head{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.tbl-head{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap}
 .tbl-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:600}
 .tbl-badge{font-size:11px;color:var(--text3);background:var(--surface2);padding:3px 10px}
 .tbl-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
-thead th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);padding:9px 18px;background:var(--surface2);border-bottom:1px solid var(--border)}
+thead th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);padding:9px 16px;background:var(--surface2);border-bottom:1px solid var(--border)}
 thead th.r{text-align:right}
 tbody tr{border-bottom:1px solid var(--border);transition:background .12s}
 tbody tr:last-child{border-bottom:none}
 tbody tr:hover{background:var(--bg)}
-tbody td{padding:9px 18px;font-size:12px;color:var(--text)}
+tbody td{padding:8px 16px;font-size:12px;color:var(--text)}
 tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
 .badge{display:inline-block;padding:2px 8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 .bg-green{background:var(--green-light);color:var(--green)}
@@ -105,13 +95,12 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
 .pct-bar-fill{height:5px;background:var(--brand)}
 .pct-txt{font-size:11px;color:var(--text3);width:36px;text-align:right}
 
-/* ── PASTE AREA ── */
-.paste-section{margin-bottom:28px}
+.paste-section{margin-bottom:24px}
 .paste-instructions{font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.7;padding:14px 18px;background:var(--blue-light);border-left:3px solid var(--blue)}
 .paste-instructions strong{color:var(--blue)}
 .paste-instructions ol{margin-top:6px;margin-left:18px}
 .paste-instructions li{margin-bottom:2px}
-.paste-box{width:100%;min-height:160px;border:2px dashed var(--border);background:var(--surface);font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);padding:14px;resize:vertical;outline:none;transition:border-color .2s;line-height:1.5}
+.paste-box{width:100%;min-height:120px;border:2px dashed var(--border);background:var(--surface);font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);padding:14px;resize:vertical;outline:none;transition:border-color .2s;line-height:1.5}
 .paste-box:focus{border-color:var(--brand)}
 .paste-box::placeholder{color:var(--text3)}
 .paste-actions{display:flex;gap:10px;margin-top:10px;align-items:center}
@@ -119,22 +108,20 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
 .btn-primary:hover{background:var(--brand-dark)}
 .btn-secondary{background:none;border:1px solid var(--border);padding:9px 18px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text3);cursor:pointer}
 .btn-secondary:hover{border-color:var(--brand);color:var(--brand)}
+.btn-export{background:var(--green);color:#fff;border:none;padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px}
+.btn-export:hover{background:var(--green-dark,#155f2e)}
 .paste-status{font-size:12px;color:var(--text3);margin-left:4px}
 .paste-status.ok{color:var(--green)}
 .paste-status.err{color:var(--brand)}
-
-/* ── EMPTY STATE ── */
-.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
-.empty-state svg{opacity:.25;margin-bottom:12px}
+.empty-state{text-align:center;padding:32px 20px;color:var(--text3)}
 .empty-state p{font-size:13px}
 
-/* ── RESPONSIVE ── */
 @media(max-width:960px){
-  .kpi-grid{grid-template-columns:repeat(2,1fr)}
-  .charts-row.c2,.charts-row.c3{grid-template-columns:1fr}
+  .kpi-grid{grid-template-columns:1fr 1fr!important}
+  .charts-row.c2{grid-template-columns:1fr}
   .page{padding:16px 14px 40px}
   nav{padding:0 14px}
-  .nav-tab{padding:0 14px;font-size:12px}
+  .nav-tab{padding:0 12px;font-size:12px}
 }
 </style>
 </head>
@@ -146,16 +133,14 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
     <div class="nav-logo-text">Rossa <span>BI</span></div>
   </div>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="goTab('dash')">Dashboard</button>
-    <button class="nav-tab" onclick="goTab('pagas')">Contas Pagas</button>
-    <button class="nav-tab" onclick="goTab('recebidas')">Contas Recebidas</button>
-    <button class="nav-tab" onclick="goTab('areceber')">Contas a Receber</button>
+    <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Dashboard</button>
+    <button class="nav-tab" data-tab="pagas" onclick="goTab(this)">Contas Pagas</button>
+    <button class="nav-tab" data-tab="recebidas" onclick="goTab(this)">Contas Recebidas</button>
+    <button class="nav-tab" data-tab="areceber" onclick="goTab(this)">Contas a Receber</button>
   </div>
 </nav>
 
-<!-- ═══════════════════════════════════════════════
-     DASHBOARD
-═══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════ DASHBOARD -->
 <div class="page active" id="page-dash">
   <div class="sec-title">Dashboard Geral</div>
   <div class="sec-sub">Visão consolidada — Rossa Incorporadora</div>
@@ -169,13 +154,23 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 
   <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
-    <!-- Total Recebido -->
+    <!-- KPI Recebido -->
     <div class="kpi-card c-green">
       <div class="kpi-label">Total Recebido</div>
       <div class="kpi-val pos" id="d-kpi-recebido">—</div>
       <div class="kpi-sub" id="d-kpi-recebido-n">0 lançamentos</div>
+      <div class="kpi-split">
+        <div class="kpi-split-item">
+          <div class="kpi-split-label">Caixa</div>
+          <div class="kpi-split-val caixa" id="d-kpi-rec-caixa">—</div>
+        </div>
+        <div class="kpi-split-item">
+          <div class="kpi-split-label">Permuta/Outros</div>
+          <div class="kpi-split-val permuta" id="d-kpi-rec-permuta">—</div>
+        </div>
+      </div>
     </div>
-    <!-- Total Pago -->
+    <!-- KPI Pago -->
     <div class="kpi-card c-red">
       <div class="kpi-label">Total Pago</div>
       <div class="kpi-val neg" id="d-kpi-pago">—</div>
@@ -186,12 +181,12 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
           <div class="kpi-split-val caixa" id="d-kpi-caixa">—</div>
         </div>
         <div class="kpi-split-item">
-          <div class="kpi-split-label">Permuta</div>
+          <div class="kpi-split-label">Permuta/Outros</div>
           <div class="kpi-split-val permuta" id="d-kpi-permuta">—</div>
         </div>
       </div>
     </div>
-    <!-- Resultado -->
+    <!-- KPI Resultado -->
     <div class="kpi-card c-blue">
       <div class="kpi-label">Resultado (Rec. − Pago)</div>
       <div class="kpi-val" id="d-kpi-resultado">—</div>
@@ -199,35 +194,32 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
     </div>
   </div>
 
-  <!-- Gráficos linha 1 -->
   <div class="charts-row c2">
     <div class="chart-card">
       <div class="chart-title">Pagamentos por Mês</div>
-      <div class="chart-subtitle">Total pago mensal — Caixa vs Permuta</div>
-      <canvas id="ch-mensal-pago" height="200"></canvas>
+      <div class="chart-subtitle">Caixa vs Permuta/Outros</div>
+      <canvas id="ch-mensal-pago"></canvas>
     </div>
     <div class="chart-card">
       <div class="chart-title">Faturamento por Mês</div>
-      <div class="chart-subtitle">Recebido vs A Receber</div>
-      <canvas id="ch-mensal-fat" height="200"></canvas>
+      <div class="chart-subtitle">Caixa vs Permuta/Outros recebidos</div>
+      <canvas id="ch-mensal-fat"></canvas>
     </div>
   </div>
 
-  <!-- Gráficos linha 2 -->
   <div class="charts-row c2">
     <div class="chart-card">
       <div class="chart-title">Pagamentos por Centro de Custo</div>
       <div class="chart-subtitle">Total pago por CC</div>
-      <canvas id="ch-cc" height="180"></canvas>
+      <canvas id="ch-cc"></canvas>
     </div>
     <div class="chart-card">
-      <div class="chart-title">Caixa vs Permuta</div>
+      <div class="chart-title">Caixa vs Permuta/Outros</div>
       <div class="chart-subtitle">Composição dos pagamentos</div>
-      <canvas id="ch-caixapermuta" height="180"></canvas>
+      <canvas id="ch-caixapermuta"></canvas>
     </div>
   </div>
 
-  <!-- Tabela Plano Financeiro -->
   <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">Custo por Plano Financeiro</div>
@@ -241,7 +233,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
             <th class="r">Total Pago (R$)</th>
             <th>% do Total</th>
             <th class="r">Caixa (R$)</th>
-            <th class="r">Permuta (R$)</th>
+            <th class="r">Permuta/Outros (R$)</th>
             <th class="r">Qtd.</th>
           </tr>
         </thead>
@@ -253,39 +245,35 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════
-     CONTAS PAGAS
-═══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════ CONTAS PAGAS -->
 <div class="page" id="page-pagas">
   <div class="sec-title">Contas Pagas</div>
   <div class="sec-sub">Cole aqui a tabela exportada do sistema financeiro</div>
-
   <div class="paste-section">
     <div class="paste-instructions">
       <strong>Como usar:</strong>
       <ol>
-        <li>No seu sistema (ERP/Excel), selecione toda a tabela de contas pagas incluindo o cabeçalho</li>
-        <li>Copie com <strong>Ctrl+C</strong></li>
-        <li>Clique na área abaixo e cole com <strong>Ctrl+V</strong></li>
-        <li>Clique em <strong>Processar Dados</strong></li>
+        <li>No seu sistema, selecione toda a tabela incluindo o cabeçalho e copie com <strong>Ctrl+C</strong></li>
+        <li>Clique na área abaixo e cole com <strong>Ctrl+V</strong> — os dados são processados automaticamente</li>
       </ol>
       Colunas esperadas: <strong>Data de Pagamento · Desc centro custo · Conta Corrente · Valor aprop fin · Descricao Plano Financeiro · Nome do Credor</strong>
     </div>
-    <textarea class="paste-box" id="paste-pagas" placeholder="Clique aqui e cole com Ctrl+V — os dados são processados automaticamente."></textarea>
+    <textarea class="paste-box" id="paste-pagas" placeholder="Clique aqui e cole com Ctrl+V — processamento automático ao colar."></textarea>
     <div class="paste-actions">
       <button class="btn-secondary" onclick="limparPagas()">✕ Limpar dados</button>
       <span class="paste-status" id="status-pagas"></span>
     </div>
   </div>
-
-  <!-- Preview tabela -->
-  <div class="tbl-card" id="tbl-pagas-wrap">
+  <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">Lançamentos Processados</div>
-      <span class="tbl-badge" id="count-pagas">0 registros</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="tbl-badge" id="count-pagas">0 registros</span>
+        <button class="btn-export" onclick="exportExcel('pagas')">⬇ Exportar Excel</button>
+      </div>
     </div>
     <div class="tbl-wrap">
-      <table>
+      <table id="tbl-pagas">
         <thead>
           <tr>
             <th>Data Pagamento</th>
@@ -305,94 +293,92 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════
-     CONTAS RECEBIDAS
-═══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════ CONTAS RECEBIDAS -->
 <div class="page" id="page-recebidas">
   <div class="sec-title">Contas Recebidas</div>
   <div class="sec-sub">Cole aqui a tabela de faturamentos recebidos (baixados)</div>
-
   <div class="paste-section">
     <div class="paste-instructions">
       <strong>Como usar:</strong>
       <ol>
-        <li>Selecione e copie a tabela de contas recebidas do seu sistema com <strong>Ctrl+C</strong></li>
-        <li>Cole na área abaixo com <strong>Ctrl+V</strong> e clique em <strong>Processar Dados</strong></li>
+        <li>Selecione e copie a tabela de contas recebidas com <strong>Ctrl+C</strong></li>
+        <li>Clique na área abaixo e cole com <strong>Ctrl+V</strong> — processamento automático</li>
       </ol>
-      Colunas esperadas: <strong>Centro de Custo · Dt. Baixa · Data Vecto. · Liquido</strong>
+      Colunas esperadas: <strong>Centro de Custo · Dt. Baixa · Data Vecto. · Liquido · Acrescimos</strong>
     </div>
-    <textarea class="paste-box" id="paste-recebidas" placeholder="Cole aqui a tabela de contas recebidas...&#10;&#10;Colunas: Centro de Custo&#9;Dt. Baixa&#9;Data Vecto.&#9;Liquido"></textarea>
+    <textarea class="paste-box" id="paste-recebidas" placeholder="Clique aqui e cole com Ctrl+V — processamento automático ao colar."></textarea>
     <div class="paste-actions">
-      <button class="btn-primary" onclick="processarRecebidas()">▶ Processar Dados</button>
-      <button class="btn-secondary" onclick="limparRecebidas()">Limpar</button>
+      <button class="btn-secondary" onclick="limparRecebidas()">✕ Limpar dados</button>
       <span class="paste-status" id="status-recebidas"></span>
     </div>
   </div>
-
   <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">Recebimentos Processados</div>
-      <span class="tbl-badge" id="count-recebidas">0 registros</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="tbl-badge" id="count-recebidas">0 registros</span>
+        <button class="btn-export" onclick="exportExcel('recebidas')">⬇ Exportar Excel</button>
+      </div>
     </div>
     <div class="tbl-wrap">
-      <table>
+      <table id="tbl-recebidas">
         <thead>
           <tr>
             <th>Centro de Custo</th>
             <th>Dt. Baixa</th>
             <th>Data Vecto.</th>
+            <th>Tipo</th>
             <th class="r">Líquido (R$)</th>
           </tr>
         </thead>
         <tbody id="body-recebidas">
-          <tr><td colspan="4"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
+          <tr><td colspan="5"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
         </tbody>
       </table>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════
-     CONTAS A RECEBER
-═══════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════ CONTAS A RECEBER -->
 <div class="page" id="page-areceber">
   <div class="sec-title">Contas a Receber</div>
   <div class="sec-sub">Cole aqui a tabela de faturamentos em aberto</div>
-
   <div class="paste-section">
     <div class="paste-instructions">
       <strong>Como usar:</strong>
       <ol>
-        <li>Selecione e copie a tabela de contas a receber do seu sistema com <strong>Ctrl+C</strong></li>
-        <li>Cole na área abaixo com <strong>Ctrl+V</strong> e clique em <strong>Processar Dados</strong></li>
+        <li>Selecione e copie a tabela de contas a receber com <strong>Ctrl+C</strong></li>
+        <li>Clique na área abaixo e cole com <strong>Ctrl+V</strong> — processamento automático</li>
       </ol>
-      Colunas esperadas: <strong>Centro de Custo · Dt. Baixa · Data Vecto. · Liquido</strong>
+      Colunas esperadas: <strong>Centro de Custo · Dt. Baixa · Data Vecto. · Liquido · Acrescimos</strong>
     </div>
-    <textarea class="paste-box" id="paste-areceber" placeholder="Cole aqui a tabela de contas a receber...&#10;&#10;Colunas: Centro de Custo&#9;Dt. Baixa&#9;Data Vecto.&#9;Liquido"></textarea>
+    <textarea class="paste-box" id="paste-areceber" placeholder="Clique aqui e cole com Ctrl+V — processamento automático ao colar."></textarea>
     <div class="paste-actions">
-      <button class="btn-primary" onclick="processarAReceber()">▶ Processar Dados</button>
-      <button class="btn-secondary" onclick="limparAReceber()">Limpar</button>
+      <button class="btn-secondary" onclick="limparAReceber()">✕ Limpar dados</button>
       <span class="paste-status" id="status-areceber"></span>
     </div>
   </div>
-
   <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">A Receber Processados</div>
-      <span class="tbl-badge" id="count-areceber">0 registros</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="tbl-badge" id="count-areceber">0 registros</span>
+        <button class="btn-export" onclick="exportExcel('areceber')">⬇ Exportar Excel</button>
+      </div>
     </div>
     <div class="tbl-wrap">
-      <table>
+      <table id="tbl-areceber">
         <thead>
           <tr>
             <th>Centro de Custo</th>
             <th>Dt. Baixa</th>
             <th>Data Vecto.</th>
+            <th>Tipo</th>
             <th class="r">Líquido (R$)</th>
           </tr>
         </thead>
         <tbody id="body-areceber">
-          <tr><td colspan="4"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
+          <tr><td colspan="5"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -400,450 +386,389 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════════════
-let DATA = { pagas: [], recebidas: [], areceber: [] };
-let CHARTS = {};
+// ══════════════════════════════════════════════════════
+const DATA = { pagas:[], recebidas:[], areceber:[] };
+const CHARTS = {};
+const MESES_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MESES_SH  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const MESES_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-
-// ═══════════════════════════════════════════════════════
-// NAVIGATION
-// ═══════════════════════════════════════════════════════
-function goTab(tab) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('page-' + tab).classList.add('active');
-  event.currentTarget.classList.add('active');
+// ══════════════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════════════
+function goTab(btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+btn.dataset.tab).classList.add('active');
+  btn.classList.add('active');
 }
 
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // UTILS
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 function fmt(v) {
-  if (isNaN(v) || v === null) return '—';
-  return 'R$ ' + Math.abs(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  if(v==null||isNaN(v))return'—';
+  return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function parseBRNum(s) {
-  if (!s && s !== 0) return 0;
-  s = String(s).trim().replace(/\s/g,'');
-  // Remove R$, espaços
-  s = s.replace(/R\$\s*/,'');
-  // Formato BR: 1.234,56 → remove pontos, troca vírgula por ponto
-  if (s.includes(',')) {
-    s = s.replace(/\./g,'').replace(',','.');
-  }
-  const v = parseFloat(s);
-  return isNaN(v) ? 0 : v;
+  if(s===null||s===undefined)return 0;
+  s=String(s).trim().replace(/\s/g,'').replace(/R\$\s*/,'');
+  if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');
+  const v=parseFloat(s);
+  return isNaN(v)?0:v;
 }
 function parseDateBR(s) {
-  if (!s) return null;
-  s = String(s).trim();
-  // dd/mm/yyyy ou dd/mm/yy
-  const m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
-  if (m) {
-    let y = parseInt(m[3]);
-    if (y < 100) y += 2000;
-    return new Date(y, parseInt(m[2])-1, parseInt(m[1]));
-  }
-  const d = new Date(s);
-  return isNaN(d) ? null : d;
+  if(!s)return null;
+  s=String(s).trim();
+  const m=s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if(m){let y=parseInt(m[3]);if(y<100)y+=2000;return new Date(y,parseInt(m[2])-1,parseInt(m[1]));}
+  const d=new Date(s);return isNaN(d)?null:d;
 }
 function parseTSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const headers = lines[0].split('\t').map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const cols = line.split('\t');
-    const row = {};
-    headers.forEach((h, i) => { row[h] = (cols[i] || '').trim(); });
+  const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2)return[];
+  const headers=lines[0].split('\t').map(h=>h.trim());
+  return lines.slice(1).map(line=>{
+    const cols=line.split('\t');
+    const row={};
+    headers.forEach((h,i)=>{row[h]=(cols[i]||'').trim();});
     return row;
   });
 }
-
-// Tenta achar coluna pelo nome aproximado
 function findCol(row, candidates) {
-  for (const c of candidates) {
-    const key = Object.keys(row).find(k => k.toLowerCase().replace(/[^a-z0-9]/g,'').includes(c.toLowerCase().replace(/[^a-z0-9]/g,'')));
-    if (key && row[key] !== undefined) return row[key];
+  for(const c of candidates){
+    const key=Object.keys(row).find(k=>k.toLowerCase().replace(/[^a-z0-9]/g,'').includes(c.toLowerCase().replace(/[^a-z0-9]/g,'')));
+    if(key&&row[key]!==undefined)return row[key];
   }
-  return '';
+  return'';
+}
+function setStatus(id,msg,ok){
+  const el=document.getElementById(id);
+  el.textContent=msg;
+  el.className='paste-status'+(ok===true?' ok':ok===false?' err':'');
+}
+function destroyChart(id){if(CHARTS[id]){CHARTS[id].destroy();delete CHARTS[id];}}
+
+// Classifica tipo pela coluna Acrescimos para faturamento
+function tipoFaturamento(acrescimos) {
+  const a = String(acrescimos||'').toUpperCase();
+  if(a.includes('POR BENS')||a.includes('OUTROS'))return'PERMUTA/OUTROS';
+  return'CAIXA';
 }
 
-function destroyChart(id) {
-  if (CHARTS[id]) { CHARTS[id].destroy(); delete CHARTS[id]; }
-}
-
-// ═══════════════════════════════════════════════════════
-// PARSE — CONTAS PAGAS
-// ═══════════════════════════════════════════════════════
-function parsePagasRows(txt) {
-  const rows = parseTSV(txt);
-  if (!rows.length) return [];
-  return rows.map(r => {
-    const dataPag = parseDateBR(findCol(r, ['Data de Pagamento','DatadePagamento','datapagamento','dt pagamento']));
-    const cc      = findCol(r, ['Desc centro custo','DescCentroCusto','centro custo','centroCusto','cc']);
-    const conta   = findCol(r, ['Conta Corrente','ContaCorrente','conta']);
-    const valor   = parseBRNum(findCol(r, ['Valor aprop fin','Valorapropfin','valor aprop','valoraprop','valor']));
-    const plano   = findCol(r, ['Descricao Plano Financeiro','DescricaoPlanFinanceiro','plano financeiro','plano','descricao plano']);
-    const credor  = findCol(r, ['Nome do Credor','NomeCredor','nome credor','credor','fornecedor','nome fornecedor']);
-    const tipo    = (conta || '').toUpperCase().includes('REAPROPFIN') ? 'PERMUTA' : 'CAIXA';
-    return { dataPag, cc, conta, valor, plano, credor, tipo,
-      mes: dataPag ? dataPag.getMonth() : null,
-      ano: dataPag ? dataPag.getFullYear() : null,
-      mesNome: dataPag ? MESES_PT[dataPag.getMonth()] : '—'
-    };
-  }).filter(r => r.valor !== 0 || r.cc);
-}
-
-// Intercepta o Ctrl+V direto — nunca renderiza o texto no textarea
-document.addEventListener('DOMContentLoaded', () => {
-  const ta = document.getElementById('paste-pagas');
-  ta.addEventListener('paste', e => {
-    e.preventDefault();
-    setStatus('status-pagas', 'Processando…', null);
-    const txt = (e.clipboardData || window.clipboardData).getData('text');
-    // Processa em microtask para não travar a UI
-    setTimeout(() => {
-      DATA.pagas = parsePagasRows(txt);
-      if (!DATA.pagas.length) {
-        setStatus('status-pagas', 'Nenhum dado encontrado. Verifique se copiou com o cabeçalho.', false);
-        return;
-      }
-      // Limpa o campo imediatamente após processar
-      ta.value = '';
-      setStatus('status-pagas', DATA.pagas.length + ' registros processados com sucesso.', true);
-      renderPagasTable();
-      updateDashFilters();
-      renderDashboard();
-    }, 0);
-  });
+// ══════════════════════════════════════════════════════
+// PASTE — wiring (após DOM pronto)
+// ══════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  wirePaste('paste-pagas',    processPagasText,    'status-pagas');
+  wirePaste('paste-recebidas',processRecibidasText,'status-recebidas');
+  wirePaste('paste-areceber', processAReceberText, 'status-areceber');
 });
 
-function limparPagas() {
-  document.getElementById('paste-pagas').value = '';
-  DATA.pagas = [];
-  document.getElementById('body-pagas').innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
-  document.getElementById('count-pagas').textContent = '0 registros';
+function wirePaste(taId, processFn, statusId) {
+  const ta = document.getElementById(taId);
+  if(!ta)return;
+  ta.addEventListener('paste', e => {
+    e.preventDefault();
+    setStatus(statusId,'Processando…',null);
+    const txt=(e.clipboardData||window.clipboardData).getData('text');
+    setTimeout(()=>{
+      processFn(txt);
+      ta.value='';
+    },0);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// PARSE — CONTAS PAGAS
+// ══════════════════════════════════════════════════════
+function processPagasText(txt) {
+  const rows=parseTSV(txt);
+  if(!rows.length){setStatus('status-pagas','Nenhum dado encontrado. Verifique se copiou com cabeçalho.',false);return;}
+  DATA.pagas=rows.map(r=>{
+    const dataPag=parseDateBR(findCol(r,['Data de Pagamento','DatadePagamento','datapagamento','dt pagamento']));
+    const cc     =findCol(r,['Desc centro custo','DescCentroCusto','centro custo','centroCusto']);
+    const conta  =findCol(r,['Conta Corrente','ContaCorrente','conta']);
+    const valor  =parseBRNum(findCol(r,['Valor aprop fin','Valorapropfin','valor aprop','valoraprop','valor']));
+    const plano  =findCol(r,['Descricao Plano Financeiro','DescricaoPlanFinanceiro','plano financeiro','plano','descricao plano']);
+    const credor =findCol(r,['Nome do Credor','NomeCredor','nome credor','credor','fornecedor']);
+    const isPermuta=(conta||'').toUpperCase().includes('REAPROPFIN');
+    const tipo=isPermuta?'PERMUTA/OUTROS':'CAIXA';
+    return{dataPag,cc,conta,valor,plano,credor,tipo,
+      mes:dataPag?dataPag.getMonth():null,
+      ano:dataPag?dataPag.getFullYear():null};
+  }).filter(r=>r.valor!==0||r.cc);
+  setStatus('status-pagas',DATA.pagas.length+' registros processados.',true);
+  renderPagasTable();
+  updateDashFilters();
+  renderDashboard();
+}
+
+function limparPagas(){
+  document.getElementById('paste-pagas').value='';
+  DATA.pagas=[];
+  document.getElementById('body-pagas').innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
+  document.getElementById('count-pagas').textContent='0 registros';
   setStatus('status-pagas','','');
   renderDashboard();
 }
 
-function renderPagasTable() {
-  const tbody = document.getElementById('body-pagas');
-  document.getElementById('count-pagas').textContent = DATA.pagas.length + ' registros';
-  if (!DATA.pagas.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>'; return; }
-  tbody.innerHTML = DATA.pagas.map(r => {
-    const tipoCls = r.tipo === 'PERMUTA' ? 'bg-gold' : 'bg-blue';
-    const dateFmt = r.dataPag ? r.dataPag.toLocaleDateString('pt-BR') : '—';
-    return `<tr>
-      <td>${dateFmt}</td>
-      <td>${r.credor||'—'}</td>
-      <td>${r.cc||'—'}</td>
-      <td>${r.conta||'—'}</td>
-      <td>${r.plano||'—'}</td>
-      <td><span class="badge ${tipoCls}">${r.tipo}</span></td>
-      <td class="r val-neg">${fmt(r.valor)}</td>
-    </tr>`;
+function renderPagasTable(){
+  const tbody=document.getElementById('body-pagas');
+  document.getElementById('count-pagas').textContent=DATA.pagas.length+' registros';
+  if(!DATA.pagas.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>';return;}
+  tbody.innerHTML=DATA.pagas.map(r=>{
+    const cls=r.tipo==='PERMUTA/OUTROS'?'bg-gold':'bg-blue';
+    const d=r.dataPag?r.dataPag.toLocaleDateString('pt-BR'):'—';
+    return`<tr><td>${d}</td><td>${r.credor||'—'}</td><td>${r.cc||'—'}</td><td>${r.conta||'—'}</td><td>${r.plano||'—'}</td><td><span class="badge ${cls}">${r.tipo}</span></td><td class="r val-neg">${fmt(r.valor)}</td></tr>`;
   }).join('');
 }
 
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // PARSE — CONTAS RECEBIDAS
-// ═══════════════════════════════════════════════════════
-function processarRecebidas() {
-  const txt = document.getElementById('paste-recebidas').value;
-  const rows = parseTSV(txt);
-  if (!rows.length) { setStatus('status-recebidas','Nenhum dado encontrado.',false); return; }
-  DATA.recebidas = parseFaturamento(rows);
-  setStatus('status-recebidas', DATA.recebidas.length + ' registros processados.', true);
-  renderFatTable('recebidas', 'body-recebidas', 'count-recebidas');
+// ══════════════════════════════════════════════════════
+function processRecibidasText(txt) {
+  const rows=parseTSV(txt);
+  if(!rows.length){setStatus('status-recebidas','Nenhum dado encontrado.',false);return;}
+  DATA.recebidas=parseFaturamento(rows);
+  setStatus('status-recebidas',DATA.recebidas.length+' registros processados.',true);
+  renderFatTable('recebidas','body-recebidas','count-recebidas',5);
+  updateDashFilters();
   renderDashboard();
 }
-function limparRecebidas() {
-  document.getElementById('paste-recebidas').value = '';
-  DATA.recebidas = [];
-  document.getElementById('body-recebidas').innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
-  document.getElementById('count-recebidas').textContent = '0 registros';
+function limparRecebidas(){
+  document.getElementById('paste-recebidas').value='';
+  DATA.recebidas=[];
+  document.getElementById('body-recebidas').innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
+  document.getElementById('count-recebidas').textContent='0 registros';
   setStatus('status-recebidas','','');
   renderDashboard();
 }
 
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
 // PARSE — CONTAS A RECEBER
-// ═══════════════════════════════════════════════════════
-function processarAReceber() {
-  const txt = document.getElementById('paste-areceber').value;
-  const rows = parseTSV(txt);
-  if (!rows.length) { setStatus('status-areceber','Nenhum dado encontrado.',false); return; }
-  DATA.areceber = parseFaturamento(rows);
-  setStatus('status-areceber', DATA.areceber.length + ' registros processados.', true);
-  renderFatTable('areceber', 'body-areceber', 'count-areceber');
+// ══════════════════════════════════════════════════════
+function processAReceberText(txt) {
+  const rows=parseTSV(txt);
+  if(!rows.length){setStatus('status-areceber','Nenhum dado encontrado.',false);return;}
+  DATA.areceber=parseFaturamento(rows);
+  setStatus('status-areceber',DATA.areceber.length+' registros processados.',true);
+  renderFatTable('areceber','body-areceber','count-areceber',5);
+  updateDashFilters();
   renderDashboard();
 }
-function limparAReceber() {
-  document.getElementById('paste-areceber').value = '';
-  DATA.areceber = [];
-  document.getElementById('body-areceber').innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
-  document.getElementById('count-areceber').textContent = '0 registros';
+function limparAReceber(){
+  document.getElementById('paste-areceber').value='';
+  DATA.areceber=[];
+  document.getElementById('body-areceber').innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
+  document.getElementById('count-areceber').textContent='0 registros';
   setStatus('status-areceber','','');
   renderDashboard();
 }
 
 function parseFaturamento(rows) {
-  return rows.map(r => {
-    const cc      = findCol(r, ['Centro de Custo','CentroCusto','centro custo']);
-    const dtBaixa = parseDateBR(findCol(r, ['Dt. Baixa','DtBaixa','dt baixa','data baixa']));
-    const dtVecto = parseDateBR(findCol(r, ['Data Vecto.','DataVecto','data vecto','vencimento']));
-    const liquido = parseBRNum(findCol(r, ['Liquido','Líquido','liquido','vlr liquido','valor liquido']));
-    return { cc, dtBaixa, dtVecto, liquido,
-      mes: dtVecto ? dtVecto.getMonth() : (dtBaixa ? dtBaixa.getMonth() : null),
-      ano: dtVecto ? dtVecto.getFullYear() : (dtBaixa ? dtBaixa.getFullYear() : null)
-    };
-  }).filter(r => r.liquido !== 0 || r.cc);
+  return rows.map(r=>{
+    const cc      =findCol(r,['Centro de Custo','CentroCusto','centro custo']);
+    const dtBaixa =parseDateBR(findCol(r,['Dt. Baixa','DtBaixa','dt baixa','data baixa']));
+    const dtVecto =parseDateBR(findCol(r,['Data Vecto.','DataVecto','data vecto','vencimento']));
+    const liquido =parseBRNum(findCol(r,['Liquido','Líquido','liquido','vlr liquido','valor liquido']));
+    const acrRaw  =findCol(r,['Acrescimos','Acréscimos','acrescimos','acrescimo']);
+    const tipo    =tipoFaturamento(acrRaw);
+    const ref=dtVecto||dtBaixa;
+    return{cc,dtBaixa,dtVecto,liquido,tipo,
+      mes:ref?ref.getMonth():null,
+      ano:ref?ref.getFullYear():null};
+  }).filter(r=>r.liquido!==0||r.cc);
 }
 
-function renderFatTable(tipo, bodyId, countId) {
-  const arr = DATA[tipo];
-  document.getElementById(countId).textContent = arr.length + ' registros';
-  if (!arr.length) { document.getElementById(bodyId).innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>'; return; }
-  const valClass = tipo === 'recebidas' ? 'val-pos' : 'val-gold';
-  document.getElementById(bodyId).innerHTML = arr.map(r => `<tr>
-    <td>${r.cc||'—'}</td>
-    <td>${r.dtBaixa ? r.dtBaixa.toLocaleDateString('pt-BR') : '—'}</td>
-    <td>${r.dtVecto ? r.dtVecto.toLocaleDateString('pt-BR') : '—'}</td>
-    <td class="r ${valClass}">${fmt(r.liquido)}</td>
-  </tr>`).join('');
+function renderFatTable(key, bodyId, countId, cols) {
+  const arr=DATA[key];
+  document.getElementById(countId).textContent=arr.length+' registros';
+  const empty=`<tr><td colspan="${cols}"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>`;
+  if(!arr.length){document.getElementById(bodyId).innerHTML=empty;return;}
+  const valClass=key==='recebidas'?'val-pos':'val-gold';
+  document.getElementById(bodyId).innerHTML=arr.map(r=>{
+    const cls=r.tipo==='PERMUTA/OUTROS'?'bg-gold':'bg-blue';
+    return`<tr>
+      <td>${r.cc||'—'}</td>
+      <td>${r.dtBaixa?r.dtBaixa.toLocaleDateString('pt-BR'):'—'}</td>
+      <td>${r.dtVecto?r.dtVecto.toLocaleDateString('pt-BR'):'—'}</td>
+      <td><span class="badge ${cls}">${r.tipo}</span></td>
+      <td class="r ${valClass}">${fmt(r.liquido)}</td>
+    </tr>`;
+  }).join('');
 }
 
-function setStatus(id, msg, ok) {
-  const el = document.getElementById(id);
-  el.textContent = msg;
-  el.className = 'paste-status' + (ok === true ? ' ok' : ok === false ? ' err' : '');
+// ══════════════════════════════════════════════════════
+// EXPORT EXCEL
+// ══════════════════════════════════════════════════════
+function exportExcel(key) {
+  const tbl=document.getElementById('tbl-'+key);
+  if(!tbl)return;
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.table_to_sheet(tbl);
+  const names={pagas:'Contas Pagas',recebidas:'Contas Recebidas',areceber:'Contas a Receber'};
+  XLSX.utils.book_append_sheet(wb,ws,names[key]||key);
+  XLSX.writeFile(wb,'Rossa_'+names[key].replace(/ /g,'_')+'.xlsx');
 }
 
-// ═══════════════════════════════════════════════════════
-// DASHBOARD — FILTERS
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// DASHBOARD FILTERS
+// ══════════════════════════════════════════════════════
 function updateDashFilters() {
-  const anos = [...new Set(DATA.pagas.map(r=>r.ano).filter(x=>x!=null))].sort();
-  const meses = [...new Set(DATA.pagas.map(r=>r.mes).filter(x=>x!=null))].sort((a,b)=>a-b);
-  const ccs = [...new Set([
-    ...DATA.pagas.map(r=>r.cc),
-    ...DATA.recebidas.map(r=>r.cc),
-    ...DATA.areceber.map(r=>r.cc)
-  ].filter(Boolean))].sort();
-
-  fillSelect('d-ano', anos, v => v, v => v);
-  fillSelect('d-mes', meses, v => v, v => MESES_PT[v]);
-  fillSelect('d-cc', ccs, v => v, v => v);
+  const anos=[...new Set([...DATA.pagas,...DATA.recebidas,...DATA.areceber].map(r=>r.ano).filter(x=>x!=null))].sort();
+  const meses=[...new Set([...DATA.pagas,...DATA.recebidas,...DATA.areceber].map(r=>r.mes).filter(x=>x!=null))].sort((a,b)=>a-b);
+  const ccs=[...new Set([...DATA.pagas,...DATA.recebidas,...DATA.areceber].map(r=>r.cc).filter(Boolean))].sort();
+  fillSelect('d-ano',anos,v=>v,v=>v);
+  fillSelect('d-mes',meses,v=>v,v=>MESES_PT[v]);
+  fillSelect('d-cc',ccs,v=>v,v=>v);
 }
-
-function fillSelect(id, values, valFn, labelFn) {
-  const sel = document.getElementById(id);
-  const first = sel.options[0];
-  sel.innerHTML = '';
-  sel.appendChild(first);
-  values.forEach(v => {
-    const o = document.createElement('option');
-    o.value = valFn(v);
-    o.textContent = labelFn(v);
-    sel.appendChild(o);
-  });
+function fillSelect(id,values,valFn,labelFn){
+  const sel=document.getElementById(id);
+  const first=sel.options[0];
+  sel.innerHTML='';sel.appendChild(first);
+  values.forEach(v=>{const o=document.createElement('option');o.value=valFn(v);o.textContent=labelFn(v);sel.appendChild(o);});
 }
+['d-ano','d-mes','d-cc'].forEach(id=>document.getElementById(id).addEventListener('change',renderDashboard));
+function clearDashFilters(){['d-ano','d-mes','d-cc'].forEach(id=>document.getElementById(id).value='');renderDashboard();}
+function getF(){return{ano:document.getElementById('d-ano').value,mes:document.getElementById('d-mes').value,cc:document.getElementById('d-cc').value};}
+function applyF(arr){const f=getF();return arr.filter(r=>(!f.ano||String(r.ano)===f.ano)&&(!f.mes||String(r.mes)===f.mes)&&(!f.cc||r.cc===f.cc));}
 
-['d-ano','d-mes','d-cc'].forEach(id => {
-  document.getElementById(id).addEventListener('change', renderDashboard);
-});
-
-function clearDashFilters() {
-  ['d-ano','d-mes','d-cc'].forEach(id => document.getElementById(id).value = '');
-  renderDashboard();
-}
-
-function getDashFilters() {
-  return {
-    ano: document.getElementById('d-ano').value,
-    mes: document.getElementById('d-mes').value,
-    cc:  document.getElementById('d-cc').value
-  };
-}
-
-function filterPagas() {
-  const f = getDashFilters();
-  return DATA.pagas.filter(r =>
-    (!f.ano || String(r.ano) === f.ano) &&
-    (!f.mes || String(r.mes) === f.mes) &&
-    (!f.cc  || r.cc === f.cc)
-  );
-}
-
-function filterFat(arr) {
-  const f = getDashFilters();
-  return arr.filter(r =>
-    (!f.ano || String(r.ano) === f.ano) &&
-    (!f.mes || String(r.mes) === f.mes) &&
-    (!f.cc  || r.cc === f.cc)
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// DASHBOARD — RENDER
-// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// DASHBOARD RENDER
+// ══════════════════════════════════════════════════════
 function renderDashboard() {
-  const pagas = filterPagas();
-  const recebidas = filterFat(DATA.recebidas);
-  const areceber = filterFat(DATA.areceber);
+  const pagas    =applyF(DATA.pagas);
+  const recebidas=applyF(DATA.recebidas);
 
-  // KPIs
-  const totalPago = pagas.reduce((s,r)=>s+r.valor,0);
-  const caixa = pagas.filter(r=>r.tipo==='CAIXA').reduce((s,r)=>s+r.valor,0);
-  const permuta = pagas.filter(r=>r.tipo==='PERMUTA').reduce((s,r)=>s+r.valor,0);
-  const totalRec = recebidas.reduce((s,r)=>s+r.liquido,0);
-  const totalAR = areceber.reduce((s,r)=>s+r.liquido,0);
-  const resultado = totalRec - totalPago;
+  // ── KPIs ──
+  const totalPago   =pagas.reduce((s,r)=>s+r.valor,0);
+  const caixaPago   =pagas.filter(r=>r.tipo==='CAIXA').reduce((s,r)=>s+r.valor,0);
+  const permutaPago =pagas.filter(r=>r.tipo==='PERMUTA/OUTROS').reduce((s,r)=>s+r.valor,0);
 
-  document.getElementById('d-kpi-pago').textContent = fmt(totalPago);
-  document.getElementById('d-kpi-pago-n').textContent = pagas.length + ' lançamentos';
-  document.getElementById('d-kpi-caixa').textContent = fmt(caixa);
-  document.getElementById('d-kpi-permuta').textContent = fmt(permuta);
+  const totalRec    =recebidas.reduce((s,r)=>s+r.liquido,0);
+  const caixaRec    =recebidas.filter(r=>r.tipo==='CAIXA').reduce((s,r)=>s+r.liquido,0);
+  const permutaRec  =recebidas.filter(r=>r.tipo==='PERMUTA/OUTROS').reduce((s,r)=>s+r.liquido,0);
 
-  document.getElementById('d-kpi-recebido').textContent = fmt(totalRec);
-  document.getElementById('d-kpi-recebido-n').textContent = recebidas.length + ' lançamentos';
+  const resultado=totalRec-totalPago;
 
-  document.getElementById('d-kpi-areceber').textContent = fmt(totalAR);
-  document.getElementById('d-kpi-areceber-n').textContent = areceber.length + ' lançamentos';
+  set('d-kpi-recebido',   fmt(totalRec));
+  set('d-kpi-recebido-n', recebidas.length+' lançamentos');
+  set('d-kpi-rec-caixa',  fmt(caixaRec));
+  set('d-kpi-rec-permuta',fmt(permutaRec));
 
-  const resEl = document.getElementById('d-kpi-resultado');
-  resEl.textContent = fmt(Math.abs(resultado));
-  resEl.className = 'kpi-val ' + (resultado >= 0 ? 'pos' : 'neg');
-  document.getElementById('d-kpi-resultado-sub').textContent = resultado >= 0 ? '▲ Superávit' : '▼ Déficit';
+  set('d-kpi-pago',    fmt(totalPago));
+  set('d-kpi-pago-n',  pagas.length+' lançamentos');
+  set('d-kpi-caixa',   fmt(caixaPago));
+  set('d-kpi-permuta', fmt(permutaPago));
 
-  renderCharts(pagas, recebidas, areceber);
+  const resEl=document.getElementById('d-kpi-resultado');
+  resEl.textContent=fmt(Math.abs(resultado));
+  resEl.className='kpi-val '+(resultado>=0?'pos':'neg');
+  set('d-kpi-resultado-sub', resultado>=0?'▲ Superávit':'▼ Déficit');
+
+  renderCharts(pagas,recebidas);
   renderPlanoTable(pagas);
 }
+function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 
-// ── Charts ──────────────────────────────────────────
-const PALETTE = ['#C0392B','#1A7A3C','#B7950B','#1A5276','#7D3C98','#784212','#1A6161','#2E4057'];
+// ══════════════════════════════════════════════════════
+// CHARTS
+// ══════════════════════════════════════════════════════
+const PAL=['#C0392B','#1A7A3C','#B7950B','#1A5276','#7D3C98','#784212','#1A6161','#2E4057'];
 
-function getMonthLabels(pagas, recebidas, areceber) {
-  const keys = new Set();
-  [...pagas, ...recebidas, ...areceber].forEach(r => {
-    if (r.ano != null && r.mes != null) keys.add(r.ano * 100 + r.mes);
-  });
-  return [...keys].sort().map(k => {
-    const ano = Math.floor(k / 100);
-    const mes = k % 100;
-    return { key: k, label: MESES_SHORT[mes] + '/' + ano, ano, mes };
-  });
+function monthKeys(arrs) {
+  const keys=new Set();
+  arrs.forEach(arr=>arr.forEach(r=>{if(r.ano!=null&&r.mes!=null)keys.add(r.ano*100+r.mes);}));
+  return[...keys].sort().map(k=>({key:k,label:MESES_SH[k%100]+'/'+(Math.floor(k/100)),ano:Math.floor(k/100),mes:k%100}));
 }
+function sumM(arr,lbl,key){return lbl.map(l=>arr.filter(r=>r.ano===l.ano&&r.mes===l.mes).reduce((s,r)=>s+(r[key]||0),0));}
+function sumMT(arr,lbl,key,tipo){return lbl.map(l=>arr.filter(r=>r.ano===l.ano&&r.mes===l.mes&&r.tipo===tipo).reduce((s,r)=>s+(r[key]||0),0));}
 
-function sumByMonth(arr, labels, valKey) {
-  return labels.map(l => arr.filter(r=>r.ano===l.ano&&r.mes===l.mes).reduce((s,r)=>s+(r[valKey]||0),0));
-}
+function renderCharts(pagas,recebidas) {
+  const lbl=monthKeys([pagas,recebidas]);
+  const ln=lbl.map(l=>l.label);
+  const yFmt={ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}};
+  const leg={position:'top',labels:{font:{size:11}}};
 
-function renderCharts(pagas, recebidas, areceber) {
-  const labels = getMonthLabels(pagas, recebidas, areceber);
-  const lblNames = labels.map(l=>l.label);
-
-  // Chart 1: pagamentos por mês (caixa vs permuta)
+  // 1 — pagamentos por mês
   destroyChart('ch-mensal-pago');
-  CHARTS['ch-mensal-pago'] = new Chart(document.getElementById('ch-mensal-pago'), {
-    type: 'bar',
-    data: {
-      labels: lblNames,
-      datasets: [
-        { label:'Caixa', data: labels.map(l=>pagas.filter(r=>r.ano===l.ano&&r.mes===l.mes&&r.tipo==='CAIXA').reduce((s,r)=>s+r.valor,0)), backgroundColor:'#1A5276', borderRadius:2 },
-        { label:'Permuta', data: labels.map(l=>pagas.filter(r=>r.ano===l.ano&&r.mes===l.mes&&r.tipo==='PERMUTA').reduce((s,r)=>s+r.valor,0)), backgroundColor:'#B7950B', borderRadius:2 }
-      ]
-    },
-    options: { responsive:true, plugins:{legend:{position:'top',labels:{font:{size:11}}}},
-      scales:{ y:{ ticks:{ callback: v=>'R$'+v.toLocaleString('pt-BR') } } } }
-  });
-
-  // Chart 2: faturamento por mês
-  destroyChart('ch-mensal-fat');
-  CHARTS['ch-mensal-fat'] = new Chart(document.getElementById('ch-mensal-fat'), {
-    type: 'bar',
-    data: {
-      labels: lblNames,
-      datasets: [
-        { label:'Recebido', data: sumByMonth(recebidas, labels, 'liquido'), backgroundColor:'#1A7A3C', borderRadius:2 },
-        { label:'A Receber', data: sumByMonth(areceber, labels, 'liquido'), backgroundColor:'#B7950B', borderRadius:2 }
-      ]
-    },
-    options: { responsive:true, plugins:{legend:{position:'top',labels:{font:{size:11}}}},
-      scales:{ y:{ ticks:{ callback: v=>'R$'+v.toLocaleString('pt-BR') } } } }
-  });
-
-  // Chart 3: por centro de custo
-  const ccs = [...new Set(pagas.map(r=>r.cc).filter(Boolean))];
-  destroyChart('ch-cc');
-  CHARTS['ch-cc'] = new Chart(document.getElementById('ch-cc'), {
-    type: 'bar',
-    data: {
-      labels: ccs,
-      datasets: [{ label:'Total Pago', data: ccs.map(c=>pagas.filter(r=>r.cc===c).reduce((s,r)=>s+r.valor,0)), backgroundColor: PALETTE, borderRadius:2 }]
-    },
-    options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}},
-      scales:{ x:{ ticks:{ callback: v=>'R$'+v.toLocaleString('pt-BR') } } } }
-  });
-
-  // Chart 4: caixa vs permuta donut
-  const caixaT = pagas.filter(r=>r.tipo==='CAIXA').reduce((s,r)=>s+r.valor,0);
-  const permutaT = pagas.filter(r=>r.tipo==='PERMUTA').reduce((s,r)=>s+r.valor,0);
-  destroyChart('ch-caixapermuta');
-  CHARTS['ch-caixapermuta'] = new Chart(document.getElementById('ch-caixapermuta'), {
-    type: 'doughnut',
-    data: {
-      labels: ['Caixa','Permuta'],
-      datasets: [{ data:[caixaT, permutaT], backgroundColor:['#1A5276','#B7950B'], borderWidth:2, borderColor:'#fff' }]
-    },
-    options: { responsive:true,
-      plugins:{
-        legend:{position:'bottom',labels:{font:{size:12}}},
-        tooltip:{ callbacks:{ label: ctx=>' '+fmt(ctx.raw) } }
-      }
-    }
-  });
-}
-
-// ── Plano Financeiro table ───────────────────────────
-function renderPlanoTable(pagas) {
-  const planos = {};
-  pagas.forEach(r => {
-    const p = r.plano || '(Sem plano)';
-    if (!planos[p]) planos[p] = { total:0, caixa:0, permuta:0, n:0 };
-    planos[p].total += r.valor;
-    if (r.tipo==='CAIXA') planos[p].caixa += r.valor;
-    else planos[p].permuta += r.valor;
-    planos[p].n++;
-  });
-
-  const totalGeral = Object.values(planos).reduce((s,p)=>s+p.total,0);
-  const sorted = Object.entries(planos).sort((a,b)=>b[1].total-a[1].total);
-
-  document.getElementById('d-plano-count').textContent = sorted.length + ' planos';
-
-  if (!sorted.length) {
-    document.getElementById('d-plano-body').innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>Carregue dados em Contas Pagas para visualizar</p></div></td></tr>';
-    return;
+  if(pagas.length){
+    CHARTS['ch-mensal-pago']=new Chart(document.getElementById('ch-mensal-pago'),{
+      type:'bar',
+      data:{labels:ln,datasets:[
+        {label:'Caixa',      data:sumMT(pagas,lbl,'valor','CAIXA'),         backgroundColor:'#1A5276',borderRadius:2},
+        {label:'Permuta/Outros',data:sumMT(pagas,lbl,'valor','PERMUTA/OUTROS'),backgroundColor:'#B7950B',borderRadius:2}
+      ]},
+      options:{responsive:true,plugins:{legend:leg},scales:{y:yFmt}}
+    });
   }
 
-  document.getElementById('d-plano-body').innerHTML = sorted.map(([nome, d]) => {
-    const pct = totalGeral > 0 ? d.total/totalGeral : 0;
-    const pctW = Math.round(pct * 80);
-    return `<tr>
+  // 2 — faturamento por mês
+  destroyChart('ch-mensal-fat');
+  if(recebidas.length){
+    CHARTS['ch-mensal-fat']=new Chart(document.getElementById('ch-mensal-fat'),{
+      type:'bar',
+      data:{labels:ln,datasets:[
+        {label:'Caixa',      data:sumMT(recebidas,lbl,'liquido','CAIXA'),          backgroundColor:'#1A7A3C',borderRadius:2},
+        {label:'Permuta/Outros',data:sumMT(recebidas,lbl,'liquido','PERMUTA/OUTROS'),backgroundColor:'#B7950B',borderRadius:2}
+      ]},
+      options:{responsive:true,plugins:{legend:leg},scales:{y:yFmt}}
+    });
+  }
+
+  // 3 — por centro de custo
+  destroyChart('ch-cc');
+  if(pagas.length){
+    const ccs=[...new Set(pagas.map(r=>r.cc).filter(Boolean))];
+    CHARTS['ch-cc']=new Chart(document.getElementById('ch-cc'),{
+      type:'bar',
+      data:{labels:ccs,datasets:[{label:'Total Pago',data:ccs.map(c=>pagas.filter(r=>r.cc===c).reduce((s,r)=>s+r.valor,0)),backgroundColor:PAL,borderRadius:2}]},
+      options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:yFmt}}
+    });
+  }
+
+  // 4 — donut caixa vs permuta
+  destroyChart('ch-caixapermuta');
+  if(pagas.length){
+    const cT=pagas.filter(r=>r.tipo==='CAIXA').reduce((s,r)=>s+r.valor,0);
+    const pT=pagas.filter(r=>r.tipo==='PERMUTA/OUTROS').reduce((s,r)=>s+r.valor,0);
+    CHARTS['ch-caixapermuta']=new Chart(document.getElementById('ch-caixapermuta'),{
+      type:'doughnut',
+      data:{labels:['Caixa','Permuta/Outros'],datasets:[{data:[cT,pT],backgroundColor:['#1A5276','#B7950B'],borderWidth:2,borderColor:'#fff'}]},
+      options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:12}}},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}}}
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PLANO FINANCEIRO TABLE
+// ══════════════════════════════════════════════════════
+function renderPlanoTable(pagas) {
+  const planos={};
+  pagas.forEach(r=>{
+    const p=r.plano||'(Sem plano)';
+    if(!planos[p])planos[p]={total:0,caixa:0,permuta:0,n:0};
+    planos[p].total+=r.valor;
+    if(r.tipo==='CAIXA')planos[p].caixa+=r.valor;
+    else planos[p].permuta+=r.valor;
+    planos[p].n++;
+  });
+  const total=Object.values(planos).reduce((s,p)=>s+p.total,0);
+  const sorted=Object.entries(planos).sort((a,b)=>b[1].total-a[1].total);
+  set('d-plano-count',sorted.length+' planos');
+  if(!sorted.length){
+    document.getElementById('d-plano-body').innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Carregue dados em Contas Pagas para visualizar</p></div></td></tr>';
+    return;
+  }
+  document.getElementById('d-plano-body').innerHTML=sorted.map(([nome,d])=>{
+    const pct=total>0?d.total/total:0;
+    const w=Math.round(pct*80);
+    return`<tr>
       <td>${nome}</td>
       <td class="r val-neg">${fmt(d.total)}</td>
-      <td>
-        <div class="pct-bar-wrap">
-          <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:${pctW}px"></div></div>
-          <span class="pct-txt">${(pct*100).toFixed(1)}%</span>
-        </div>
-      </td>
+      <td><div class="pct-bar-wrap"><div class="pct-bar-bg"><div class="pct-bar-fill" style="width:${w}px"></div></div><span class="pct-txt">${(pct*100).toFixed(1)}%</span></div></td>
       <td class="r val-blue">${fmt(d.caixa)}</td>
       <td class="r val-gold">${fmt(d.permuta)}</td>
       <td class="r">${d.n}</td>
