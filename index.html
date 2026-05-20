@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BI Rossa — Incorporadora</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #C0392B;
+    --brand-dark: #922B21;
+    --brand-light: #FADBD8;
+    --gold: #D4AC0D;
+    --gold-light: #FEF9E7;
+    --bg: #F7F4F1;
+    --surface: #FFFFFF;
+    --surface2: #F0EDE9;
+    --text: #1A1208;
+    --text2: #5D4E3A;
+    --text3: #9E8E7A;
+    --border: #E4DDD5;
+    --green: #1E8449;
+    --green-light: #D5F5E3;
+    --red: #C0392B;
+    --red-light: #FADBD8;
+    --shadow: 0 2px 12px rgba(26,18,8,0.08);
+    --shadow-lg: 0 8px 32px rgba(26,18,8,0.12);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--text);
+    color: #fff;
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo-mark {
+    width: 36px;
+    height: 36px;
+    background: var(--brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .logo-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .logo-text span { color: var(--brand); }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  #data-badge {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 300;
+  }
+  #upload-btn {
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #upload-btn:hover { background: var(--brand-dark); }
+  #file-input { display: none; }
+
+  /* MAIN */
+  main { padding: 32px 40px 60px; max-width: 1400px; margin: 0 auto; }
+
+  /* UPLOAD STATE */
+  #upload-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 480px;
+    text-align: center;
+    gap: 24px;
+  }
+  .upload-zone {
+    border: 2px dashed var(--border);
+    padding: 56px 80px;
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 0.2s;
+    max-width: 560px;
+    width: 100%;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--brand);
+    background: var(--brand-light);
+  }
+  .upload-icon {
+    width: 56px;
+    height: 56px;
+    background: var(--brand-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 26px;
+  }
+  .upload-zone h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .upload-zone p {
+    font-size: 14px;
+    color: var(--text3);
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+  .upload-cta {
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .sample-link {
+    font-size: 13px;
+    color: var(--text3);
+  }
+  .sample-link a {
+    color: var(--brand);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  /* DASHBOARD */
+  #dashboard { display: none; }
+
+  /* FILTROS */
+  .filters-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-right: 4px;
+  }
+  .filter-select {
+    border: 1px solid var(--border);
+    background: var(--bg);
+    padding: 6px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+  }
+  .filter-select:focus { border-color: var(--brand); }
+  #clear-filters {
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text3);
+    cursor: pointer;
+  }
+  #clear-filters:hover { border-color: var(--brand); color: var(--brand); }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .kpi-card.receita::before { background: var(--green); }
+  .kpi-card.custo::before { background: var(--brand); }
+  .kpi-card.resultado::before { background: var(--gold); }
+  .kpi-card.margem::before { background: #2471A3; }
+
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.1;
+  }
+  .kpi-value.pos { color: var(--green); }
+  .kpi-value.neg { color: var(--brand); }
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 6px;
+  }
+  .kpi-icon {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    font-size: 28px;
+    opacity: 0.08;
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+  }
+
+  /* CHARTS GRID */
+  .charts-row {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .charts-row.two { grid-template-columns: 1fr 1fr; }
+  .charts-row.three { grid-template-columns: 2fr 1fr; }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+  .chart-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .chart-subtitle {
+    font-size: 12px;
+    color: var(--text3);
+    margin-bottom: 20px;
+  }
+  .chart-wrap { position: relative; }
+
+  /* TABLE */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 20px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .table-count {
+    font-size: 12px;
+    color: var(--text3);
+    background: var(--surface2);
+    padding: 3px 10px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+    padding: 10px 24px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg); }
+  tbody td { padding: 11px 24px; font-size: 13px; color: var(--text); }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .badge-receita { background: var(--green-light); color: var(--green); }
+  .badge-custo { background: var(--red-light); color: var(--red); }
+  .badge-pago { background: var(--green-light); color: var(--green); }
+  .badge-recebido { background: var(--green-light); color: var(--green); }
+  .badge-pendente { background: var(--gold-light); color: #7D6608; }
+  .badge-a-receber { background: var(--gold-light); color: #7D6608; }
+  .val-pos { color: var(--green); font-weight: 500; }
+  .val-neg { color: var(--brand); font-weight: 500; }
+
+  /* FOOTER */
+  .bi-footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+    color: var(--text3);
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+  .bi-footer strong { color: var(--brand); font-family: 'Playfair Display', serif; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    main { padding: 20px 16px 40px; }
+    header { padding: 0 16px; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-row.two, .charts-row.three { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">R</div>
+    <div class="logo-text">Rossa <span>BI</span></div>
+  </div>
+  <div class="header-right">
+    <span id="data-badge">Nenhum arquivo carregado</span>
+    <button id="upload-btn" onclick="document.getElementById('file-input').click()">
+      ⊕ Carregar Dados
+    </button>
+    <input type="file" id="file-input" accept=".csv,.xlsx,.xls">
+  </div>
+</header>
+
+<main>
+  <!-- ESTADO INICIAL -->
+  <div id="upload-state">
+    <div class="upload-zone" id="drop-zone">
+      <div class="upload-icon">📊</div>
+      <h2>Carregue sua planilha</h2>
+      <p>Arraste um arquivo CSV ou Excel aqui, ou clique para selecionar.<br>Os dados são processados localmente — nada é enviado a servidores.</p>
+      <button class="upload-cta" onclick="document.getElementById('file-input').click()">Selecionar arquivo</button>
+    </div>
+    <div class="sample-link">
+      Não tem arquivo? <a href="dados_exemplo.csv" download>Baixe a planilha modelo</a> da Rossa Incorporadora.
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+
+    <!-- FILTROS -->
+    <div class="filters-bar">
+      <span class="filter-label">Filtrar por</span>
+      <select class="filter-select" id="f-obra">
+        <option value="">Todas as obras</option>
+      </select>
+      <select class="filter-select" id="f-ano">
+        <option value="">Todos os anos</option>
+      </select>
+      <select class="filter-select" id="f-tipo">
+        <option value="">Receita e Custo</option>
+        <option value="Receita">Receita</option>
+        <option value="Custo">Custo</option>
+      </select>
+      <select class="filter-select" id="f-status">
+        <option value="">Todos os status</option>
+      </select>
+      <button id="clear-filters">✕ Limpar filtros</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi-card receita">
+        <div class="kpi-icon">R$</div>
+        <div class="kpi-label">Total de Receitas</div>
+        <div class="kpi-value pos" id="kpi-receita">—</div>
+        <div class="kpi-sub" id="kpi-receita-n">0 lançamentos</div>
+      </div>
+      <div class="kpi-card custo">
+        <div class="kpi-icon">R$</div>
+        <div class="kpi-label">Total de Custos</div>
+        <div class="kpi-value neg" id="kpi-custo">—</div>
+        <div class="kpi-sub" id="kpi-custo-n">0 lançamentos</div>
+      </div>
+      <div class="kpi-card resultado">
+        <div class="kpi-icon">R$</div>
+        <div class="kpi-label">Resultado Líquido</div>
+        <div class="kpi-value" id="kpi-resultado">—</div>
+        <div class="kpi-sub" id="kpi-resultado-sub">Receita − Custo</div>
+      </div>
+      <div class="kpi-card margem">
+        <div class="kpi-icon">%</div>
+        <div class="kpi-label">Margem Bruta</div>
+        <div class="kpi-value" id="kpi-margem">—</div>
+        <div class="kpi-sub">Resultado / Receita</div>
+      </div>
+    </div>
+
+    <!-- GRÁFICOS LINHA 1 -->
+    <div class="charts-row two">
+      <div class="chart-card">
+        <div class="chart-title">Receitas × Custos por Mês</div>
+        <div class="chart-subtitle">Evolução mensal comparativa</div>
+        <div class="chart-wrap"><canvas id="chart-mensal" height="200"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Distribuição por Categoria</div>
+        <div class="chart-subtitle">Composição dos custos e receitas</div>
+        <div class="chart-wrap"><canvas id="chart-categoria" height="200"></canvas></div>
+      </div>
+    </div>
+
+    <!-- GRÁFICOS LINHA 2 -->
+    <div class="charts-row three">
+      <div class="chart-card">
+        <div class="chart-title">Resultado por Obra</div>
+        <div class="chart-subtitle">Receita e custo acumulados por empreendimento</div>
+        <div class="chart-wrap"><canvas id="chart-obra" height="180"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Status dos Lançamentos</div>
+        <div class="chart-subtitle">Pago / Recebido / Pendente</div>
+        <div class="chart-wrap"><canvas id="chart-status" height="180"></canvas></div>
+      </div>
+    </div>
+
+    <!-- TABELA -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="chart-title">Lançamentos Financeiros</div>
+        <span class="table-count" id="table-count">0 registros</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Mês/Ano</th>
+              <th>Descrição</th>
+              <th>Obra</th>
+              <th>Categoria</th>
+              <th>Tipo</th>
+              <th>Status</th>
+              <th style="text-align:right">Valor (R$)</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /dashboard -->
+</main>
+
+<footer class="bi-footer">
+  <strong>Rossa</strong> Incorporadora — Business Intelligence © 2025 &nbsp;·&nbsp; Dados processados localmente no navegador
+</footer>
+
+<script>
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let rawData = [];
+let charts = {};
+
+const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0});
+const fmtP = v => (v*100).toFixed(1) + '%';
+
+// FILE HANDLING
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadFile(file);
+  e.target.value = '';
+});
+
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+function loadFile(file) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.csv')) {
+    Papa.parse(file, { header: true, skipEmptyLines: true, complete: r => initDashboard(r.data, file.name) });
+  } else if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, {defval:''});
+      initDashboard(data, file.name);
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    alert('Por favor, carregue um arquivo .csv, .xlsx ou .xls');
+  }
+}
+
+function initDashboard(data, filename) {
+  rawData = data.map(r => ({
+    mes: String(r.mes || r.Mes || r.MÊS || '').trim(),
+    ano: String(r.ano || r.Ano || r.ANO || '').trim(),
+    categoria: String(r.categoria || r.Categoria || '').trim(),
+    descricao: String(r.descricao || r.Descricao || r.descrição || r.Descrição || '').trim(),
+    tipo: String(r.tipo || r.Tipo || '').trim(),
+    valor: parseFloat(String(r.valor || r.Valor || 0).replace(/[^0-9.,]/g,'').replace(',','.')) || 0,
+    obra: String(r.obra || r.Obra || '').trim(),
+    status: String(r.status || r.Status || '').trim()
+  }));
+
+  document.getElementById('data-badge').textContent = filename + ' · ' + rawData.length + ' registros';
+  document.getElementById('upload-state').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  // Populate filters
+  populateSelect('f-obra', [...new Set(rawData.map(r=>r.obra).filter(Boolean))]);
+  populateSelect('f-ano', [...new Set(rawData.map(r=>r.ano).filter(Boolean))].sort());
+  populateSelect('f-status', [...new Set(rawData.map(r=>r.status).filter(Boolean))]);
+
+  renderAll();
+}
+
+function populateSelect(id, values) {
+  const sel = document.getElementById(id);
+  const first = sel.options[0];
+  sel.innerHTML = '';
+  sel.appendChild(first);
+  values.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  });
+}
+
+['f-obra','f-ano','f-tipo','f-status'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderAll);
+});
+document.getElementById('clear-filters').addEventListener('click', () => {
+  ['f-obra','f-ano','f-tipo','f-status'].forEach(id => document.getElementById(id).value = '');
+  renderAll();
+});
+
+function getFiltered() {
+  const obra = document.getElementById('f-obra').value;
+  const ano = document.getElementById('f-ano').value;
+  const tipo = document.getElementById('f-tipo').value;
+  const status = document.getElementById('f-status').value;
+  return rawData.filter(r =>
+    (!obra || r.obra === obra) &&
+    (!ano || r.ano === ano) &&
+    (!tipo || r.tipo === tipo) &&
+    (!status || r.status === status)
+  );
+}
+
+function renderAll() {
+  const data = getFiltered();
+  renderKPIs(data);
+  renderMensal(data);
+  renderCategoria(data);
+  renderObra(data);
+  renderStatus(data);
+  renderTable(data);
+}
+
+function renderKPIs(data) {
+  const receitas = data.filter(r=>r.tipo==='Receita');
+  const custos = data.filter(r=>r.tipo==='Custo');
+  const totalR = receitas.reduce((s,r)=>s+r.valor,0);
+  const totalC = custos.reduce((s,r)=>s+r.valor,0);
+  const resultado = totalR - totalC;
+  const margem = totalR > 0 ? resultado/totalR : 0;
+
+  document.getElementById('kpi-receita').textContent = fmt(totalR);
+  document.getElementById('kpi-receita-n').textContent = receitas.length + ' lançamentos';
+  document.getElementById('kpi-custo').textContent = fmt(totalC);
+  document.getElementById('kpi-custo-n').textContent = custos.length + ' lançamentos';
+  const kr = document.getElementById('kpi-resultado');
+  kr.textContent = fmt(Math.abs(resultado));
+  kr.className = 'kpi-value ' + (resultado >= 0 ? 'pos' : 'neg');
+  document.getElementById('kpi-resultado-sub').textContent = resultado >= 0 ? '▲ Superávit' : '▼ Déficit';
+  const km = document.getElementById('kpi-margem');
+  km.textContent = fmtP(margem);
+  km.className = 'kpi-value ' + (margem >= 0 ? 'pos' : 'neg');
+}
+
+const COLORS_CHART = ['#C0392B','#1E8449','#D4AC0D','#2471A3','#7D3C98','#1A5276','#784212','#145A32'];
+
+function renderMensal(data) {
+  const mOrder = MESES;
+  const anos = [...new Set(data.map(r=>r.ano))].sort();
+  const labels = [];
+  anos.forEach(a => mOrder.forEach(m => {
+    if (data.some(r=>r.mes===m && r.ano===a)) labels.push(m.slice(0,3)+'/'+a);
+  }));
+  const uniqueLabels = [...new Set(labels)];
+
+  const receitas = uniqueLabels.map(lbl => {
+    const [m,a] = lbl.split('/'); const mn = MESES.find(x=>x.startsWith(m));
+    return data.filter(r=>r.mes===mn && r.ano===a && r.tipo==='Receita').reduce((s,r)=>s+r.valor,0);
+  });
+  const custos = uniqueLabels.map(lbl => {
+    const [m,a] = lbl.split('/'); const mn = MESES.find(x=>x.startsWith(m));
+    return data.filter(r=>r.mes===mn && r.ano===a && r.tipo==='Custo').reduce((s,r)=>s+r.valor,0);
+  });
+
+  destroyChart('chart-mensal');
+  charts['chart-mensal'] = new Chart(document.getElementById('chart-mensal'), {
+    type: 'bar',
+    data: {
+      labels: uniqueLabels,
+      datasets: [
+        { label: 'Receita', data: receitas, backgroundColor: '#1E8449', borderRadius: 2 },
+        { label: 'Custo', data: custos, backgroundColor: '#C0392B', borderRadius: 2 }
+      ]
+    },
+    options: {
+      responsive: true, plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { ticks: { callback: v => 'R$ '+v.toLocaleString('pt-BR') } }
+      }
+    }
+  });
+}
+
+function renderCategoria(data) {
+  const cats = {};
+  data.forEach(r => { cats[r.categoria] = (cats[r.categoria]||0) + r.valor; });
+  const sorted = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  destroyChart('chart-categoria');
+  charts['chart-categoria'] = new Chart(document.getElementById('chart-categoria'), {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(x=>x[0]),
+      datasets: [{ data: sorted.map(x=>x[1]), backgroundColor: COLORS_CHART, borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } } },
+        tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } }
+      }
+    }
+  });
+}
+
+function renderObra(data) {
+  const obras = [...new Set(data.map(r=>r.obra).filter(Boolean))];
+  const receitas = obras.map(o => data.filter(r=>r.obra===o && r.tipo==='Receita').reduce((s,r)=>s+r.valor,0));
+  const custos = obras.map(o => data.filter(r=>r.obra===o && r.tipo==='Custo').reduce((s,r)=>s+r.valor,0));
+  destroyChart('chart-obra');
+  charts['chart-obra'] = new Chart(document.getElementById('chart-obra'), {
+    type: 'bar',
+    data: {
+      labels: obras,
+      datasets: [
+        { label: 'Receita', data: receitas, backgroundColor: '#1E8449', borderRadius: 2 },
+        { label: 'Custo', data: custos, backgroundColor: '#C0392B', borderRadius: 2 }
+      ]
+    },
+    options: {
+      indexAxis: 'y', responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: { x: { ticks: { callback: v => 'R$ '+v.toLocaleString('pt-BR') } } }
+    }
+  });
+}
+
+function renderStatus(data) {
+  const st = {};
+  data.forEach(r => { st[r.status] = (st[r.status]||0) + r.valor; });
+  const entries = Object.entries(st);
+  destroyChart('chart-status');
+  charts['chart-status'] = new Chart(document.getElementById('chart-status'), {
+    type: 'pie',
+    data: {
+      labels: entries.map(x=>x[0]),
+      datasets: [{ data: entries.map(x=>x[1]), backgroundColor: ['#1E8449','#C0392B','#D4AC0D','#2471A3'], borderWidth:2, borderColor:'#fff' }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } },
+        tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } }
+      }
+    }
+  });
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('table-body');
+  document.getElementById('table-count').textContent = data.length + ' registros';
+  const sorted = [...data].sort((a,b) => {
+    const ai = MESES.indexOf(a.mes)*10000 + parseInt(a.ano||0);
+    const bi = MESES.indexOf(b.mes)*10000 + parseInt(b.ano||0);
+    return bi - ai;
+  });
+  tbody.innerHTML = sorted.map(r => {
+    const tipoBadge = r.tipo === 'Receita' ? 'badge-receita' : 'badge-custo';
+    const st = r.status.toLowerCase().replace(/\s/g,'-');
+    const stBadge = ['pago','recebido'].includes(st) ? 'badge-'+st : (st==='a-receber'?'badge-a-receber':'badge-pendente');
+    const valClass = r.tipo === 'Receita' ? 'val-pos' : 'val-neg';
+    return `<tr>
+      <td>${r.mes}/${r.ano}</td>
+      <td>${r.descricao}</td>
+      <td>${r.obra||'—'}</td>
+      <td>${r.categoria}</td>
+      <td><span class="badge ${tipoBadge}">${r.tipo}</span></td>
+      <td><span class="badge ${stBadge}">${r.status}</span></td>
+      <td style="text-align:right" class="${valClass}">${fmt(r.valor)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+</script>
+</body>
+</html>
