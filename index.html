@@ -269,12 +269,11 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         <li>Clique na área abaixo e cole com <strong>Ctrl+V</strong></li>
         <li>Clique em <strong>Processar Dados</strong></li>
       </ol>
-      Colunas esperadas: <strong>Data de Pagamento · Desc centro custo · Conta Corrente · Valor aprop fin · Descricao Plano Financeiro</strong>
+      Colunas esperadas: <strong>Data de Pagamento · Desc centro custo · Conta Corrente · Valor aprop fin · Descricao Plano Financeiro · Nome do Credor</strong>
     </div>
-    <textarea class="paste-box" id="paste-pagas" placeholder="Cole aqui a tabela (com cabeçalho) copiada do sistema...&#10;&#10;Exemplo de formato esperado:&#10;Data de Pagamento&#9;Desc centro custo&#9;Conta Corrente&#9;Valor aprop fin&#9;Descricao Plano Financeiro&#10;15/01/2025&#9;RESIDENCIAL PRIME&#9;CAIXA OBRA&#9;25000,00&#9;MATERIAIS"></textarea>
+    <textarea class="paste-box" id="paste-pagas" placeholder="Clique aqui e cole com Ctrl+V — os dados são processados automaticamente."></textarea>
     <div class="paste-actions">
-      <button class="btn-primary" onclick="processarPagas()">▶ Processar Dados</button>
-      <button class="btn-secondary" onclick="limparPagas()">Limpar</button>
+      <button class="btn-secondary" onclick="limparPagas()">✕ Limpar dados</button>
       <span class="paste-status" id="status-pagas"></span>
     </div>
   </div>
@@ -290,6 +289,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         <thead>
           <tr>
             <th>Data Pagamento</th>
+            <th>Nome do Credor</th>
             <th>Centro de Custo</th>
             <th>Conta Corrente</th>
             <th>Plano Financeiro</th>
@@ -298,7 +298,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
           </tr>
         </thead>
         <tbody id="body-pagas">
-          <tr><td colspan="6"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
+          <tr><td colspan="7"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -479,35 +479,53 @@ function destroyChart(id) {
 // ═══════════════════════════════════════════════════════
 // PARSE — CONTAS PAGAS
 // ═══════════════════════════════════════════════════════
-function processarPagas() {
-  const txt = document.getElementById('paste-pagas').value;
+function parsePagasRows(txt) {
   const rows = parseTSV(txt);
-  if (!rows.length) { setStatus('status-pagas', 'Nenhum dado encontrado. Verifique se colou com cabeçalho.', false); return; }
-
-  DATA.pagas = rows.map(r => {
+  if (!rows.length) return [];
+  return rows.map(r => {
     const dataPag = parseDateBR(findCol(r, ['Data de Pagamento','DatadePagamento','datapagamento','dt pagamento']));
     const cc      = findCol(r, ['Desc centro custo','DescCentroCusto','centro custo','centroCusto','cc']);
     const conta   = findCol(r, ['Conta Corrente','ContaCorrente','conta']);
     const valor   = parseBRNum(findCol(r, ['Valor aprop fin','Valorapropfin','valor aprop','valoraprop','valor']));
     const plano   = findCol(r, ['Descricao Plano Financeiro','DescricaoPlanFinanceiro','plano financeiro','plano','descricao plano']);
+    const credor  = findCol(r, ['Nome do Credor','NomeCredor','nome credor','credor','fornecedor','nome fornecedor']);
     const tipo    = (conta || '').toUpperCase().includes('REAPROPFIN') ? 'PERMUTA' : 'CAIXA';
-    return { dataPag, cc, conta, valor, plano, tipo,
+    return { dataPag, cc, conta, valor, plano, credor, tipo,
       mes: dataPag ? dataPag.getMonth() : null,
       ano: dataPag ? dataPag.getFullYear() : null,
       mesNome: dataPag ? MESES_PT[dataPag.getMonth()] : '—'
     };
   }).filter(r => r.valor !== 0 || r.cc);
-
-  setStatus('status-pagas', DATA.pagas.length + ' registros processados com sucesso.', true);
-  renderPagasTable();
-  updateDashFilters();
-  renderDashboard();
 }
+
+// Intercepta o Ctrl+V direto — nunca renderiza o texto no textarea
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('paste-pagas');
+  ta.addEventListener('paste', e => {
+    e.preventDefault();
+    setStatus('status-pagas', 'Processando…', null);
+    const txt = (e.clipboardData || window.clipboardData).getData('text');
+    // Processa em microtask para não travar a UI
+    setTimeout(() => {
+      DATA.pagas = parsePagasRows(txt);
+      if (!DATA.pagas.length) {
+        setStatus('status-pagas', 'Nenhum dado encontrado. Verifique se copiou com o cabeçalho.', false);
+        return;
+      }
+      // Limpa o campo imediatamente após processar
+      ta.value = '';
+      setStatus('status-pagas', DATA.pagas.length + ' registros processados com sucesso.', true);
+      renderPagasTable();
+      updateDashFilters();
+      renderDashboard();
+    }, 0);
+  });
+});
 
 function limparPagas() {
   document.getElementById('paste-pagas').value = '';
   DATA.pagas = [];
-  document.getElementById('body-pagas').innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
+  document.getElementById('body-pagas').innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
   document.getElementById('count-pagas').textContent = '0 registros';
   setStatus('status-pagas','','');
   renderDashboard();
@@ -516,12 +534,13 @@ function limparPagas() {
 function renderPagasTable() {
   const tbody = document.getElementById('body-pagas');
   document.getElementById('count-pagas').textContent = DATA.pagas.length + ' registros';
-  if (!DATA.pagas.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>'; return; }
+  if (!DATA.pagas.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>'; return; }
   tbody.innerHTML = DATA.pagas.map(r => {
     const tipoCls = r.tipo === 'PERMUTA' ? 'bg-gold' : 'bg-blue';
     const dateFmt = r.dataPag ? r.dataPag.toLocaleDateString('pt-BR') : '—';
     return `<tr>
       <td>${dateFmt}</td>
+      <td>${r.credor||'—'}</td>
       <td>${r.cc||'—'}</td>
       <td>${r.conta||'—'}</td>
       <td>${r.plano||'—'}</td>
