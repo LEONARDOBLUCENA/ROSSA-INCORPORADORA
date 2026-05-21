@@ -611,20 +611,21 @@ function processPagasText(txt) {
     { label:'Nome do Credor',    foundKey: mData.credor.foundKey },
   ], first);
 
-  DATA.pagas = rows.map(r => {
-    const dataPag = parseDateBR((findColKey(r, ['Data de Pagamento','DataPagamento','datapagamento','dt pagamento','dt. pagamento'])).value);
-    const cc      = (findColKey(r, ['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo'])).value;
-    const conta   = (findColKey(r, ['Conta Corrente','ContaCorrente','conta corrente'])).value;
-    const valor   = parseBRNum((findColKey(r, ['Valor aprop fin','Vlr aprop fin','VlrApropFin','valor aprop fin','valor aprop'])).value);
-    const plano   = (findColKey(r, ['Descricao Plano Financeiro','Desc Plano Financeiro','DescPlanoFinanceiro','plano financeiro','descricao plano'])).value;
-    const credor  = (findColKey(r, ['Nome do Credor','NomeCredor','nome credor','credor','fornecedor'])).value;
-    const tipo    = conta.toUpperCase().includes('REAPROPFIN') ? 'PERMUTA/OUTROS' : 'CAIXA';
-    return { dataPag, cc, conta, valor, plano, credor, tipo,
-      mes: dataPag ? dataPag.getMonth() : null,
-      ano: dataPag ? dataPag.getFullYear() : null };
-  }).filter(r => r.valor !== 0 || r.cc);
+  const novos = rows.map(r=>{
+    const dataPag=parseDateBR((findColKey(r,['Data de Pagamento','DataPagamento','datapagamento','dt pagamento','dt. pagamento'])).value);
+    const cc     =(findColKey(r,['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo'])).value;
+    const conta  =(findColKey(r,['Conta Corrente','ContaCorrente','conta corrente'])).value;
+    const valor  =parseBRNum((findColKey(r,['Valor aprop fin','Vlr aprop fin','VlrApropFin','valor aprop fin','valor aprop'])).value);
+    const plano  =(findColKey(r,['Descricao Plano Financeiro','Desc Plano Financeiro','DescPlanoFinanceiro','plano financeiro','descricao plano'])).value;
+    const credor =(findColKey(r,['Nome do Credor','NomeCredor','nome credor','credor','fornecedor'])).value;
+    const tipo   =conta.toUpperCase().includes('REAPROPFIN')?'PERMUTA/OUTROS':'CAIXA';
+    return{dataPag,cc,conta,valor,plano,credor,tipo,
+      mes:dataPag?dataPag.getMonth():null,
+      ano:dataPag?dataPag.getFullYear():null};
+  }).filter(r=>r.valor!==0||r.cc);
 
-  setStatus('status-pagas', DATA.pagas.length + ' registros processados.', true);
+  DATA.pagas = [...DATA.pagas, ...novos];
+  setStatus('status-pagas', `+${novos.length} registros adicionados — total: ${DATA.pagas.length}.`, true);
   renderPagasTable();
   updateDashFilters();
   renderDashboard();
