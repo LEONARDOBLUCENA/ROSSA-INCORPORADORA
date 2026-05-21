@@ -61,6 +61,7 @@ nav{background:var(--text);display:flex;align-items:center;height:60px;padding:0
 .kpi-split-val{font-size:13px;font-weight:600;font-family:'Playfair Display',serif}
 .kpi-split-val.caixa{color:var(--blue)}
 .kpi-split-val.permuta{color:var(--gold)}
+.kpi-split-val.neg-txt{opacity:.75}
 
 .charts-row{display:grid;gap:14px;margin-bottom:14px}
 .charts-row.c2{grid-template-columns:1fr 1fr}
@@ -155,6 +156,11 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
     <button class="nav-tab" data-tab="recebidas" onclick="goTab(this)">Contas Recebidas</button>
     <button class="nav-tab" data-tab="areceber" onclick="goTab(this)">Contas a Receber</button>
   </div>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <button onclick="backupJSON()" style="background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 14px;cursor:pointer;white-space:nowrap" title="Salvar todos os dados em arquivo JSON">⬇ Backup</button>
+    <button onclick="document.getElementById('restore-input').click()" style="background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 14px;cursor:pointer;white-space:nowrap" title="Restaurar dados de um arquivo JSON">⬆ Restaurar</button>
+    <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreJSON(this)">
+  </div>
 </nav>
 
 <!-- ══════════════════════════════════════════════ DASHBOARD -->
@@ -208,6 +214,16 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
       <div class="kpi-label">Resultado (Rec. − Pago)</div>
       <div class="kpi-val" id="d-kpi-resultado">—</div>
       <div class="kpi-sub" id="d-kpi-resultado-sub">—</div>
+      <div class="kpi-split">
+        <div class="kpi-split-item">
+          <div class="kpi-split-label">Caixa</div>
+          <div class="kpi-split-val caixa" id="d-kpi-res-caixa">—</div>
+        </div>
+        <div class="kpi-split-item">
+          <div class="kpi-split-label">Permuta/Outros</div>
+          <div class="kpi-split-val permuta" id="d-kpi-res-permuta">—</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -231,7 +247,20 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
       <canvas id="ch-cc"></canvas>
     </div>
     <div class="chart-card">
-      <div class="chart-title">Caixa vs Permuta/Outros</div>
+      <div class="chart-title">Faturamento por Centro de Custo</div>
+      <div class="chart-subtitle">Total recebido por CC</div>
+      <canvas id="ch-cc-fat"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-row c2">
+    <div class="chart-card">
+      <div class="chart-title">Resultado Mensal — Caixa</div>
+      <div class="chart-subtitle">Recebido Caixa − Pago Caixa por mês (barras verdes = superávit, vermelhas = déficit)</div>
+      <canvas id="ch-resultado-caixa"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Caixa vs Permuta/Outros — Pagamentos</div>
       <div class="chart-subtitle">Composição dos pagamentos</div>
       <canvas id="ch-caixapermuta"></canvas>
     </div>
@@ -786,6 +815,13 @@ function renderDashboard() {
   resEl.textContent=fmt(Math.abs(resultado));
   resEl.className='kpi-val '+(resultado>=0?'pos':'neg');
   set('d-kpi-resultado-sub', resultado>=0?'▲ Superávit':'▼ Déficit');
+  // Subdivisão resultado
+  const resCaixa   = caixaRec - caixaPago;
+  const resPermuta = permutaRec - permutaPago;
+  const rcEl = document.getElementById('d-kpi-res-caixa');
+  const rpEl = document.getElementById('d-kpi-res-permuta');
+  if(rcEl){ rcEl.textContent = fmt(Math.abs(resCaixa));   rcEl.className='kpi-split-val caixa'+(resCaixa<0?' neg-txt':''); }
+  if(rpEl){ rpEl.textContent = fmt(Math.abs(resPermuta)); rpEl.className='kpi-split-val permuta'+(resPermuta<0?' neg-txt':''); }
 
   renderCharts(pagas,recebidas);
   renderPlanoTable(pagas);
@@ -811,33 +847,33 @@ function renderCharts(pagas,recebidas) {
   const yFmt={ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}};
   const leg={position:'top',labels:{font:{size:11}}};
 
-  // 1 — pagamentos por mês
+  // 1 — pagamentos por mês (caixa vs permuta)
   destroyChart('ch-mensal-pago');
   if(pagas.length){
     CHARTS['ch-mensal-pago']=new Chart(document.getElementById('ch-mensal-pago'),{
       type:'bar',
       data:{labels:ln,datasets:[
-        {label:'Caixa',      data:sumMT(pagas,lbl,'valor','CAIXA'),         backgroundColor:'#1A5276',borderRadius:2},
-        {label:'Permuta/Outros',data:sumMT(pagas,lbl,'valor','PERMUTA/OUTROS'),backgroundColor:'#B7950B',borderRadius:2}
+        {label:'Caixa',         data:sumMT(pagas,lbl,'valor','CAIXA'),          backgroundColor:'#1A5276',borderRadius:2},
+        {label:'Permuta/Outros',data:sumMT(pagas,lbl,'valor','PERMUTA/OUTROS'), backgroundColor:'#B7950B',borderRadius:2}
       ]},
       options:{responsive:true,plugins:{legend:leg},scales:{y:yFmt}}
     });
   }
 
-  // 2 — faturamento por mês
+  // 2 — faturamento por mês (caixa vs permuta)
   destroyChart('ch-mensal-fat');
   if(recebidas.length){
     CHARTS['ch-mensal-fat']=new Chart(document.getElementById('ch-mensal-fat'),{
       type:'bar',
       data:{labels:ln,datasets:[
-        {label:'Caixa',      data:sumMT(recebidas,lbl,'liquido','CAIXA'),          backgroundColor:'#1A7A3C',borderRadius:2},
-        {label:'Permuta/Outros',data:sumMT(recebidas,lbl,'liquido','PERMUTA/OUTROS'),backgroundColor:'#B7950B',borderRadius:2}
+        {label:'Caixa',         data:sumMT(recebidas,lbl,'liquido','CAIXA'),          backgroundColor:'#1A7A3C',borderRadius:2},
+        {label:'Permuta/Outros',data:sumMT(recebidas,lbl,'liquido','PERMUTA/OUTROS'), backgroundColor:'#B7950B',borderRadius:2}
       ]},
       options:{responsive:true,plugins:{legend:leg},scales:{y:yFmt}}
     });
   }
 
-  // 3 — por centro de custo
+  // 3 — pagamentos por CC (horizontal)
   destroyChart('ch-cc');
   if(pagas.length){
     const ccs=[...new Set(pagas.map(r=>r.cc).filter(Boolean))];
@@ -848,7 +884,50 @@ function renderCharts(pagas,recebidas) {
     });
   }
 
-  // 4 — donut caixa vs permuta
+  // 4 — faturamento por CC (horizontal)
+  destroyChart('ch-cc-fat');
+  if(recebidas.length){
+    const ccsF=[...new Set(recebidas.map(r=>r.cc).filter(Boolean))];
+    CHARTS['ch-cc-fat']=new Chart(document.getElementById('ch-cc-fat'),{
+      type:'bar',
+      data:{labels:ccsF,datasets:[{label:'Total Recebido',data:ccsF.map(c=>recebidas.filter(r=>r.cc===c).reduce((s,r)=>s+r.liquido,0)),backgroundColor:['#1A7A3C','#2471A3','#B7950B','#7D3C98','#C0392B','#784212','#1A6161','#2E4057'],borderRadius:2}]},
+      options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:yFmt}}
+    });
+  }
+
+  // 5 — resultado mensal SOMENTE CAIXA (verde=positivo, vermelho=negativo)
+  destroyChart('ch-resultado-caixa');
+  if(pagas.length||recebidas.length){
+    const resultCaixaData = lbl.map(l => {
+      const recCaixa = recebidas.filter(r=>r.ano===l.ano&&r.mes===l.mes&&r.tipo==='CAIXA').reduce((s,r)=>s+r.liquido,0);
+      const pagCaixa = pagas.filter(r=>r.ano===l.ano&&r.mes===l.mes&&r.tipo==='CAIXA').reduce((s,r)=>s+r.valor,0);
+      return recCaixa - pagCaixa;
+    });
+    CHARTS['ch-resultado-caixa']=new Chart(document.getElementById('ch-resultado-caixa'),{
+      type:'bar',
+      data:{labels:ln,datasets:[{
+        label:'Resultado Caixa',
+        data:resultCaixaData,
+        backgroundColor:resultCaixaData.map(v=>v>=0?'#1A7A3C':'#C0392B'),
+        borderRadius:2
+      }]},
+      options:{
+        responsive:true,
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}
+        },
+        scales:{
+          y:{
+            ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')},
+            grid:{color:ctx=>ctx.tick.value===0?'rgba(0,0,0,0.3)':'rgba(0,0,0,0.05)'}
+          }
+        }
+      }
+    });
+  }
+
+  // 6 — donut caixa vs permuta (pagamentos)
   destroyChart('ch-caixapermuta');
   if(pagas.length){
     const cT=pagas.filter(r=>r.tipo==='CAIXA').reduce((s,r)=>s+r.valor,0);
@@ -861,6 +940,67 @@ function renderCharts(pagas,recebidas) {
   }
 }
 
+// ══════════════════════════════════════════════════════
+// BACKUP / RESTORE JSON
+// ══════════════════════════════════════════════════════
+function backupJSON() {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: {
+      pagas:     DATA.pagas.map(r=>({...r, dataPag: r.dataPag ? r.dataPag.toISOString() : null})),
+      recebidas: DATA.recebidas.map(r=>({...r, dtBaixa: r.dtBaixa ? r.dtBaixa.toISOString() : null, dtVecto: r.dtVecto ? r.dtVecto.toISOString() : null})),
+      areceber:  DATA.areceber.map(r=>({...r,  dtBaixa: r.dtBaixa ? r.dtBaixa.toISOString() : null, dtVecto: r.dtVecto ? r.dtVecto.toISOString() : null}))
+    }
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const date = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  a.download = `RossaBI_Backup_${date}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function restoreJSON(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const payload = JSON.parse(e.target.result);
+      if(!payload.data) throw new Error('Formato inválido');
+
+      // Reidrata datas
+      DATA.pagas = (payload.data.pagas||[]).map(r=>({...r,
+        dataPag: r.dataPag ? new Date(r.dataPag) : null
+      }));
+      DATA.recebidas = (payload.data.recebidas||[]).map(r=>({...r,
+        dtBaixa: r.dtBaixa ? new Date(r.dtBaixa) : null,
+        dtVecto: r.dtVecto ? new Date(r.dtVecto) : null
+      }));
+      DATA.areceber = (payload.data.areceber||[]).map(r=>({...r,
+        dtBaixa: r.dtBaixa ? new Date(r.dtBaixa) : null,
+        dtVecto: r.dtVecto ? new Date(r.dtVecto) : null
+      }));
+
+      renderPagasTable();
+      renderFatTable('recebidas','body-recebidas','count-recebidas',5);
+      renderFatTable('areceber','body-areceber','count-areceber',5);
+      updateDashFilters();
+      renderDashboard();
+
+      const total = DATA.pagas.length + DATA.recebidas.length + DATA.areceber.length;
+      alert(`✓ Backup restaurado com sucesso!\n${DATA.pagas.length} contas pagas · ${DATA.recebidas.length} recebidas · ${DATA.areceber.length} a receber\nTotal: ${total} registros`);
+    } catch(err) {
+      alert('Erro ao restaurar: ' + err.message + '\nVerifique se o arquivo é um backup válido do BI Rossa.');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+</script>
+<script>
 // ══════════════════════════════════════════════════════
 // PLANO FINANCEIRO TABLE
 // ══════════════════════════════════════════════════════
