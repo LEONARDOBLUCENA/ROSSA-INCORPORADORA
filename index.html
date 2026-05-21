@@ -613,7 +613,7 @@ function processPagasText(txt) {
 
   const novos = rows.map(r=>{
     const dataPag=parseDateBR((findColKey(r,['Data de Pagamento','DataPagamento','datapagamento','dt pagamento','dt. pagamento'])).value);
-    const cc     =(findColKey(r,['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo'])).value;
+    const cc     =normCC((findColKey(r,['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo'])).value);
     const conta  =(findColKey(r,['Conta Corrente','ContaCorrente','conta corrente'])).value;
     const valor  =parseBRNum((findColKey(r,['Valor aprop fin','Vlr aprop fin','VlrApropFin','valor aprop fin','valor aprop'])).value);
     const plano  =(findColKey(r,['Descricao Plano Financeiro','Desc Plano Financeiro','DescPlanoFinanceiro','plano financeiro','descricao plano'])).value;
@@ -718,7 +718,7 @@ function parseFaturamento(rows, diagId) {
   }
 
   return rows.map(r => {
-    const cc      = (findColKey(r, ['Centro de Custo','CentroCusto','centro custo'])).value;
+    const cc      = normCC((findColKey(r, ['Centro de Custo','CentroCusto','centro custo'])).value);
     const dtBaixa = parseDateBR((findColKey(r, ['Dt. Baixa','DtBaixa','dt baixa','data baixa','dtbaixa'])).value);
     const dtVecto = parseDateBR((findColKey(r, ['Data Vecto.','DataVecto','data vecto','vencimento','dt vecto','dt. vecto'])).value);
     const liquido = parseBRNum((findColKey(r, ['Liquido','Líquido','liquido','vlr liquido','valor liquido','liq'])).value);
@@ -781,8 +781,10 @@ function fillSelect(id,values,valFn,labelFn){
 }
 ['d-ano','d-mes','d-cc'].forEach(id=>document.getElementById(id).addEventListener('change',renderDashboard));
 function clearDashFilters(){['d-ano','d-mes','d-cc'].forEach(id=>document.getElementById(id).value='');renderDashboard();}
+function normCC(s){ return (s||'').trim().toUpperCase(); }
 function getF(){return{ano:document.getElementById('d-ano').value,mes:document.getElementById('d-mes').value,cc:document.getElementById('d-cc').value};}
-function applyF(arr){const f=getF();return arr.filter(r=>(!f.ano||String(r.ano)===f.ano)&&(!f.mes||String(r.mes)===f.mes)&&(!f.cc||r.cc===f.cc));}
+function ccMatch(a,b){return normCC(a)===normCC(b);}
+function applyF(arr){const f=getF();return arr.filter(r=>(!f.ano||String(r.ano)===f.ano)&&(!f.mes||String(r.mes)===f.mes)&&(!f.cc||ccMatch(r.cc||'',f.cc)));}
 
 // ══════════════════════════════════════════════════════
 // DASHBOARD RENDER
