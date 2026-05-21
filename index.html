@@ -116,6 +116,23 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
 .empty-state{text-align:center;padding:32px 20px;color:var(--text3)}
 .empty-state p{font-size:13px}
 
+/* ── DIAGNÓSTICO ── */
+.diag-box{background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
+.diag-header{padding:10px 18px;background:#FEF9E7;border-bottom:1px solid #F0E68C;display:flex;align-items:center;justify-content:space-between}
+.diag-header-title{font-size:12px;font-weight:600;color:#7D6608}
+.diag-header-sub{font-size:11px;color:#9E8E7A}
+.diag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0}
+.diag-row{display:flex;flex-direction:column;padding:10px 18px;border-bottom:1px solid var(--border);border-right:1px solid var(--border)}
+.diag-row:last-child{border-bottom:none}
+.diag-col-name{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:3px}
+.diag-col-mapped{font-size:11px;color:var(--blue);font-weight:500;margin-bottom:3px}
+.diag-col-mapped.miss{color:var(--brand)}
+.diag-col-val{font-size:12px;color:var(--text);background:var(--surface2);padding:3px 8px;font-family:monospace;word-break:break-all}
+.diag-col-val.empty{color:var(--text3);font-style:italic}
+.diag-all-cols{padding:12px 18px;border-top:1px solid var(--border);background:var(--surface2)}
+.diag-all-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:6px}
+.diag-pill{display:inline-block;background:var(--surface);border:1px solid var(--border);padding:2px 8px;font-size:11px;color:var(--text2);margin:2px 3px 2px 0}
+
 @media(max-width:960px){
   .kpi-grid{grid-template-columns:1fr 1fr!important}
   .charts-row.c2{grid-template-columns:1fr}
@@ -264,6 +281,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
       <span class="paste-status" id="status-pagas"></span>
     </div>
   </div>
+  <div id="diag-pagas" style="display:none;margin-bottom:20px"></div>
   <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">Lançamentos Processados</div>
@@ -312,6 +330,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
       <span class="paste-status" id="status-recebidas"></span>
     </div>
   </div>
+  <div id="diag-recebidas" style="display:none;margin-bottom:20px"></div>
   <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">Recebimentos Processados</div>
@@ -481,25 +500,102 @@ function wirePaste(taId, processFn, statusId) {
 }
 
 // ══════════════════════════════════════════════════════
+// DIAGNÓSTICO — renderiza painel mostrando mapeamento de colunas
+// ══════════════════════════════════════════════════════
+function renderDiag(containerId, allHeaders, mappings, firstRow) {
+  const el = document.getElementById(containerId);
+  if(!el) return;
+
+  const allCols = allHeaders.map(h =>
+    `<span class="diag-pill">${h}</span>`
+  ).join('');
+
+  const rows = mappings.map(m => {
+    const rawVal = firstRow ? (firstRow[m.foundKey] ?? '') : '';
+    const isEmpty = rawVal === '' || rawVal === null || rawVal === undefined;
+    const valDisplay = isEmpty
+      ? '<span class="diag-col-val empty">(vazio)</span>'
+      : `<span class="diag-col-val">${String(rawVal).slice(0,80)}</span>`;
+    const mappedDisplay = m.foundKey
+      ? `<span class="diag-col-mapped">→ "${m.foundKey}"</span>`
+      : `<span class="diag-col-mapped miss">✕ Não encontrada</span>`;
+    return `<div class="diag-row">
+      <div class="diag-col-name">${m.label}</div>
+      ${mappedDisplay}
+      ${valDisplay}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="diag-box">
+    <div class="diag-header">
+      <span class="diag-header-title">🔍 Diagnóstico de colunas — 1ª linha dos seus dados</span>
+      <span class="diag-header-sub">Verifique se os valores estão corretos antes de usar o dashboard</span>
+    </div>
+    <div class="diag-grid">${rows}</div>
+    <div class="diag-all-cols">
+      <div class="diag-all-label">Todas as colunas detectadas no cabeçalho:</div>
+      ${allCols}
+    </div>
+  </div>`;
+  el.style.display = 'block';
+}
+
+// Encontra a chave real no objeto e retorna {foundKey, value}
+function findColKey(row, candidates) {
+  for(const c of candidates){
+    const key = Object.keys(row).find(k =>
+      k.toLowerCase().replace(/[^a-z0-9]/g,'').includes(
+        c.toLowerCase().replace(/[^a-z0-9]/g,'')
+      )
+    );
+    if(key !== undefined) return { foundKey: key, value: (row[key]||'').trim() };
+  }
+  return { foundKey: null, value: '' };
+}
+
+// ══════════════════════════════════════════════════════
 // PARSE — CONTAS PAGAS
 // ══════════════════════════════════════════════════════
 function processPagasText(txt) {
-  const rows=parseTSV(txt);
-  if(!rows.length){setStatus('status-pagas','Nenhum dado encontrado. Verifique se copiou com cabeçalho.',false);return;}
-  DATA.pagas=rows.map(r=>{
-    const dataPag=parseDateBR(findCol(r,['Data de Pagamento','DatadePagamento','datapagamento','dt pagamento']));
-    const cc     =findCol(r,['Desc centro custo','DescCentroCusto','centro custo','centroCusto']);
-    const conta  =findCol(r,['Conta Corrente','ContaCorrente','conta']);
-    const valor  =parseBRNum(findCol(r,['Valor aprop fin','Valorapropfin','valor aprop','valoraprop','valor']));
-    const plano  =findCol(r,['Descricao Plano Financeiro','DescricaoPlanFinanceiro','plano financeiro','plano','descricao plano']);
-    const credor =findCol(r,['Nome do Credor','NomeCredor','nome credor','credor','fornecedor']);
-    const isPermuta=(conta||'').toUpperCase().includes('REAPROPFIN');
-    const tipo=isPermuta?'PERMUTA/OUTROS':'CAIXA';
-    return{dataPag,cc,conta,valor,plano,credor,tipo,
-      mes:dataPag?dataPag.getMonth():null,
-      ano:dataPag?dataPag.getFullYear():null};
-  }).filter(r=>r.valor!==0||r.cc);
-  setStatus('status-pagas',DATA.pagas.length+' registros processados.',true);
+  const rows = parseTSV(txt);
+  if(!rows.length){ setStatus('status-pagas','Nenhum dado encontrado. Verifique se copiou com cabeçalho.',false); return; }
+
+  const allHeaders = Object.keys(rows[0]);
+  const first = rows[0];
+
+  // Mapeamento com diagnóstico
+  const mData = {
+    dataPag: findColKey(first, ['Data de Pagamento','DataPagamento','datapagamento','dt pagamento','dt. pagamento']),
+    cc:      findColKey(first, ['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo']),
+    conta:   findColKey(first, ['Conta Corrente','ContaCorrente','conta corrente']),
+    valor:   findColKey(first, ['Valor aprop fin','Vlr aprop fin','VlrApropFin','valor aprop fin','valor apropriacaofinanceira','valor aprop']),
+    plano:   findColKey(first, ['Descricao Plano Financeiro','Desc Plano Financeiro','DescPlanoFinanceiro','plano financeiro','descricao plano']),
+    credor:  findColKey(first, ['Nome do Credor','NomeCredor','nome credor','credor','fornecedor','nome fornecedor']),
+  };
+
+  renderDiag('diag-pagas', allHeaders, [
+    { label:'Data de Pagamento', foundKey: mData.dataPag.foundKey },
+    { label:'Centro de Custo',   foundKey: mData.cc.foundKey },
+    { label:'Conta Corrente',    foundKey: mData.conta.foundKey },
+    { label:'Valor (aprop fin)', foundKey: mData.valor.foundKey },
+    { label:'Plano Financeiro',  foundKey: mData.plano.foundKey },
+    { label:'Nome do Credor',    foundKey: mData.credor.foundKey },
+  ], first);
+
+  DATA.pagas = rows.map(r => {
+    const dataPag = parseDateBR((findColKey(r, ['Data de Pagamento','DataPagamento','datapagamento','dt pagamento','dt. pagamento'])).value);
+    const cc      = (findColKey(r, ['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo'])).value;
+    const conta   = (findColKey(r, ['Conta Corrente','ContaCorrente','conta corrente'])).value;
+    const valor   = parseBRNum((findColKey(r, ['Valor aprop fin','Vlr aprop fin','VlrApropFin','valor aprop fin','valor aprop'])).value);
+    const plano   = (findColKey(r, ['Descricao Plano Financeiro','Desc Plano Financeiro','DescPlanoFinanceiro','plano financeiro','descricao plano'])).value;
+    const credor  = (findColKey(r, ['Nome do Credor','NomeCredor','nome credor','credor','fornecedor'])).value;
+    const tipo    = conta.toUpperCase().includes('REAPROPFIN') ? 'PERMUTA/OUTROS' : 'CAIXA';
+    return { dataPag, cc, conta, valor, plano, credor, tipo,
+      mes: dataPag ? dataPag.getMonth() : null,
+      ano: dataPag ? dataPag.getFullYear() : null };
+  }).filter(r => r.valor !== 0 || r.cc);
+
+  setStatus('status-pagas', DATA.pagas.length + ' registros processados.', true);
   renderPagasTable();
   updateDashFilters();
   renderDashboard();
@@ -510,6 +606,7 @@ function limparPagas(){
   DATA.pagas=[];
   document.getElementById('body-pagas').innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
   document.getElementById('count-pagas').textContent='0 registros';
+  const d=document.getElementById('diag-pagas'); if(d){d.style.display='none';d.innerHTML='';}
   setStatus('status-pagas','','');
   renderDashboard();
 }
@@ -531,7 +628,7 @@ function renderPagasTable(){
 function processRecibidasText(txt) {
   const rows=parseTSV(txt);
   if(!rows.length){setStatus('status-recebidas','Nenhum dado encontrado.',false);return;}
-  DATA.recebidas=parseFaturamento(rows);
+  DATA.recebidas=parseFaturamento(rows, 'diag-recebidas');
   setStatus('status-recebidas',DATA.recebidas.length+' registros processados.',true);
   renderFatTable('recebidas','body-recebidas','count-recebidas',5);
   updateDashFilters();
@@ -542,6 +639,7 @@ function limparRecebidas(){
   DATA.recebidas=[];
   document.getElementById('body-recebidas').innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
   document.getElementById('count-recebidas').textContent='0 registros';
+  const d=document.getElementById('diag-recebidas'); if(d){d.style.display='none';d.innerHTML='';}
   setStatus('status-recebidas','','');
   renderDashboard();
 }
@@ -552,7 +650,7 @@ function limparRecebidas(){
 function processAReceberText(txt) {
   const rows=parseTSV(txt);
   if(!rows.length){setStatus('status-areceber','Nenhum dado encontrado.',false);return;}
-  DATA.areceber=parseFaturamento(rows);
+  DATA.areceber=parseFaturamento(rows, null);
   setStatus('status-areceber',DATA.areceber.length+' registros processados.',true);
   renderFatTable('areceber','body-areceber','count-areceber',5);
   updateDashFilters();
@@ -567,19 +665,40 @@ function limparAReceber(){
   renderDashboard();
 }
 
-function parseFaturamento(rows) {
-  return rows.map(r=>{
-    const cc      =findCol(r,['Centro de Custo','CentroCusto','centro custo']);
-    const dtBaixa =parseDateBR(findCol(r,['Dt. Baixa','DtBaixa','dt baixa','data baixa']));
-    const dtVecto =parseDateBR(findCol(r,['Data Vecto.','DataVecto','data vecto','vencimento']));
-    const liquido =parseBRNum(findCol(r,['Liquido','Líquido','liquido','vlr liquido','valor liquido']));
-    const acrRaw  =findCol(r,['Acrescimos','Acréscimos','acrescimos','acrescimo']);
-    const tipo    =tipoFaturamento(acrRaw);
-    const ref=dtVecto||dtBaixa;
-    return{cc,dtBaixa,dtVecto,liquido,tipo,
-      mes:ref?ref.getMonth():null,
-      ano:ref?ref.getFullYear():null};
-  }).filter(r=>r.liquido!==0||r.cc);
+function parseFaturamento(rows, diagId) {
+  const allHeaders = Object.keys(rows[0]);
+  const first = rows[0];
+
+  const mData = {
+    cc:      findColKey(first, ['Centro de Custo','CentroCusto','centro custo']),
+    dtBaixa: findColKey(first, ['Dt. Baixa','DtBaixa','dt baixa','data baixa','dtbaixa']),
+    dtVecto: findColKey(first, ['Data Vecto.','DataVecto','data vecto','vencimento','dt vecto','dt. vecto']),
+    liquido: findColKey(first, ['Liquido','Líquido','liquido','vlr liquido','valor liquido','liq']),
+    acresc:  findColKey(first, ['Acrescimos','Acréscimos','acrescimos','acrescimo','acréscimo']),
+  };
+
+  if(diagId) {
+    renderDiag(diagId, allHeaders, [
+      { label:'Centro de Custo', foundKey: mData.cc.foundKey },
+      { label:'Dt. Baixa (data usada)',      foundKey: mData.dtBaixa.foundKey },
+      { label:'Data Vecto.',     foundKey: mData.dtVecto.foundKey },
+      { label:'Líquido (valor)', foundKey: mData.liquido.foundKey },
+      { label:'Acréscimos (tipo)',  foundKey: mData.acresc.foundKey },
+    ], first);
+  }
+
+  return rows.map(r => {
+    const cc      = (findColKey(r, ['Centro de Custo','CentroCusto','centro custo'])).value;
+    const dtBaixa = parseDateBR((findColKey(r, ['Dt. Baixa','DtBaixa','dt baixa','data baixa','dtbaixa'])).value);
+    const dtVecto = parseDateBR((findColKey(r, ['Data Vecto.','DataVecto','data vecto','vencimento','dt vecto','dt. vecto'])).value);
+    const liquido = parseBRNum((findColKey(r, ['Liquido','Líquido','liquido','vlr liquido','valor liquido','liq'])).value);
+    const acrRaw  = (findColKey(r, ['Acrescimos','Acréscimos','acrescimos','acrescimo','acréscimo'])).value;
+    const tipo    = tipoFaturamento(acrRaw);
+    // Data para filtros: sempre Dt. Baixa
+    return { cc, dtBaixa, dtVecto, liquido, tipo,
+      mes: dtBaixa ? dtBaixa.getMonth() : null,
+      ano: dtBaixa ? dtBaixa.getFullYear() : null };
+  }).filter(r => r.liquido !== 0 || r.cc);
 }
 
 function renderFatTable(key, bodyId, countId, cols) {
