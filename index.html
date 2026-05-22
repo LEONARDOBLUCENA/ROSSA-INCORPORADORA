@@ -141,6 +141,45 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   nav{padding:0 14px}
   .nav-tab{padding:0 12px;font-size:12px}
 }
+
+/* ── DTLH DASHBOARD ── */
+.dtlh-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+.dtlh-col{display:flex;flex-direction:column;gap:12px}
+.dtlh-kpi-main{background:var(--text);color:#fff;padding:22px 24px;position:relative;overflow:hidden}
+.dtlh-kpi-main .kpi-label{color:rgba(255,255,255,.6)}
+.dtlh-kpi-main .kpi-val{color:#fff;font-size:34px}
+.dtlh-kpi-main .kpi-val.pos{color:#5DADE2}
+.dtlh-kpi-main .kpi-val.neg{color:#F1948A}
+.dtlh-kpi-group{background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);overflow:hidden}
+.dtlh-group-header{padding:12px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.dtlh-group-title{font-family:'Playfair Display',serif;font-size:13px;font-weight:600}
+.dtlh-group-total{font-family:'Playfair Display',serif;font-size:15px;font-weight:700}
+.dtlh-group-total.neg{color:var(--brand)}
+.dtlh-group-total.pos{color:var(--green)}
+.dtlh-item{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border)}
+.dtlh-item:last-child{border-bottom:none}
+.dtlh-item-left{display:flex;flex-direction:column;gap:2px}
+.dtlh-item-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.dtlh-item-sub{font-size:10px;color:var(--text3)}
+.dtlh-item-val{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--text)}
+.dtlh-item-val.pos{color:var(--green)}
+.dtlh-item-val.neg{color:var(--brand)}
+.dtlh-item-val.muted{color:var(--text3);font-size:13px}
+.dtlh-item-val.gold{color:var(--gold)}
+.dtlh-item.highlight{background:rgba(26,82,118,.04)}
+.dtlh-checkbox-wrap{display:flex;align-items:center;gap:8px;padding:6px 14px;background:rgba(183,149,11,.1);border:1px solid rgba(183,149,11,.3);cursor:pointer}
+.dtlh-checkbox-wrap label{font-size:12px;font-weight:500;color:#7D6608;cursor:pointer;white-space:nowrap}
+.dtlh-checkbox-wrap input[type=checkbox]{width:15px;height:15px;accent-color:var(--gold);cursor:pointer}
+.dtlh-saldo-bar{background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);padding:20px 24px;margin-bottom:0;grid-column:1/-1}
+
+/* ── ESTOQUE ── */
+.estoque-form{background:var(--surface);border:1px solid var(--border);padding:20px 24px;margin-bottom:16px;box-shadow:var(--sh)}
+.estoque-form-title{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;margin-bottom:14px}
+.form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.form-input{border:1px solid var(--border);background:var(--bg);padding:7px 12px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;min-width:160px}
+.form-input:focus{border-color:var(--brand)}
 </style>
 </head>
 <body>
@@ -155,6 +194,8 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
     <button class="nav-tab" data-tab="pagas" onclick="goTab(this)">Contas Pagas</button>
     <button class="nav-tab" data-tab="recebidas" onclick="goTab(this)">Contas Recebidas</button>
     <button class="nav-tab" data-tab="areceber" onclick="goTab(this)">Contas a Receber</button>
+    <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
+    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Dashboard Dtlh de Obra</button>
   </div>
   <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
     <button onclick="backupJSON()" style="background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 14px;cursor:pointer;white-space:nowrap" title="Salvar todos os dados em arquivo JSON">⬇ Backup</button>
@@ -628,7 +669,9 @@ function processPagasText(txt) {
   setStatus('status-pagas', `+${novos.length} registros adicionados — total: ${DATA.pagas.length}.`, true);
   renderPagasTable();
   updateDashFilters();
+  updateDtlhFilters();
   renderDashboard();
+  renderDtlh();
 }
 
 function limparPagas(){
@@ -662,7 +705,9 @@ function processRecibidasText(txt) {
   setStatus('status-recebidas',DATA.recebidas.length+' registros processados.',true);
   renderFatTable('recebidas','body-recebidas','count-recebidas',5);
   updateDashFilters();
+  updateDtlhFilters();
   renderDashboard();
+  renderDtlh();
 }
 function limparRecebidas(){
   document.getElementById('paste-recebidas').value='';
@@ -684,7 +729,9 @@ function processAReceberText(txt) {
   setStatus('status-areceber',DATA.areceber.length+' registros processados.',true);
   renderFatTable('areceber','body-areceber','count-areceber',5);
   updateDashFilters();
+  updateDtlhFilters();
   renderDashboard();
+  renderDtlh();
 }
 function limparAReceber(){
   document.getElementById('paste-areceber').value='';
@@ -953,7 +1000,8 @@ function backupJSON() {
     data: {
       pagas:     DATA.pagas.map(r=>({...r, dataPag: r.dataPag ? r.dataPag.toISOString() : null})),
       recebidas: DATA.recebidas.map(r=>({...r, dtBaixa: r.dtBaixa ? r.dtBaixa.toISOString() : null, dtVecto: r.dtVecto ? r.dtVecto.toISOString() : null})),
-      areceber:  DATA.areceber.map(r=>({...r,  dtBaixa: r.dtBaixa ? r.dtBaixa.toISOString() : null, dtVecto: r.dtVecto ? r.dtVecto.toISOString() : null}))
+      areceber:  DATA.areceber.map(r=>({...r,  dtBaixa: r.dtBaixa ? r.dtBaixa.toISOString() : null, dtVecto: r.dtVecto ? r.dtVecto.toISOString() : null})),
+      estoque:   DATA.estoque
     }
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
@@ -987,11 +1035,16 @@ function restoreJSON(input) {
         dtVecto: r.dtVecto ? new Date(r.dtVecto) : null
       }));
 
+      DATA.estoque = payload.data.estoque || [];
+
       renderPagasTable();
       renderFatTable('recebidas','body-recebidas','count-recebidas',5);
       renderFatTable('areceber','body-areceber','count-areceber',5);
+      renderEstoqueTable();
       updateDashFilters();
+      updateDtlhFilters();
       renderDashboard();
+      renderDtlh();
 
       const total = DATA.pagas.length + DATA.recebidas.length + DATA.areceber.length;
       alert(`✓ Backup restaurado com sucesso!\n${DATA.pagas.length} contas pagas · ${DATA.recebidas.length} recebidas · ${DATA.areceber.length} a receber\nTotal: ${total} registros`);
@@ -1037,6 +1090,336 @@ function renderPlanoTable(pagas) {
     </tr>`;
   }).join('');
 }
+
+// ══════════════════════════════════════════════════════
+// ESTOQUE
+// ══════════════════════════════════════════════════════
+// DATA.estoque = [{obra, unidade, valor}]
+if(!DATA.estoque) DATA.estoque = [];
+
+function adicionarEstoque() {
+  const obra    = document.getElementById('est-obra').value.trim();
+  const unidade = document.getElementById('est-unidade').value.trim();
+  const valor   = parseBRNum(document.getElementById('est-valor').value);
+  if(!obra || !unidade || !valor) { alert('Preencha Obra, Unidade e Valor.'); return; }
+  DATA.estoque.push({ obra: normCC(obra), unidade, valor });
+  document.getElementById('est-obra').value = '';
+  document.getElementById('est-unidade').value = '';
+  document.getElementById('est-valor').value = '';
+  renderEstoqueTable();
+  updateDtlhFilters();
+  renderDtlh();
+}
+
+function renderEstoqueTable() {
+  const tbody = document.getElementById('body-estoque');
+  const total = DATA.estoque.reduce((s,r)=>s+r.valor,0);
+  document.getElementById('count-estoque').textContent = DATA.estoque.length + ' unidades';
+  document.getElementById('total-estoque').textContent = fmt(total);
+  // Update datalist for obra autocomplete
+  const obras = [...new Set([
+    ...DATA.recebidas.map(r=>r.cc),
+    ...DATA.areceber.map(r=>r.cc),
+    ...DATA.pagas.map(r=>r.cc)
+  ].filter(Boolean))];
+  document.getElementById('est-obra-list').innerHTML = obras.map(o=>`<option value="${o}">`).join('');
+  if(!DATA.estoque.length) {
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>Nenhuma unidade cadastrada</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = DATA.estoque.map((r,i) => `<tr>
+    <td>${r.obra}</td>
+    <td>${r.unidade}</td>
+    <td class="r val-gold">${fmt(r.valor)}</td>
+    <td style="text-align:center"><button onclick="removerEstoque(${i})" style="background:none;border:none;color:var(--brand);cursor:pointer;font-size:14px" title="Remover">✕</button></td>
+  </tr>`).join('');
+}
+
+function removerEstoque(i) {
+  DATA.estoque.splice(i,1);
+  renderEstoqueTable();
+  renderDtlh();
+}
+
+// ══════════════════════════════════════════════════════
+// DASHBOARD DTLH — FILTERS
+// ══════════════════════════════════════════════════════
+function updateDtlhFilters() {
+  const obras = [...new Set([
+    ...DATA.recebidas.map(r=>r.cc),
+    ...DATA.areceber.map(r=>r.cc),
+    ...DATA.pagas.map(r=>r.cc),
+    ...DATA.estoque.map(r=>r.obra)
+  ].filter(Boolean))].sort();
+  const anos = [...new Set([
+    ...DATA.recebidas.map(r=>r.ano),
+    ...DATA.areceber.map(r=>r.ano),
+    ...DATA.pagas.map(r=>r.ano)
+  ].filter(x=>x!=null))].sort();
+  const meses = [...new Set([
+    ...DATA.recebidas.map(r=>r.mes),
+    ...DATA.areceber.map(r=>r.mes),
+    ...DATA.pagas.map(r=>r.mes)
+  ].filter(x=>x!=null))].sort((a,b)=>a-b);
+
+  fillSelect('dt-obra', obras, v=>v, v=>v);
+  fillSelect('dt-ano',  anos,  v=>v, v=>v);
+  fillSelect('dt-mes',  meses, v=>v, v=>MESES_PT[v]);
+}
+
+['dt-obra','dt-ano','dt-mes'].forEach(id => {
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('change', renderDtlh);
+});
+
+function clearDtlhFilters() {
+  ['dt-obra','dt-ano','dt-mes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  renderDtlh();
+}
+
+function getDtF() {
+  return {
+    obra: document.getElementById('dt-obra').value,
+    ano:  document.getElementById('dt-ano').value,
+    mes:  document.getElementById('dt-mes').value,
+    comEstoque: document.getElementById('dt-estoque-check').checked
+  };
+}
+
+function applyDtF(arr, valKey) {
+  const f = getDtF();
+  return arr.filter(r =>
+    (!f.obra || ccMatch(r.cc||'', f.obra)) &&
+    (!f.ano  || String(r.ano) === f.ano) &&
+    (!f.mes  || String(r.mes) === f.mes)
+  );
+}
+
+// ══════════════════════════════════════════════════════
+// DASHBOARD DTLH — RENDER
+// ══════════════════════════════════════════════════════
+function renderDtlh() {
+  const f = getDtF();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const recebidas = applyDtF(DATA.recebidas);
+  const areceber  = applyDtF(DATA.areceber);
+  const pagas     = applyDtF(DATA.pagas);
+
+  // Estoque filtrado por obra
+  const estoqueArr = DATA.estoque.filter(r => !f.obra || ccMatch(r.obra, f.obra));
+  const estoqueVal = estoqueArr.reduce((s,r)=>s+r.valor,0);
+
+  // ── Faturamento ──
+  const vRecebido  = recebidas.reduce((s,r)=>s+r.liquido,0);
+  // inadimplência = a receber com dtVecto < hoje
+  const inadimArr  = areceber.filter(r => r.dtVecto && r.dtVecto < today);
+  const vInadimpl  = inadimArr.reduce((s,r)=>s+r.liquido,0);
+  // a receber em dia = total a receber - inadimplentes
+  const vAReceber  = areceber.reduce((s,r)=>s+r.liquido,0) - vInadimpl;
+
+  const vFatTotal  = vRecebido + vAReceber + vInadimpl + (f.comEstoque ? estoqueVal : 0);
+
+  // ── Despesas ──
+  const vPagas     = pagas.reduce((s,r)=>s+r.valor,0);
+  const vAfetacao  = vAReceber * 0.04;
+  const vAfetComis = f.comEstoque ? estoqueVal * 0.12 : 0;
+  const vOrcamento = 0; // placeholder até aba Orçamento
+
+  const vDespTotal = vPagas + vAfetacao + vOrcamento + (f.comEstoque ? vAfetComis : 0);
+
+  // ── Saldo ──
+  const saldo = vFatTotal - vDespTotal;
+
+  // ── Render KPIs ──
+  const saldoEl = document.getElementById('dt-saldo');
+  saldoEl.textContent = fmt(saldo);
+  saldoEl.className = 'kpi-val ' + (saldo >= 0 ? 'pos' : 'neg');
+  document.getElementById('dt-saldo-sub').textContent =
+    `Faturamento ${fmt(vFatTotal)} − Despesas ${fmt(vDespTotal)}`;
+
+  set('dt-fat-total',   fmt(vFatTotal));
+  set('dt-recebido',    fmt(vRecebido));
+  set('dt-areceber',    fmt(vAReceber));
+  set('dt-inadimplencia', fmt(vInadimpl));
+  set('dt-estoque-val', fmt(estoqueVal));
+
+  set('dt-desp-total',  fmt(vDespTotal));
+  set('dt-pagas',       fmt(vPagas));
+  set('dt-afetacao',    fmt(vAfetacao));
+  set('dt-orcamento',   '—');
+  set('dt-afet-comissao', f.comEstoque ? fmt(vAfetComis) : '—');
+
+  // Estoque row opacity
+  const estRow = document.getElementById('dt-estoque-row');
+  const afcRow = document.getElementById('dt-afet-comissao-row');
+  if(estRow) estRow.style.opacity = f.comEstoque ? '1' : '0.35';
+  if(afcRow) afcRow.style.opacity = f.comEstoque ? '1' : '0.35';
+
+  // Fat total color
+  const ftEl = document.getElementById('dt-fat-total');
+  if(ftEl) ftEl.className = 'dtlh-group-total pos';
+}
 </script>
+<!-- ══════════════════════════════════════════════ ESTOQUE -->
+<div class="page" id="page-estoque">
+  <div class="sec-title">Estoque</div>
+  <div class="sec-sub">Cadastre as unidades disponíveis por obra para cálculo de Estoque e Afetação + Comissão</div>
+
+  <div class="estoque-form">
+    <div class="estoque-form-title">Adicionar Unidade</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Obra</label>
+        <input class="form-input" id="est-obra" placeholder="Nome da obra" list="est-obra-list">
+        <datalist id="est-obra-list"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Unidade</label>
+        <input class="form-input" id="est-unidade" placeholder="Ex: Apto 101" style="min-width:120px">
+      </div>
+      <div class="form-group">
+        <label>Valor (R$)</label>
+        <input class="form-input" id="est-valor" placeholder="Ex: 450000" style="min-width:140px" type="text">
+      </div>
+      <div class="form-group" style="justify-content:flex-end">
+        <button class="btn-primary" onclick="adicionarEstoque()">+ Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div class="tbl-title">Unidades em Estoque</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="tbl-badge" id="count-estoque">0 unidades</span>
+        <span class="tbl-badge" id="total-estoque" style="background:var(--brand-light);color:var(--brand)">R$ 0,00</span>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Obra</th>
+            <th>Unidade</th>
+            <th class="r">Valor (R$)</th>
+            <th style="width:60px;text-align:center">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="body-estoque">
+          <tr><td colspan="4"><div class="empty-state"><p>Nenhuma unidade cadastrada</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ DASHBOARD DTLH -->
+<div class="page" id="page-dtlh">
+  <div class="sec-title">Dashboard Dtlh de Obra</div>
+  <div class="sec-sub">Análise detalhada por empreendimento</div>
+
+  <!-- Filtros + checkbox estoque -->
+  <div class="filters-bar">
+    <span class="filter-label">Filtrar</span>
+    <select class="filter-select" id="dt-obra"><option value="">Todas as obras</option></select>
+    <select class="filter-select" id="dt-ano"><option value="">Todos os anos</option></select>
+    <select class="filter-select" id="dt-mes"><option value="">Todos os meses</option></select>
+    <div class="dtlh-checkbox-wrap" style="margin-left:12px">
+      <input type="checkbox" id="dt-estoque-check" onchange="renderDtlh()">
+      <label for="dt-estoque-check">Considerar Estoque</label>
+    </div>
+    <button class="btn-ghost" onclick="clearDtlhFilters()">✕ Limpar</button>
+  </div>
+
+  <!-- KPI Saldo Principal (largura total) -->
+  <div class="dtlh-kpi-main" id="dt-saldo-card" style="margin-bottom:16px">
+    <div class="kpi-label">Saldo — Faturamento Total − Despesas</div>
+    <div class="kpi-val" id="dt-saldo">—</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:6px" id="dt-saldo-sub">—</div>
+  </div>
+
+  <!-- Duas colunas de KPIs -->
+  <div class="dtlh-layout">
+
+    <!-- COLUNA FATURAMENTO -->
+    <div class="dtlh-col">
+      <div class="dtlh-kpi-group">
+        <div class="dtlh-group-header">
+          <span class="dtlh-group-title">Faturamento Total</span>
+          <span class="dtlh-group-total pos" id="dt-fat-total">—</span>
+        </div>
+        <div class="dtlh-item">
+          <div class="dtlh-item-left">
+            <span class="dtlh-item-label">Valor Recebido</span>
+            <span class="dtlh-item-sub">Contas Recebidas</span>
+          </div>
+          <span class="dtlh-item-val pos" id="dt-recebido">—</span>
+        </div>
+        <div class="dtlh-item">
+          <div class="dtlh-item-left">
+            <span class="dtlh-item-label">Valor A Receber</span>
+            <span class="dtlh-item-sub">Contas a Receber em dia</span>
+          </div>
+          <span class="dtlh-item-val" id="dt-areceber">—</span>
+        </div>
+        <div class="dtlh-item">
+          <div class="dtlh-item-left">
+            <span class="dtlh-item-label">Inadimplência</span>
+            <span class="dtlh-item-sub">A Receber com vencto. anterior a hoje</span>
+          </div>
+          <span class="dtlh-item-val neg" id="dt-inadimplencia">—</span>
+        </div>
+        <div class="dtlh-item" id="dt-estoque-row">
+          <div class="dtlh-item-left">
+            <span class="dtlh-item-label">Estoque</span>
+            <span class="dtlh-item-sub">Unidades disponíveis (aba Estoque)</span>
+          </div>
+          <span class="dtlh-item-val gold" id="dt-estoque-val">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUNA DESPESAS -->
+    <div class="dtlh-col">
+      <div class="dtlh-kpi-group">
+        <div class="dtlh-group-header">
+          <span class="dtlh-group-title">Despesas</span>
+          <span class="dtlh-group-total neg" id="dt-desp-total">—</span>
+        </div>
+        <div class="dtlh-item">
+          <div class="dtlh-item-left">
+            <span class="dtlh-item-label">Contas Pagas</span>
+            <span class="dtlh-item-sub">Valor aprop fin</span>
+          </div>
+          <span class="dtlh-item-val neg" id="dt-pagas">—</span>
+        </div>
+        <div class="dtlh-item">
+          <div class="dtlh-item-left">
+            <span class="dtlh-item-label">Afetação</span>
+            <span class="dtlh-item-sub">4% do Valor a Receber</span>
+          </div>
+          <span class="dtlh-item-val neg" id="dt-afetacao">—</span>
+        </div>
+        <div class="dtlh-item">
+          <div class="dtlh-item-left">
+            <span class="dtlh-item-label">Saldo do Orçamento</span>
+            <span class="dtlh-item-sub">Disponível após aba Orçamento</span>
+          </div>
+          <span class="dtlh-item-val muted" id="dt-orcamento">—</span>
+        </div>
+        <div class="dtlh-item" id="dt-afet-comissao-row">
+          <div class="dtlh-item-left">
+            <span class="dtlh-item-label">Afetação + Comissão</span>
+            <span class="dtlh-item-sub">12% do Estoque (quando checkbox marcada)</span>
+          </div>
+          <span class="dtlh-item-val gold" id="dt-afet-comissao">—</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /dtlh-layout -->
+</div>
+
 </body>
 </html>
