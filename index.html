@@ -1252,19 +1252,22 @@ function updateDtlhFilters() {
 
 function clearDtlhFilters() {
   ['dt-obra','dt-ano','dt-mes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('dt-entrega').value = '';
   renderDtlh();
 }
 
 function getDtF() {
+  const entregaVal = document.getElementById('dt-entrega').value;
   return {
     obra: document.getElementById('dt-obra').value,
     ano:  document.getElementById('dt-ano').value,
     mes:  document.getElementById('dt-mes').value,
-    comEstoque: document.getElementById('dt-estoque-check').checked
+    comEstoque: document.getElementById('dt-estoque-check').checked,
+    entregaChaves: entregaVal ? new Date(entregaVal + 'T23:59:59') : null
   };
 }
 
-function applyDtF(arr, valKey) {
+function applyDtF(arr) {
   const f = getDtF();
   return arr.filter(r =>
     (!f.obra || ccMatch(r.cc||'', f.obra)) &&
@@ -1280,8 +1283,12 @@ function renderDtlh() {
   const f = getDtF();
 
   const recebidas = applyDtF(DATA.recebidas);
-  const areceber  = applyDtF(DATA.areceber);
-  const pagas     = applyDtF(DATA.pagas);
+  // A Receber: aplica filtros normais + limita por data de entrega das chaves se preenchida
+  const areceberBase = applyDtF(DATA.areceber);
+  const areceber = f.entregaChaves
+    ? areceberBase.filter(r => r.dtVecto && r.dtVecto <= f.entregaChaves)
+    : areceberBase;
+  const pagas = applyDtF(DATA.pagas);
 
   // Estoque filtrado por obra
   const estoqueArr = DATA.estoque.filter(r => !f.obra || ccMatch(r.obra, f.obra));
@@ -1403,6 +1410,13 @@ function renderDtlh() {
     <div class="dtlh-checkbox-wrap" style="margin-left:12px">
       <input type="checkbox" id="dt-estoque-check" onchange="renderDtlh()">
       <label for="dt-estoque-check">Considerar Estoque</label>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:12px">
+      <label for="dt-entrega" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);white-space:nowrap">Entrega das Chaves</label>
+      <input type="date" id="dt-entrega" onchange="renderDtlh()"
+        style="border:1px solid var(--border);background:var(--bg);padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;cursor:pointer"
+        title="Se preenchido, considera A Receber somente até esta data">
+      <button onclick="document.getElementById('dt-entrega').value='';renderDtlh()" title="Limpar data" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 4px">✕</button>
     </div>
     <button class="btn-ghost" onclick="clearDtlhFilters()">✕ Limpar</button>
   </div>
