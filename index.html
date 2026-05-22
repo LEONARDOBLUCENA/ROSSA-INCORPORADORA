@@ -392,7 +392,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         <li>Selecione e copie a tabela de contas recebidas com <strong>Ctrl+C</strong></li>
         <li>Clique na área abaixo e cole com <strong>Ctrl+V</strong> — processamento automático</li>
       </ol>
-      Colunas esperadas: <strong>Centro de Custo · Dt. Baixa · Data Vecto. · Liquido · Acrescimos</strong>
+      Colunas esperadas: <strong>Centro de Custo · Nome do Cliente · Dt. Baixa · Data Vecto. · Liquido · Acrescimos</strong>
     </div>
     <textarea class="paste-box" id="paste-recebidas" placeholder="Clique aqui e cole com Ctrl+V — processamento automático ao colar."></textarea>
     <div class="paste-actions">
@@ -414,6 +414,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         <thead>
           <tr>
             <th>Centro de Custo</th>
+            <th>Nome do Cliente</th>
             <th>Dt. Baixa</th>
             <th>Data Vecto.</th>
             <th>Tipo</th>
@@ -421,7 +422,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
           </tr>
         </thead>
         <tbody id="body-recebidas">
-          <tr><td colspan="5"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
+          <tr><td colspan="6"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -439,7 +440,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         <li>Selecione e copie a tabela de contas a receber com <strong>Ctrl+C</strong></li>
         <li>Clique na área abaixo e cole com <strong>Ctrl+V</strong> — processamento automático</li>
       </ol>
-      Colunas esperadas: <strong>Centro de Custo · Data Vecto. · Total</strong>
+      Colunas esperadas: <strong>Centro de Custo · Nome do Cliente · Data Vecto. · Total</strong>
     </div>
     <textarea class="paste-box" id="paste-areceber" placeholder="Clique aqui e cole com Ctrl+V — processamento automático ao colar."></textarea>
     <div class="paste-actions">
@@ -460,13 +461,14 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         <thead>
           <tr>
             <th>Centro de Custo</th>
+            <th>Nome do Cliente</th>
             <th>Data Vecto.</th>
             <th>Status</th>
             <th class="r">Total (R$)</th>
           </tr>
         </thead>
         <tbody id="body-areceber">
-          <tr><td colspan="4"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
+          <tr><td colspan="5"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -702,7 +704,7 @@ function processRecibidasText(txt) {
   if(!rows.length){setStatus('status-recebidas','Nenhum dado encontrado.',false);return;}
   DATA.recebidas=parseFaturamento(rows, 'diag-recebidas');
   setStatus('status-recebidas',DATA.recebidas.length+' registros processados.',true);
-  renderFatTable('recebidas','body-recebidas','count-recebidas',5);
+  renderFatTable('recebidas','body-recebidas','count-recebidas',6);
   updateDashFilters();
   updateDtlhFilters();
   renderDashboard();
@@ -711,7 +713,7 @@ function processRecibidasText(txt) {
 function limparRecebidas(){
   document.getElementById('paste-recebidas').value='';
   DATA.recebidas=[];
-  document.getElementById('body-recebidas').innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
+  document.getElementById('body-recebidas').innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
   document.getElementById('count-recebidas').textContent='0 registros';
   const d=document.getElementById('diag-recebidas'); if(d){d.style.display='none';d.innerHTML='';}
   setStatus('status-recebidas','','');
@@ -730,6 +732,7 @@ function processAReceberText(txt) {
   const first = rows[0];
   const mData = {
     cc:      findColKey(first, ['Centro de Custo','CentroCusto','centro custo']),
+    cliente: findColKey(first, ['Nome do Cliente','NomeCliente','nome cliente','cliente','razao social','nome']),
     dtVecto: findColKey(first, ['Data Vecto.','DataVecto','data vecto','vencimento','dt vecto','dt. vecto','data de vecto']),
     total:   findColKey(first, ['Total','total','vlr total','valor total']),
   };
@@ -737,16 +740,16 @@ function processAReceberText(txt) {
   // Diagnóstico
   const allCols = allHeaders.map(h=>`<span class="diag-pill">${h}</span>`).join('');
   const diagRows = [
-    {label:'Centro de Custo', foundKey: mData.cc.foundKey},
+    {label:'Centro de Custo',                        foundKey: mData.cc.foundKey},
+    {label:'Nome do Cliente',                        foundKey: mData.cliente.foundKey},
     {label:'Data Vecto. (usada para inadimplência)', foundKey: mData.dtVecto.foundKey},
-    {label:'Total (valor)', foundKey: mData.total.foundKey},
+    {label:'Total (valor)',                          foundKey: mData.total.foundKey},
   ].map(m=>{
     const raw = first[m.foundKey]??'';
     const val = raw===''?'<span class="diag-col-val empty">(vazio)</span>':`<span class="diag-col-val">${String(raw).slice(0,80)}</span>`;
     const mapped = m.foundKey?`<span class="diag-col-mapped">→ "${m.foundKey}"</span>`:`<span class="diag-col-mapped miss">✕ Não encontrada</span>`;
     return`<div class="diag-row"><div class="diag-col-name">${m.label}</div>${mapped}${val}</div>`;
   }).join('');
-  // reutiliza diag-recebidas se não houver id próprio — cria um inline
   let diagEl = document.getElementById('diag-areceber');
   if(!diagEl){
     diagEl = document.createElement('div');
@@ -759,11 +762,12 @@ function processAReceberText(txt) {
   diagEl.style.display='block';
 
   DATA.areceber = rows.map(r => {
-    const cc      = normCC((findColKey(r, ['Centro de Custo','CentroCusto','centro custo'])).value);
-    const dtVecto = parseDateBR((findColKey(r, ['Data Vecto.','DataVecto','data vecto','vencimento','dt vecto','dt. vecto','data de vecto'])).value);
-    const liquido = parseBRNum((findColKey(r, ['Total','total','vlr total','valor total'])).value);
+    const cc       = normCC((findColKey(r, ['Centro de Custo','CentroCusto','centro custo'])).value);
+    const cliente  = (findColKey(r, ['Nome do Cliente','NomeCliente','nome cliente','cliente','razao social','nome'])).value;
+    const dtVecto  = parseDateBR((findColKey(r, ['Data Vecto.','DataVecto','data vecto','vencimento','dt vecto','dt. vecto','data de vecto'])).value);
+    const liquido  = parseBRNum((findColKey(r, ['Total','total','vlr total','valor total'])).value);
     const inadimplente = dtVecto ? dtVecto < today : false;
-    return { cc, dtVecto, liquido, inadimplente,
+    return { cc, cliente, dtVecto, liquido, inadimplente,
       mes: dtVecto ? dtVecto.getMonth() : null,
       ano: dtVecto ? dtVecto.getFullYear() : null };
   }).filter(r => r.liquido !== 0 || r.cc);
@@ -779,7 +783,7 @@ function processAReceberText(txt) {
 function limparAReceber(){
   document.getElementById('paste-areceber').value='';
   DATA.areceber=[];
-  document.getElementById('body-areceber').innerHTML='<tr><td colspan="4"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
+  document.getElementById('body-areceber').innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
   document.getElementById('count-areceber').textContent='0 registros';
   const d=document.getElementById('diag-areceber'); if(d){d.style.display='none';d.innerHTML='';}
   setStatus('status-areceber','','');
@@ -791,15 +795,16 @@ function renderAReceberTable() {
   const tbody = document.getElementById('body-areceber');
   document.getElementById('count-areceber').textContent = DATA.areceber.length + ' registros';
   if(!DATA.areceber.length){
-    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>';
     return;
   }
   tbody.innerHTML = DATA.areceber.map(r => {
-    const statusCls = r.inadimplente ? 'bg-red'   : 'bg-gold';
+    const statusCls = r.inadimplente ? 'bg-red'  : 'bg-gold';
     const statusTxt = r.inadimplente ? 'Inadimplente' : 'A Receber';
-    const valCls    = r.inadimplente ? 'val-neg'  : 'val-gold';
+    const valCls    = r.inadimplente ? 'val-neg' : 'val-gold';
     return `<tr>
       <td>${r.cc||'—'}</td>
+      <td>${r.cliente||'—'}</td>
       <td>${r.dtVecto ? r.dtVecto.toLocaleDateString('pt-BR') : '—'}</td>
       <td><span class="badge ${statusCls}">${statusTxt}</span></td>
       <td class="r ${valCls}">${fmt(r.liquido)}</td>
@@ -813,6 +818,7 @@ function parseFaturamento(rows, diagId) {
 
   const mData = {
     cc:      findColKey(first, ['Centro de Custo','CentroCusto','centro custo']),
+    cliente: findColKey(first, ['Nome do Cliente','NomeCliente','nome cliente','cliente','razao social','nome']),
     dtBaixa: findColKey(first, ['Dt. Baixa','DtBaixa','dt baixa','data baixa','dtbaixa']),
     dtVecto: findColKey(first, ['Data Vecto.','DataVecto','data vecto','vencimento','dt vecto','dt. vecto']),
     liquido: findColKey(first, ['Liquido','Líquido','liquido','vlr liquido','valor liquido','liq']),
@@ -821,23 +827,24 @@ function parseFaturamento(rows, diagId) {
 
   if(diagId) {
     renderDiag(diagId, allHeaders, [
-      { label:'Centro de Custo', foundKey: mData.cc.foundKey },
-      { label:'Dt. Baixa (data usada)',      foundKey: mData.dtBaixa.foundKey },
-      { label:'Data Vecto.',     foundKey: mData.dtVecto.foundKey },
-      { label:'Líquido (valor)', foundKey: mData.liquido.foundKey },
-      { label:'Acréscimos (tipo)',  foundKey: mData.acresc.foundKey },
+      { label:'Centro de Custo',       foundKey: mData.cc.foundKey },
+      { label:'Nome do Cliente',       foundKey: mData.cliente.foundKey },
+      { label:'Dt. Baixa (data usada)',foundKey: mData.dtBaixa.foundKey },
+      { label:'Data Vecto.',           foundKey: mData.dtVecto.foundKey },
+      { label:'Líquido (valor)',        foundKey: mData.liquido.foundKey },
+      { label:'Acréscimos (tipo)',      foundKey: mData.acresc.foundKey },
     ], first);
   }
 
   return rows.map(r => {
     const cc      = normCC((findColKey(r, ['Centro de Custo','CentroCusto','centro custo'])).value);
+    const cliente = (findColKey(r, ['Nome do Cliente','NomeCliente','nome cliente','cliente','razao social','nome'])).value;
     const dtBaixa = parseDateBR((findColKey(r, ['Dt. Baixa','DtBaixa','dt baixa','data baixa','dtbaixa'])).value);
     const dtVecto = parseDateBR((findColKey(r, ['Data Vecto.','DataVecto','data vecto','vencimento','dt vecto','dt. vecto'])).value);
     const liquido = parseBRNum((findColKey(r, ['Liquido','Líquido','liquido','vlr liquido','valor liquido','liq'])).value);
     const acrRaw  = (findColKey(r, ['Acrescimos','Acréscimos','acrescimos','acrescimo','acréscimo'])).value;
     const tipo    = tipoFaturamento(acrRaw);
-    // Data para filtros: sempre Dt. Baixa
-    return { cc, dtBaixa, dtVecto, liquido, tipo,
+    return { cc, cliente, dtBaixa, dtVecto, liquido, tipo,
       mes: dtBaixa ? dtBaixa.getMonth() : null,
       ano: dtBaixa ? dtBaixa.getFullYear() : null };
   }).filter(r => r.liquido !== 0 || r.cc);
@@ -853,6 +860,7 @@ function renderFatTable(key, bodyId, countId, cols) {
     const cls=r.tipo==='PERMUTA/OUTROS'?'bg-gold':'bg-blue';
     return`<tr>
       <td>${r.cc||'—'}</td>
+      <td>${r.cliente||'—'}</td>
       <td>${r.dtBaixa?r.dtBaixa.toLocaleDateString('pt-BR'):'—'}</td>
       <td>${r.dtVecto?r.dtVecto.toLocaleDateString('pt-BR'):'—'}</td>
       <td><span class="badge ${cls}">${r.tipo}</span></td>
@@ -1104,7 +1112,7 @@ function restoreJSON(input) {
       DATA.estoque = payload.data.estoque || [];
 
       renderPagasTable();
-      renderFatTable('recebidas','body-recebidas','count-recebidas',5);
+      renderFatTable('recebidas','body-recebidas','count-recebidas',6);
       renderAReceberTable();
       renderEstoqueTable();
       updateDashFilters();
@@ -1277,20 +1285,19 @@ function renderDtlh() {
 
   // ── Faturamento ──
   const vRecebido  = recebidas.reduce((s,r)=>s+r.liquido,0);
-  // inadimplência = registros de a receber com flag inadimplente=true (dtVecto < hoje)
   const vInadimpl  = areceber.filter(r=>r.inadimplente).reduce((s,r)=>s+r.liquido,0);
-  // a receber em dia = total - inadimplentes
   const vAReceber  = areceber.filter(r=>!r.inadimplente).reduce((s,r)=>s+r.liquido,0);
-
-  const vFatTotal  = vRecebido + vAReceber + vInadimpl + (f.comEstoque ? estoqueVal : 0);
+  // Estoque só entra no total se checkbox marcada
+  const vEstoqueNoTotal = f.comEstoque ? estoqueVal : 0;
+  const vFatTotal  = vRecebido + vAReceber + vInadimpl + vEstoqueNoTotal;
 
   // ── Despesas ──
   const vPagas     = pagas.reduce((s,r)=>s+r.valor,0);
   const vAfetacao  = vAReceber * 0.04;
+  // Afetação+Comissão só entra se checkbox marcada
   const vAfetComis = f.comEstoque ? estoqueVal * 0.12 : 0;
   const vOrcamento = 0; // placeholder até aba Orçamento
-
-  const vDespTotal = vPagas + vAfetacao + vOrcamento + (f.comEstoque ? vAfetComis : 0);
+  const vDespTotal = vPagas + vAfetacao + vOrcamento + vAfetComis;
 
   // ── Saldo ──
   const saldo = vFatTotal - vDespTotal;
