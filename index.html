@@ -554,6 +554,16 @@ window.addEventListener('load', () => {
   wirePaste('paste-pagas',    processPagasText,    'status-pagas');
   wirePaste('paste-recebidas',processRecibidasText,'status-recebidas');
   wirePaste('paste-areceber', processAReceberText, 'status-areceber');
+  // Dashboard Geral filters
+  ['d-ano','d-mes','d-cc'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('change', renderDashboard);
+  });
+  // Dashboard Dtlh filters
+  ['dt-obra','dt-ano','dt-mes'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('change', renderDtlh);
+  });
 });
 
 function wirePaste(taId, processFn, statusId) {
@@ -899,7 +909,6 @@ function fillSelect(id,values,valFn,labelFn){
   sel.innerHTML='';sel.appendChild(first);
   values.forEach(v=>{const o=document.createElement('option');o.value=valFn(v);o.textContent=labelFn(v);sel.appendChild(o);});
 }
-['d-ano','d-mes','d-cc'].forEach(id=>document.getElementById(id).addEventListener('change',renderDashboard));
 function clearDashFilters(){['d-ano','d-mes','d-cc'].forEach(id=>document.getElementById(id).value='');renderDashboard();}
 function normCC(s){ return (s||'').trim().toUpperCase(); }
 function getF(){return{ano:document.getElementById('d-ano').value,mes:document.getElementById('d-mes').value,cc:document.getElementById('d-cc').value};}
@@ -1240,11 +1249,6 @@ function updateDtlhFilters() {
   fillSelect('dt-ano',  anos,  v=>v, v=>v);
   fillSelect('dt-mes',  meses, v=>v, v=>MESES_PT[v]);
 }
-
-['dt-obra','dt-ano','dt-mes'].forEach(id => {
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('change', renderDtlh);
-});
 
 function clearDtlhFilters() {
   ['dt-obra','dt-ano','dt-mes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
