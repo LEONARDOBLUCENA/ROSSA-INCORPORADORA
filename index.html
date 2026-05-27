@@ -1003,7 +1003,7 @@ function fillSelect(id,values,valFn,labelFn){
   values.forEach(v=>{const o=document.createElement('option');o.value=valFn(v);o.textContent=labelFn(v);sel.appendChild(o);});
 }
 function clearDashFilters(){['d-ano','d-mes','d-cc'].forEach(id=>document.getElementById(id).value='');renderDashboard();}
-function normCC(s){ return (s||'').trim().toUpperCase(); }
+function normCC(s){ return (s||'').trim().toUpperCase().replace(/\s+/g,' '); }
 function getF(){return{ano:document.getElementById('d-ano').value,mes:document.getElementById('d-mes').value,cc:document.getElementById('d-cc').value};}
 function ccMatch(a,b){return normCC(a)===normCC(b);}
 function applyF(arr){const f=getF();return arr.filter(r=>(!f.ano||String(r.ano)===f.ano)&&(!f.mes||String(r.mes)===f.mes)&&(!f.cc||ccMatch(r.cc||'',f.cc)));}
@@ -1768,7 +1768,16 @@ function debugOrcamento() {
       msg += `  [${i+1}] cc="${p.cc}" | codItem="${p.codItem}" | valorObra=${p.valorObra} | normCod="${normCod(p.codItem)}"\n`;
     });
   }
-  msg += `Lançamentos com este código E obra ok: ${matchesCodObra.length}\n\n`;
+  msg += `Lançamentos com este código E obra ok: ${matchesCodObra.length}\n`;
+  if(matchesCodObra.length){
+    let somaObra = 0;
+    matchesCodObra.forEach((p,i) => {
+      somaObra += (p.valorObra||0);
+      msg += `  [${i+1}] cc="${p.cc}" | valorObra=${p.valorObra} | tipo="${p.tipo}"\n`;
+    });
+    msg += `  → SOMA valorObra: ${somaObra.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n`;
+  }
+  msg += '\n';
 
   // Mostra os cc únicos das pagas vs obras do orçamento
   const ccsUnicos = [...new Set(DATA.pagas.map(p=>p.cc))].filter(Boolean);
