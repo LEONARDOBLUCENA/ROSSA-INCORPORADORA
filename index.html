@@ -1416,9 +1416,18 @@ function renderDtlh() {
   // ── Despesas ──
   const vPagas     = pagas.reduce((s,r)=>s+r.valor,0);
   const vAfetacao  = vAReceber * 0.04;
-  // Afetação+Comissão só entra se checkbox marcada
   const vAfetComis = f.comEstoque ? estoqueVal * 0.12 : 0;
-  const vOrcamento = 0; // placeholder até aba Orçamento
+  // Saldo do orçamento = Orçado − Comprometido (valorObra) da obra
+  const normCodFn  = s => String(s||'').trim().toLowerCase().replace(/\s+/g,'');
+  const itensOrc   = DATA.orcamento.filter(o => !f.obra || ccMatch(o.obra, f.obra));
+  const vOrcado    = itensOrc.reduce((s,o)=>s+o.valor,0);
+  const vComprometido = itensOrc.reduce((s,o)=>{
+    const codOrc = normCodFn(o.codigo);
+    return s + DATA.pagas
+      .filter(p => ccMatch(p.cc||'',o.obra) && normCodFn(p.codItem)===codOrc && codOrc!=='')
+      .reduce((ss,p)=>ss+(p.valorObra||0),0);
+  },0);
+  const vOrcamento = vOrcado - vComprometido;
   const vDespTotal = vPagas + vAfetacao + vOrcamento + vAfetComis;
 
   // ── Saldo ──
