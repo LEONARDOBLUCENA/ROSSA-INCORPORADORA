@@ -195,6 +195,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
     <button class="nav-tab" data-tab="recebidas" onclick="goTab(this)">Contas Recebidas</button>
     <button class="nav-tab" data-tab="areceber" onclick="goTab(this)">Contas a Receber</button>
     <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
+    <button class="nav-tab" data-tab="orcamento" onclick="goTab(this)">Orçamento</button>
     <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Dashboard Dtlh de Obra</button>
   </div>
   <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
@@ -343,7 +344,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         <li>No seu sistema, selecione toda a tabela incluindo o cabeçalho e copie com <strong>Ctrl+C</strong></li>
         <li>Clique na área abaixo e cole com <strong>Ctrl+V</strong> — os dados são processados automaticamente</li>
       </ol>
-      Colunas esperadas: <strong>Data de Pagamento · Desc centro custo · Conta Corrente · Valor aprop fin · Descricao Plano Financeiro · Nome do Credor</strong>
+      Colunas esperadas: <strong>Data de Pagamento · Desc centro custo · Conta Corrente · Valor aprop fin · Valor aprop obra · Descricao Plano Financeiro · Nome do Credor · Desc obra · Desc unid construtiva · Codigo Item Orcamento · Descricao Item Orcamento</strong>
     </div>
     <textarea class="paste-box" id="paste-pagas" placeholder="Clique aqui e cole com Ctrl+V — processamento automático ao colar."></textarea>
     <div class="paste-actions">
@@ -367,14 +368,19 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
             <th>Data Pagamento</th>
             <th>Nome do Credor</th>
             <th>Centro de Custo</th>
+            <th>Desc Obra</th>
+            <th>Unid. Construtiva</th>
+            <th>Cód. Item Orç.</th>
+            <th>Desc. Item Orç.</th>
             <th>Conta Corrente</th>
             <th>Plano Financeiro</th>
             <th>Tipo</th>
-            <th class="r">Valor Aprop. Fin. (R$)</th>
+            <th class="r">Vlr Aprop Fin (R$)</th>
+            <th class="r">Vlr Aprop Obra (R$)</th>
           </tr>
         </thead>
         <tbody id="body-pagas">
-          <tr><td colspan="7"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
+          <tr><td colspan="12"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -658,35 +664,50 @@ function processPagasText(txt) {
 
   // Mapeamento com diagnóstico
   const mData = {
-    dataPag: findColKey(first, ['Data de Pagamento','DataPagamento','datapagamento','dt pagamento','dt. pagamento']),
-    cc:      findColKey(first, ['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo']),
-    conta:   findColKey(first, ['Conta Corrente','ContaCorrente','conta corrente']),
-    valor:   findColKey(first, ['Valor aprop fin','Vlr aprop fin','VlrApropFin','valor aprop fin','valor apropriacaofinanceira','valor aprop']),
-    plano:   findColKey(first, ['Descricao Plano Financeiro','Desc Plano Financeiro','DescPlanoFinanceiro','plano financeiro','descricao plano']),
-    credor:  findColKey(first, ['Nome do Credor','NomeCredor','nome credor','credor','fornecedor','nome fornecedor']),
+    dataPag:   findColKey(first, ['Data de Pagamento','DataPagamento','datapagamento','dt pagamento','dt. pagamento']),
+    cc:        findColKey(first, ['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo']),
+    conta:     findColKey(first, ['Conta Corrente','ContaCorrente','conta corrente']),
+    valor:     findColKey(first, ['Valor aprop fin','Vlr aprop fin','VlrApropFin','valor aprop fin']),
+    valorObra: findColKey(first, ['Valor aprop obra','Vlr aprop obra','VlrApropObra','valor aprop obra']),
+    plano:     findColKey(first, ['Descricao Plano Financeiro','Desc Plano Financeiro','DescPlanoFinanceiro','plano financeiro','descricao plano']),
+    credor:    findColKey(first, ['Nome do Credor','NomeCredor','nome credor','credor','fornecedor','nome fornecedor']),
+    descObra:  findColKey(first, ['Desc obra','DescObra','desc. obra','descricao obra','nome obra']),
+    unidConst: findColKey(first, ['Desc unid construtiva','DescUnidConstrutiva','unid construtiva','unidade construtiva']),
+    codItem:   findColKey(first, ['Codigo Item Orcamento','CodItemOrcamento','cod item orcamento','codigo item','cod. item']),
+    descItem:  findColKey(first, ['Descricao Item Orcamento','DescItemOrcamento','desc item orcamento','descricao item']),
   };
 
   renderDiag('diag-pagas', allHeaders, [
-    { label:'Data de Pagamento', foundKey: mData.dataPag.foundKey },
-    { label:'Centro de Custo',   foundKey: mData.cc.foundKey },
-    { label:'Conta Corrente',    foundKey: mData.conta.foundKey },
-    { label:'Valor (aprop fin)', foundKey: mData.valor.foundKey },
-    { label:'Plano Financeiro',  foundKey: mData.plano.foundKey },
-    { label:'Nome do Credor',    foundKey: mData.credor.foundKey },
+    { label:'Data de Pagamento',       foundKey: mData.dataPag.foundKey },
+    { label:'Centro de Custo',         foundKey: mData.cc.foundKey },
+    { label:'Conta Corrente',          foundKey: mData.conta.foundKey },
+    { label:'Valor aprop fin',         foundKey: mData.valor.foundKey },
+    { label:'Valor aprop obra',        foundKey: mData.valorObra.foundKey },
+    { label:'Plano Financeiro',        foundKey: mData.plano.foundKey },
+    { label:'Nome do Credor',          foundKey: mData.credor.foundKey },
+    { label:'Desc Obra',               foundKey: mData.descObra.foundKey },
+    { label:'Unid. Construtiva',       foundKey: mData.unidConst.foundKey },
+    { label:'Codigo Item Orcamento',   foundKey: mData.codItem.foundKey },
+    { label:'Descricao Item Orcamento',foundKey: mData.descItem.foundKey },
   ], first);
 
   const novos = rows.map(r=>{
-    const dataPag=parseDateBR((findColKey(r,['Data de Pagamento','DataPagamento','datapagamento','dt pagamento','dt. pagamento'])).value);
-    const cc     =normCC((findColKey(r,['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo'])).value);
-    const conta  =(findColKey(r,['Conta Corrente','ContaCorrente','conta corrente'])).value;
-    const valor  =parseBRNum((findColKey(r,['Valor aprop fin','Vlr aprop fin','VlrApropFin','valor aprop fin','valor aprop'])).value);
-    const plano  =(findColKey(r,['Descricao Plano Financeiro','Desc Plano Financeiro','DescPlanoFinanceiro','plano financeiro','descricao plano'])).value;
-    const credor =(findColKey(r,['Nome do Credor','NomeCredor','nome credor','credor','fornecedor'])).value;
-    const tipo   =conta.toUpperCase().includes('REAPROPFIN')?'PERMUTA/OUTROS':'CAIXA';
-    return{dataPag,cc,conta,valor,plano,credor,tipo,
-      mes:dataPag?dataPag.getMonth():null,
-      ano:dataPag?dataPag.getFullYear():null};
-  }).filter(r=>r.valor!==0||r.cc);
+    const dataPag  = parseDateBR((findColKey(r,['Data de Pagamento','DataPagamento','datapagamento','dt pagamento','dt. pagamento'])).value);
+    const cc       = normCC((findColKey(r,['Desc centro custo','DescCentroCusto','desc centro de custo','centro custo'])).value);
+    const conta    = (findColKey(r,['Conta Corrente','ContaCorrente','conta corrente'])).value;
+    const valor    = parseBRNum((findColKey(r,['Valor aprop fin','Vlr aprop fin','VlrApropFin','valor aprop fin'])).value);
+    const valorObra= parseBRNum((findColKey(r,['Valor aprop obra','Vlr aprop obra','VlrApropObra','valor aprop obra'])).value);
+    const plano    = (findColKey(r,['Descricao Plano Financeiro','Desc Plano Financeiro','DescPlanoFinanceiro','plano financeiro','descricao plano'])).value;
+    const credor   = (findColKey(r,['Nome do Credor','NomeCredor','nome credor','credor','fornecedor'])).value;
+    const descObra = (findColKey(r,['Desc obra','DescObra','desc. obra','descricao obra','nome obra'])).value;
+    const unidConst= (findColKey(r,['Desc unid construtiva','DescUnidConstrutiva','unid construtiva','unidade construtiva'])).value;
+    const codItem  = (findColKey(r,['Codigo Item Orcamento','CodItemOrcamento','cod item orcamento','codigo item','cod. item'])).value;
+    const descItem = (findColKey(r,['Descricao Item Orcamento','DescItemOrcamento','desc item orcamento','descricao item'])).value;
+    const tipo     = conta.toUpperCase().includes('REAPROPFIN') ? 'PERMUTA/OUTROS' : 'CAIXA';
+    return { dataPag, cc, conta, valor, valorObra, plano, credor, descObra, unidConst, codItem, descItem, tipo,
+      mes: dataPag ? dataPag.getMonth() : null,
+      ano: dataPag ? dataPag.getFullYear() : null };
+  }).filter(r => r.valor !== 0 || r.valorObra !== 0 || r.cc);
 
   DATA.pagas = [...DATA.pagas, ...novos];
   setStatus('status-pagas', `+${novos.length} registros adicionados — total: ${DATA.pagas.length}.`, true);
@@ -700,7 +721,7 @@ function processPagasText(txt) {
 function limparPagas(){
   document.getElementById('paste-pagas').value='';
   DATA.pagas=[];
-  document.getElementById('body-pagas').innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
+  document.getElementById('body-pagas').innerHTML='<tr><td colspan="12"><div class="empty-state"><p>Nenhum dado processado ainda</p></div></td></tr>';
   document.getElementById('count-pagas').textContent='0 registros';
   const d=document.getElementById('diag-pagas'); if(d){d.style.display='none';d.innerHTML='';}
   setStatus('status-pagas','','');
@@ -710,11 +731,24 @@ function limparPagas(){
 function renderPagasTable(){
   const tbody=document.getElementById('body-pagas');
   document.getElementById('count-pagas').textContent=DATA.pagas.length+' registros';
-  if(!DATA.pagas.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>';return;}
+  if(!DATA.pagas.length){tbody.innerHTML='<tr><td colspan="12"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>';return;}
   tbody.innerHTML=DATA.pagas.map(r=>{
     const cls=r.tipo==='PERMUTA/OUTROS'?'bg-gold':'bg-blue';
     const d=r.dataPag?r.dataPag.toLocaleDateString('pt-BR'):'—';
-    return`<tr><td>${d}</td><td>${r.credor||'—'}</td><td>${r.cc||'—'}</td><td>${r.conta||'—'}</td><td>${r.plano||'—'}</td><td><span class="badge ${cls}">${r.tipo}</span></td><td class="r val-neg">${fmt(r.valor)}</td></tr>`;
+    return`<tr>
+      <td>${d}</td>
+      <td>${r.credor||'—'}</td>
+      <td>${r.cc||'—'}</td>
+      <td>${r.descObra||'—'}</td>
+      <td>${r.unidConst||'—'}</td>
+      <td>${r.codItem||'—'}</td>
+      <td>${r.descItem||'—'}</td>
+      <td>${r.conta||'—'}</td>
+      <td>${r.plano||'—'}</td>
+      <td><span class="badge ${cls}">${r.tipo}</span></td>
+      <td class="r val-neg">${fmt(r.valor)}</td>
+      <td class="r val-neg">${fmt(r.valorObra)}</td>
+    </tr>`;
   }).join('');
 }
 
@@ -902,13 +936,18 @@ function exportExcel(key) {
   let rows = [];
   if(key === 'pagas') {
     rows = DATA.pagas.map(r => ({
-      'Data Pagamento':       fmtDate(r.dataPag),
-      'Nome do Credor':       r.credor||'',
-      'Centro de Custo':      r.cc||'',
-      'Conta Corrente':       r.conta||'',
-      'Plano Financeiro':     r.plano||'',
-      'Tipo':                 r.tipo||'',
-      'Valor Aprop. Fin.':    fmtNum(r.valor)
+      'Data Pagamento':        fmtDate(r.dataPag),
+      'Nome do Credor':        r.credor||'',
+      'Centro de Custo':       r.cc||'',
+      'Desc Obra':             r.descObra||'',
+      'Unid. Construtiva':     r.unidConst||'',
+      'Cód. Item Orç.':        r.codItem||'',
+      'Desc. Item Orç.':       r.descItem||'',
+      'Conta Corrente':        r.conta||'',
+      'Plano Financeiro':      r.plano||'',
+      'Tipo':                  r.tipo||'',
+      'Vlr Aprop Fin.':        fmtNum(r.valor),
+      'Vlr Aprop Obra':        fmtNum(r.valorObra)
     }));
   } else if(key === 'recebidas') {
     rows = DATA.recebidas.map(r => ({
@@ -1137,7 +1176,8 @@ function backupJSON() {
       pagas:     DATA.pagas.map(r=>({...r, dataPag: r.dataPag ? r.dataPag.toISOString() : null})),
       recebidas: DATA.recebidas.map(r=>({...r, dtBaixa: r.dtBaixa ? r.dtBaixa.toISOString() : null, dtVecto: r.dtVecto ? r.dtVecto.toISOString() : null})),
       areceber:  DATA.areceber.map(r=>({...r, dtVecto: r.dtVecto ? r.dtVecto.toISOString() : null})),
-      estoque:   DATA.estoque
+      estoque:   DATA.estoque,
+      orcamento: DATA.orcamento
     }
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
@@ -1172,12 +1212,14 @@ function restoreJSON(input) {
         return {...r, dtVecto, inadimplente: dtVecto ? dtVecto < today : false};
       });
 
-      DATA.estoque = payload.data.estoque || [];
+      DATA.estoque   = payload.data.estoque   || [];
+      DATA.orcamento = payload.data.orcamento || [];
 
       renderPagasTable();
       renderFatTable('recebidas','body-recebidas','count-recebidas',6);
       renderAReceberTable();
       renderEstoqueTable();
+      renderOrcamentoTable();
       updateDashFilters();
       updateDtlhFilters();
       renderDashboard();
@@ -1383,7 +1425,6 @@ function renderDtlh() {
   set('dt-desp-total',  fmt(vDespTotal));
   set('dt-pagas',       fmt(vPagas));
   set('dt-afetacao',    fmt(vAfetacao));
-  set('dt-orcamento',   '—');
   set('dt-afet-comissao', f.comEstoque ? fmt(vAfetComis) : '—');
 
   // Estoque row opacity
@@ -1395,6 +1436,127 @@ function renderDtlh() {
   // Fat total color
   const ftEl = document.getElementById('dt-fat-total');
   if(ftEl) ftEl.className = 'dtlh-group-total pos';
+
+  // ── Tabela Orçamento vs Comprometido ──
+  renderDtlhOrcTable(pagas, f);
+}
+
+function renderDtlhOrcTable(pagas, f) {
+  // Filtra itens de orçamento pela obra selecionada
+  const itens = DATA.orcamento.filter(o => !f.obra || ccMatch(o.obra, f.obra));
+  const tbody = document.getElementById('dt-orc-body');
+  document.getElementById('dt-orc-count').textContent = itens.length + ' itens';
+
+  if(!itens.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>Cadastre itens na aba Orçamento</p></div></td></tr>';
+    set('dt-orcamento','—');
+    return;
+  }
+
+  // Para cada item, soma o valorObra das contas pagas com mesmo codItem
+  let totalOrcado = 0, totalComprometido = 0;
+  const rows = itens.map(o => {
+    const comprometido = pagas
+      .filter(p => p.codItem && p.codItem.trim() === o.codigo.trim())
+      .reduce((s,p) => s + (p.valorObra||0), 0);
+    const saldo      = o.valor - comprometido;
+    const pct        = o.valor > 0 ? comprometido / o.valor : 0;
+    const disponivel = Math.max(0, saldo);
+    totalOrcado      += o.valor;
+    totalComprometido+= comprometido;
+
+    const saldoCls   = saldo >= 0 ? 'val-pos' : 'val-neg';
+    const pctW       = Math.min(Math.round(pct * 100), 100);
+    const pctColor   = pct > 1 ? '#C0392B' : pct > 0.8 ? '#B7950B' : '#1A7A3C';
+    return `<tr>
+      <td><strong>${o.codigo}</strong></td>
+      <td>${o.descricao||'—'}</td>
+      <td class="r">${fmt(o.valor)}</td>
+      <td class="r val-neg">${fmt(comprometido)}</td>
+      <td class="r ${saldoCls}">${fmt(saldo)}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:6px;background:var(--surface2);max-width:80px">
+            <div style="height:6px;width:${pctW}%;background:${pctColor}"></div>
+          </div>
+          <span style="font-size:11px;color:var(--text3);width:38px;text-align:right">${(pct*100).toFixed(1)}%</span>
+        </div>
+      </td>
+      <td class="r val-pos">${fmt(disponivel)}</td>
+    </tr>`;
+  }).join('');
+
+  // Linha de totais
+  const totalSaldo = totalOrcado - totalComprometido;
+  const totalPct   = totalOrcado > 0 ? totalComprometido/totalOrcado : 0;
+  const totRow = `<tr style="background:var(--surface2);font-weight:600;border-top:2px solid var(--border)">
+    <td colspan="2"><strong>TOTAL</strong></td>
+    <td class="r">${fmt(totalOrcado)}</td>
+    <td class="r val-neg">${fmt(totalComprometido)}</td>
+    <td class="r ${totalSaldo>=0?'val-pos':'val-neg'}">${fmt(totalSaldo)}</td>
+    <td><span style="font-size:12px;font-weight:600">${(totalPct*100).toFixed(1)}%</span></td>
+    <td class="r val-pos">${fmt(Math.max(0,totalSaldo))}</td>
+  </tr>`;
+
+  tbody.innerHTML = rows + totRow;
+
+  // Atualiza KPI Saldo do Orçamento nas despesas
+  set('dt-orcamento', fmt(totalSaldo));
+  const orcEl = document.getElementById('dt-orcamento');
+  if(orcEl) orcEl.className = 'dtlh-item-val ' + (totalSaldo >= 0 ? '' : 'neg');
+}
+
+// ══════════════════════════════════════════════════════
+// ORÇAMENTO
+// ══════════════════════════════════════════════════════
+if(!DATA.orcamento) DATA.orcamento = [];
+
+function adicionarOrcamento() {
+  const obra      = document.getElementById('orc-obra').value.trim();
+  const codigo    = document.getElementById('orc-codigo').value.trim();
+  const descricao = document.getElementById('orc-descricao').value.trim();
+  const valor     = parseBRNum(document.getElementById('orc-valor').value);
+  if(!obra || !codigo || !valor) { alert('Preencha Obra, Código e Valor.'); return; }
+  // Verifica duplicidade de código na mesma obra
+  const existe = DATA.orcamento.find(o => ccMatch(o.obra, obra) && o.codigo.trim() === codigo);
+  if(existe) { alert(`Código "${codigo}" já existe nesta obra. Remova o item e readicione para alterar.`); return; }
+  DATA.orcamento.push({ obra: normCC(obra), codigo, descricao, valor });
+  document.getElementById('orc-codigo').value = '';
+  document.getElementById('orc-descricao').value = '';
+  document.getElementById('orc-valor').value = '';
+  renderOrcamentoTable();
+  renderDtlh();
+}
+
+function renderOrcamentoTable() {
+  const tbody = document.getElementById('body-orcamento');
+  const total = DATA.orcamento.reduce((s,r)=>s+r.valor,0);
+  document.getElementById('count-orcamento').textContent = DATA.orcamento.length + ' itens';
+  document.getElementById('total-orcamento').textContent = fmt(total);
+  // Autocomplete obras
+  const obras = [...new Set([
+    ...DATA.pagas.map(r=>r.cc),
+    ...DATA.recebidas.map(r=>r.cc),
+    ...DATA.areceber.map(r=>r.cc)
+  ].filter(Boolean))];
+  document.getElementById('orc-obra-list').innerHTML = obras.map(o=>`<option value="${o}">`).join('');
+  if(!DATA.orcamento.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>Nenhum item cadastrado</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = DATA.orcamento.map((r,i) => `<tr>
+    <td>${r.obra}</td>
+    <td><strong>${r.codigo}</strong></td>
+    <td>${r.descricao||'—'}</td>
+    <td class="r">${fmt(r.valor)}</td>
+    <td style="text-align:center"><button onclick="removerOrcamento(${i})" style="background:none;border:none;color:var(--brand);cursor:pointer;font-size:14px" title="Remover">✕</button></td>
+  </tr>`).join('');
+}
+
+function removerOrcamento(i) {
+  DATA.orcamento.splice(i,1);
+  renderOrcamentoTable();
+  renderDtlh();
 }
 </script>
 <!-- ══════════════════════════════════════════════ ESTOQUE -->
@@ -1562,6 +1724,90 @@ function renderDtlh() {
     </div>
 
   </div><!-- /dtlh-layout -->
+
+  <!-- Tabela Orçamento vs Comprometido -->
+  <div class="tbl-card" style="margin-top:16px">
+    <div class="tbl-head">
+      <div class="tbl-title">Orçamento por Item</div>
+      <span class="tbl-badge" id="dt-orc-count">0 itens</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cód. Item</th>
+            <th>Descrição</th>
+            <th class="r">Orçado (R$)</th>
+            <th class="r">Comprometido (R$)</th>
+            <th class="r">Saldo (R$)</th>
+            <th style="min-width:120px">% Executado</th>
+            <th class="r">Disponível (R$)</th>
+          </tr>
+        </thead>
+        <tbody id="dt-orc-body">
+          <tr><td colspan="7"><div class="empty-state"><p>Cadastre itens na aba Orçamento</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ ORÇAMENTO -->
+<div class="page" id="page-orcamento">
+  <div class="sec-title">Orçamento</div>
+  <div class="sec-sub">Cadastre o orçamento por item de cada obra</div>
+
+  <div class="estoque-form">
+    <div class="estoque-form-title">Adicionar Item de Orçamento</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Obra</label>
+        <input class="form-input" id="orc-obra" placeholder="Nome da obra" list="orc-obra-list">
+        <datalist id="orc-obra-list"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Código Item</label>
+        <input class="form-input" id="orc-codigo" placeholder="Ex: 01.001" style="min-width:120px">
+      </div>
+      <div class="form-group" style="min-width:220px">
+        <label>Descrição do Item</label>
+        <input class="form-input" id="orc-descricao" placeholder="Ex: Fundação">
+      </div>
+      <div class="form-group">
+        <label>Valor Orçado (R$)</label>
+        <input class="form-input" id="orc-valor" placeholder="Ex: 150000" style="min-width:140px">
+      </div>
+      <div class="form-group" style="justify-content:flex-end">
+        <button class="btn-primary" onclick="adicionarOrcamento()">+ Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div class="tbl-title">Itens Cadastrados</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="tbl-badge" id="count-orcamento">0 itens</span>
+        <span class="tbl-badge" id="total-orcamento" style="background:var(--blue-light);color:var(--blue)">R$ 0,00</span>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Obra</th>
+            <th>Código</th>
+            <th>Descrição</th>
+            <th class="r">Valor Orçado (R$)</th>
+            <th style="width:60px;text-align:center">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="body-orcamento">
+          <tr><td colspan="5"><div class="empty-state"><p>Nenhum item cadastrado</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 </body>
