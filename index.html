@@ -1739,8 +1739,54 @@ function exportarOrcamento() {
   XLSX.utils.book_append_sheet(wb,ws,'Orçamento');
   XLSX.writeFile(wb,'Rossa_Orcamento.xlsx');
 }
+function debugOrcamento() {
+  const normCod = s => String(s||'').trim().toLowerCase().replace(/\s+/g,'');
+
+  // Pega todas as obras do orçamento
+  const obrasOrc = [...new Set(DATA.orcamento.map(o=>o.obra))];
+
+  // Todos os lançamentos de pagas com valorObra > 0
+  const pagasComValor = DATA.pagas.filter(p => (p.valorObra||0) > 0);
+  const pagasDaObra   = DATA.pagas.filter(p => obrasOrc.some(ob => ccMatch(p.cc||'', ob)));
+
+  // Código específico que falhou
+  const codTeste = '00.000.012.002';
+  const codNorm  = normCod(codTeste);
+  const matchesCod = DATA.pagas.filter(p => normCod(p.codItem) === codNorm);
+  const matchesCodObra = DATA.pagas.filter(p => normCod(p.codItem) === codNorm && obrasOrc.some(ob => ccMatch(p.cc||'', ob)));
+
+  let msg = '══ DIAGNÓSTICO ORÇAMENTO ══\n\n';
+  msg += `Obras no orçamento: ${obrasOrc.join(' | ')}\n\n`;
+  msg += `Total lançamentos em DATA.pagas: ${DATA.pagas.length}\n`;
+  msg += `Com Vlr Aprop Obra > 0: ${pagasComValor.length} → Total: R$ ${pagasComValor.reduce((s,p)=>s+(p.valorObra||0),0).toLocaleString('pt-BR',{minimumFractionDigits:2})}\n`;
+  msg += `Que batem com obra do orçamento (cc match): ${pagasDaObra.length}\n\n`;
+
+  msg += `── Código "${codTeste}" ──\n`;
+  msg += `Lançamentos com este código (sem filtro de obra): ${matchesCod.length}\n`;
+  if(matchesCod.length){
+    matchesCod.forEach((p,i) => {
+      msg += `  [${i+1}] cc="${p.cc}" | codItem="${p.codItem}" | valorObra=${p.valorObra} | normCod="${normCod(p.codItem)}"\n`;
+    });
+  }
+  msg += `Lançamentos com este código E obra ok: ${matchesCodObra.length}\n\n`;
+
+  // Mostra os cc únicos das pagas vs obras do orçamento
+  const ccsUnicos = [...new Set(DATA.pagas.map(p=>p.cc))].filter(Boolean);
+  msg += `CCs únicos nas pagas (${ccsUnicos.length}):\n`;
+  ccsUnicos.forEach(cc => { msg += `  "${cc}"\n`; });
+
+  msg += `\nObras no orçamento (normalizadas):\n`;
+  obrasOrc.forEach(o => { msg += `  "${o}"\n`; });
+
+  // Amostra dos codItems das pagas
+  const codItemsUnicos = [...new Set(DATA.pagas.map(p=>p.codItem).filter(Boolean))].slice(0,30);
+  msg += `\nCódigos únicos nas pagas (primeiros 30):\n`;
+  codItemsUnicos.forEach(c => { msg += `  "${c}" → norm:"${normCod(c)}"\n`; });
+
+  console.log(msg);
+  alert(msg);
+}
 </script>
-<!-- ══════════════════════════════════════════════ ESTOQUE -->
 <div class="page" id="page-estoque">
   <div class="sec-title">Estoque</div>
   <div class="sec-sub">Cadastre as unidades disponíveis por obra para cálculo de Estoque e Afetação + Comissão</div>
@@ -1910,7 +1956,10 @@ function exportarOrcamento() {
   <div class="tbl-card" style="margin-top:16px">
     <div class="tbl-head">
       <div class="tbl-title">Orçamento por Item</div>
-      <span class="tbl-badge" id="dt-orc-count">0 itens</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="tbl-badge" id="dt-orc-count">0 itens</span>
+        <button onclick="debugOrcamento()" style="background:none;border:1px solid var(--gold);color:var(--gold);font-size:11px;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif">🔍 Diagnóstico</button>
+      </div>
     </div>
     <div class="tbl-wrap">
       <table>
