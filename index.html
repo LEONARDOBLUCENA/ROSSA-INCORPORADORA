@@ -1442,7 +1442,6 @@ function renderDtlh() {
 }
 
 function renderDtlhOrcTable(pagas, f) {
-  // Filtra itens de orçamento pela obra selecionada
   const itens = DATA.orcamento.filter(o => !f.obra || ccMatch(o.obra, f.obra));
   const tbody = document.getElementById('dt-orc-body');
   document.getElementById('dt-orc-count').textContent = itens.length + ' itens';
@@ -1453,57 +1452,91 @@ function renderDtlhOrcTable(pagas, f) {
     return;
   }
 
-  // Para cada item, soma o valorObra das contas pagas com mesmo codItem
-  let totalOrcado = 0, totalComprometido = 0;
-  const rows = itens.map(o => {
+  // Pré-calcula comprometido por item
+  const calcItem = o => {
     const comprometido = pagas
       .filter(p => p.codItem && p.codItem.trim() === o.codigo.trim())
-      .reduce((s,p) => s + (p.valorObra||0), 0);
+      .reduce((s,p) => s+(p.valorObra||0), 0);
     const saldo      = o.valor - comprometido;
-    const pct        = o.valor > 0 ? comprometido / o.valor : 0;
+    const pct        = o.valor > 0 ? comprometido/o.valor : 0;
     const disponivel = Math.max(0, saldo);
-    totalOrcado      += o.valor;
-    totalComprometido+= comprometido;
+    return {comprometido, saldo, pct, disponivel};
+  };
 
-    const saldoCls   = saldo >= 0 ? 'val-pos' : 'val-neg';
-    const pctW       = Math.min(Math.round(pct * 100), 100);
-    const pctColor   = pct > 1 ? '#C0392B' : pct > 0.8 ? '#B7950B' : '#1A7A3C';
-    return `<tr>
-      <td><strong>${o.codigo}</strong></td>
-      <td>${o.descricao||'—'}</td>
-      <td class="r">${fmt(o.valor)}</td>
-      <td class="r val-neg">${fmt(comprometido)}</td>
-      <td class="r ${saldoCls}">${fmt(saldo)}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="flex:1;height:6px;background:var(--surface2);max-width:80px">
-            <div style="height:6px;width:${pctW}%;background:${pctColor}"></div>
-          </div>
-          <span style="font-size:11px;color:var(--text3);width:38px;text-align:right">${(pct*100).toFixed(1)}%</span>
-        </div>
-      </td>
-      <td class="r val-pos">${fmt(disponivel)}</td>
+  const pctBar = (pct) => {
+    const w   = Math.min(Math.round(pct*100),100);
+    const col = pct>1?'#C0392B':pct>0.8?'#B7950B':'#1A7A3C';
+    return `<div style="display:flex;align-items:center;gap:6px">
+      <div style="flex:1;height:6px;background:var(--surface2);max-width:80px">
+        <div style="height:6px;width:${w}%;background:${col}"></div>
+      </div>
+      <span style="font-size:11px;color:var(--text3);width:38px;text-align:right">${(pct*100).toFixed(1)}%</span>
+    </div>`;
+  };
+
+  // Agrupa por totalizador
+  const grupos = {};
+  itens.forEach(o => {
+    const t = o.totalizador||'(Sem Totalizador)';
+    if(!grupos[t]) grupos[t]=[];
+    grupos[t].push(o);
+  });
+
+  let html='';
+  let grandOrcado=0, grandComp=0;
+
+  Object.keys(grupos).sort().forEach(tot => {
+    const items = grupos[tot];
+    let totOrcado=0, totComp=0;
+
+    const itemRows = items.map(o => {
+      const {comprometido,saldo,pct,disponivel} = calcItem(o);
+      totOrcado += o.valor; totComp += comprometido;
+      return `<tr>
+        <td style="padding-left:24px;color:var(--text2)">${o.codigo}</td>
+        <td style="color:var(--text2)">${o.descricao||'—'}</td>
+        <td class="r">${fmt(o.valor)}</td>
+        <td class="r val-neg">${fmt(comprometido)}</td>
+        <td class="r ${saldo>=0?'val-pos':'val-neg'}">${fmt(saldo)}</td>
+        <td>${pctBar(pct)}</td>
+        <td class="r val-pos">${fmt(disponivel)}</td>
+      </tr>`;
+    }).join('');
+
+    grandOrcado+=totOrcado; grandComp+=totComp;
+    const totSaldo=totOrcado-totComp;
+    const totPct=totOrcado>0?totComp/totOrcado:0;
+
+    // Linha subtotal do totalizador
+    html += `<tr style="background:#EAF2FB;border-top:2px solid #AED6F1">
+      <td colspan="2"><strong style="font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--blue)">${tot}</strong></td>
+      <td class="r" style="font-weight:600">${fmt(totOrcado)}</td>
+      <td class="r val-neg" style="font-weight:600">${fmt(totComp)}</td>
+      <td class="r ${totSaldo>=0?'val-pos':'val-neg'}" style="font-weight:600">${fmt(totSaldo)}</td>
+      <td>${pctBar(totPct)}</td>
+      <td class="r val-pos" style="font-weight:600">${fmt(Math.max(0,totSaldo))}</td>
     </tr>`;
-  }).join('');
+    html += itemRows;
+  });
 
-  // Linha de totais
-  const totalSaldo = totalOrcado - totalComprometido;
-  const totalPct   = totalOrcado > 0 ? totalComprometido/totalOrcado : 0;
-  const totRow = `<tr style="background:var(--surface2);font-weight:600;border-top:2px solid var(--border)">
-    <td colspan="2"><strong>TOTAL</strong></td>
-    <td class="r">${fmt(totalOrcado)}</td>
-    <td class="r val-neg">${fmt(totalComprometido)}</td>
-    <td class="r ${totalSaldo>=0?'val-pos':'val-neg'}">${fmt(totalSaldo)}</td>
-    <td><span style="font-size:12px;font-weight:600">${(totalPct*100).toFixed(1)}%</span></td>
-    <td class="r val-pos">${fmt(Math.max(0,totalSaldo))}</td>
+  // Linha grand total
+  const grandSaldo=grandOrcado-grandComp;
+  const grandPct=grandOrcado>0?grandComp/grandOrcado:0;
+  html += `<tr style="background:var(--surface2);border-top:3px solid var(--border)">
+    <td colspan="2"><strong>TOTAL GERAL</strong></td>
+    <td class="r" style="font-weight:700">${fmt(grandOrcado)}</td>
+    <td class="r val-neg" style="font-weight:700">${fmt(grandComp)}</td>
+    <td class="r ${grandSaldo>=0?'val-pos':'val-neg'}" style="font-weight:700">${fmt(grandSaldo)}</td>
+    <td>${pctBar(grandPct)}</td>
+    <td class="r val-pos" style="font-weight:700">${fmt(Math.max(0,grandSaldo))}</td>
   </tr>`;
 
-  tbody.innerHTML = rows + totRow;
+  tbody.innerHTML = html;
 
-  // Atualiza KPI Saldo do Orçamento nas despesas
-  set('dt-orcamento', fmt(totalSaldo));
+  // KPI Saldo do Orçamento
+  set('dt-orcamento', fmt(grandSaldo));
   const orcEl = document.getElementById('dt-orcamento');
-  if(orcEl) orcEl.className = 'dtlh-item-val ' + (totalSaldo >= 0 ? '' : 'neg');
+  if(orcEl) orcEl.className = 'dtlh-item-val '+(grandSaldo>=0?'':'neg');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1512,18 +1545,19 @@ function renderDtlhOrcTable(pagas, f) {
 if(!DATA.orcamento) DATA.orcamento = [];
 
 function adicionarOrcamento() {
-  const obra      = document.getElementById('orc-obra').value.trim();
-  const codigo    = document.getElementById('orc-codigo').value.trim();
-  const descricao = document.getElementById('orc-descricao').value.trim();
-  const valor     = parseBRNum(document.getElementById('orc-valor').value);
-  if(!obra || !codigo || !valor) { alert('Preencha Obra, Código e Valor.'); return; }
-  // Verifica duplicidade de código na mesma obra
-  const existe = DATA.orcamento.find(o => ccMatch(o.obra, obra) && o.codigo.trim() === codigo);
-  if(existe) { alert(`Código "${codigo}" já existe nesta obra. Remova o item e readicione para alterar.`); return; }
-  DATA.orcamento.push({ obra: normCC(obra), codigo, descricao, valor });
-  document.getElementById('orc-codigo').value = '';
-  document.getElementById('orc-descricao').value = '';
-  document.getElementById('orc-valor').value = '';
+  const obra        = document.getElementById('orc-obra').value.trim();
+  const totalizador = document.getElementById('orc-totalizador').value.trim().toUpperCase();
+  const codigo      = document.getElementById('orc-codigo').value.trim();
+  const descricao   = document.getElementById('orc-descricao').value.trim();
+  const valor       = parseBRNum(document.getElementById('orc-valor').value);
+  if(!obra || !totalizador || !codigo || !valor) { alert('Preencha Obra, Totalizador, Código e Valor.'); return; }
+  const existe = DATA.orcamento.find(o => ccMatch(o.obra,obra) && o.codigo.trim()===codigo);
+  if(existe) { alert(`Código "${codigo}" já existe nesta obra.`); return; }
+  DATA.orcamento.push({ obra:normCC(obra), totalizador, codigo, descricao, valor });
+  document.getElementById('orc-totalizador').value='';
+  document.getElementById('orc-codigo').value='';
+  document.getElementById('orc-descricao').value='';
+  document.getElementById('orc-valor').value='';
   renderOrcamentoTable();
   renderDtlh();
 }
@@ -1531,32 +1565,151 @@ function adicionarOrcamento() {
 function renderOrcamentoTable() {
   const tbody = document.getElementById('body-orcamento');
   const total = DATA.orcamento.reduce((s,r)=>s+r.valor,0);
-  document.getElementById('count-orcamento').textContent = DATA.orcamento.length + ' itens';
+  document.getElementById('count-orcamento').textContent = DATA.orcamento.length+' itens';
   document.getElementById('total-orcamento').textContent = fmt(total);
-  // Autocomplete obras
-  const obras = [...new Set([
-    ...DATA.pagas.map(r=>r.cc),
-    ...DATA.recebidas.map(r=>r.cc),
-    ...DATA.areceber.map(r=>r.cc)
-  ].filter(Boolean))];
+
+  // Autocomplete obras e totalizadores
+  const obras = [...new Set([...DATA.pagas,...DATA.recebidas,...DATA.areceber].map(r=>r.cc).filter(Boolean))];
   document.getElementById('orc-obra-list').innerHTML = obras.map(o=>`<option value="${o}">`).join('');
-  if(!DATA.orcamento.length) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>Nenhum item cadastrado</p></div></td></tr>';
+  const tots = [...new Set(DATA.orcamento.map(r=>r.totalizador).filter(Boolean))].sort();
+  document.getElementById('orc-tot-list').innerHTML = tots.map(t=>`<option value="${t}">`).join('');
+
+  if(!DATA.orcamento.length){
+    tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhum item cadastrado</p></div></td></tr>';
     return;
   }
-  tbody.innerHTML = DATA.orcamento.map((r,i) => `<tr>
-    <td>${r.obra}</td>
-    <td><strong>${r.codigo}</strong></td>
-    <td>${r.descricao||'—'}</td>
-    <td class="r">${fmt(r.valor)}</td>
-    <td style="text-align:center"><button onclick="removerOrcamento(${i})" style="background:none;border:none;color:var(--brand);cursor:pointer;font-size:14px" title="Remover">✕</button></td>
-  </tr>`).join('');
+
+  // Agrupa por totalizador
+  const grupos = {};
+  DATA.orcamento.forEach(r => {
+    const t = r.totalizador||'(Sem Totalizador)';
+    if(!grupos[t]) grupos[t]=[];
+    grupos[t].push(r);
+  });
+
+  let html = '';
+  Object.keys(grupos).sort().forEach(tot => {
+    const items = grupos[tot];
+    const totTotal = items.reduce((s,r)=>s+r.valor,0);
+    const idx = DATA.orcamento.indexOf(items[0]);
+    // Linha do totalizador
+    html += `<tr style="background:var(--surface2)">
+      <td colspan="3"><strong style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--text)">${tot}</strong></td>
+      <td class="r" style="font-weight:600">${fmt(totTotal)}</td>
+      <td></td>
+    </tr>`;
+    items.forEach(r => {
+      const i = DATA.orcamento.indexOf(r);
+      html += `<tr>
+        <td style="padding-left:28px">${r.obra}</td>
+        <td>${r.totalizador}</td>
+        <td><strong>${r.codigo}</strong></td>
+        <td>${r.descricao||'—'}</td>
+        <td class="r">${fmt(r.valor)}</td>
+        <td style="text-align:center"><button onclick="removerOrcamento(${i})" style="background:none;border:none;color:var(--brand);cursor:pointer;font-size:14px" title="Remover">✕</button></td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML = html;
 }
 
 function removerOrcamento(i) {
   DATA.orcamento.splice(i,1);
   renderOrcamentoTable();
   renderDtlh();
+}
+
+// ── Import Excel/CSV ────────────────────────────────
+function importarOrcamento(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('status-orc-import');
+  statusEl.textContent = 'Lendo arquivo…';
+
+  const reader = new FileReader();
+  const isCsv = file.name.toLowerCase().endsWith('.csv');
+
+  reader.onload = e => {
+    try {
+      let rows = [];
+      if(isCsv) {
+        rows = parseTSV(e.target.result);
+        if(!rows.length) {
+          // tenta com vírgula
+          const lines = e.target.result.trim().split(/\r?\n/).filter(l=>l.trim());
+          const headers = lines[0].split(',').map(h=>h.trim());
+          rows = lines.slice(1).map(line=>{
+            const cols=line.split(',');
+            const row={};
+            headers.forEach((h,i)=>{row[h]=(cols[i]||'').trim();});
+            return row;
+          });
+        }
+      } else {
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      }
+
+      if(!rows.length) { statusEl.textContent='Nenhuma linha encontrada.'; return; }
+
+      let adicionados=0, duplicados=0, erros=0;
+      rows.forEach(r => {
+        const obra        = normCC(String(findCol(r,['obra','Obra','OBRA'])||'').trim());
+        const totalizador = String(findCol(r,['totalizador','Totalizador','TOTALIZADOR','item totalizador'])||'').trim().toUpperCase();
+        const codigo      = String(findCol(r,['codigo','Codigo','Código','CODIGO','cod','cod.'])||'').trim();
+        const descricao   = String(findCol(r,['descricao','Descricao','Descrição','DESCRICAO','desc'])||'').trim();
+        const valor       = parseBRNum(findCol(r,['valor','Valor','VALOR','valor orcado','valor orçado'])||0);
+
+        if(!obra||!codigo||!valor){ erros++; return; }
+        if(!totalizador){ erros++; return; }
+        const existe = DATA.orcamento.find(o=>ccMatch(o.obra,obra)&&o.codigo.trim()===codigo);
+        if(existe){ duplicados++; return; }
+        DATA.orcamento.push({obra, totalizador, codigo, descricao, valor});
+        adicionados++;
+      });
+
+      renderOrcamentoTable();
+      renderDtlh();
+      statusEl.style.color='var(--green)';
+      statusEl.textContent = `✓ ${adicionados} itens importados${duplicados?` · ${duplicados} duplicados ignorados`:''}${erros?` · ${erros} erros`:''}`;
+    } catch(err) {
+      statusEl.style.color='var(--brand)';
+      statusEl.textContent = 'Erro: '+err.message;
+    }
+  };
+
+  if(isCsv) reader.readAsText(file,'UTF-8');
+  else       reader.readAsArrayBuffer(file);
+  input.value='';
+}
+
+// ── Baixar Modelo ───────────────────────────────────
+function baixarModeloOrcamento() {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['obra','totalizador','codigo','descricao','valor'],
+    ['RESIDENCIAL PRIME','ESTRUTURA','01.001','Fundação',150000],
+    ['RESIDENCIAL PRIME','ESTRUTURA','01.002','Pilares e Vigas',280000],
+    ['RESIDENCIAL PRIME','ACABAMENTO','02.001','Revestimento Cerâmico',95000],
+  ]);
+  ws['!cols'] = [{wch:22},{wch:18},{wch:10},{wch:30},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,'Modelo');
+  XLSX.writeFile(wb,'Modelo_Orcamento_Rossa.xlsx');
+}
+
+// ── Exportar Orçamento ──────────────────────────────
+function exportarOrcamento() {
+  if(!DATA.orcamento.length){ alert('Nenhum item para exportar.'); return; }
+  const wb = XLSX.utils.book_new();
+  const rows = DATA.orcamento.map(r=>({
+    'Obra':r.obra, 'Totalizador':r.totalizador, 'Código':r.codigo,
+    'Descrição':r.descricao, 'Valor Orçado':r.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows,{raw:false});
+  ws['!cols']=[{wch:22},{wch:18},{wch:10},{wch:30},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'Orçamento');
+  XLSX.writeFile(wb,'Rossa_Orcamento.xlsx');
 }
 </script>
 <!-- ══════════════════════════════════════════════ ESTOQUE -->
@@ -1735,7 +1888,7 @@ function removerOrcamento(i) {
       <table>
         <thead>
           <tr>
-            <th>Cód. Item</th>
+            <th>Totalizador / Cód. Item</th>
             <th>Descrição</th>
             <th class="r">Orçado (R$)</th>
             <th class="r">Comprometido (R$)</th>
@@ -1755,7 +1908,7 @@ function removerOrcamento(i) {
 <!-- ══════════════════════════════════════════════ ORÇAMENTO -->
 <div class="page" id="page-orcamento">
   <div class="sec-title">Orçamento</div>
-  <div class="sec-sub">Cadastre o orçamento por item de cada obra</div>
+  <div class="sec-sub">Cadastre o orçamento por item de cada obra — ou importe via Excel</div>
 
   <div class="estoque-form">
     <div class="estoque-form-title">Adicionar Item de Orçamento</div>
@@ -1764,6 +1917,11 @@ function removerOrcamento(i) {
         <label>Obra</label>
         <input class="form-input" id="orc-obra" placeholder="Nome da obra" list="orc-obra-list">
         <datalist id="orc-obra-list"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Item Totalizador <span style="color:var(--brand)">*</span></label>
+        <input class="form-input" id="orc-totalizador" placeholder="Ex: ESTRUTURA" style="min-width:160px" list="orc-tot-list">
+        <datalist id="orc-tot-list"></datalist>
       </div>
       <div class="form-group">
         <label>Código Item</label>
@@ -1777,10 +1935,22 @@ function removerOrcamento(i) {
         <label>Valor Orçado (R$)</label>
         <input class="form-input" id="orc-valor" placeholder="Ex: 150000" style="min-width:140px">
       </div>
-      <div class="form-group" style="justify-content:flex-end">
+      <div class="form-group" style="justify-content:flex-end;gap:8px;flex-direction:row;align-items:flex-end">
         <button class="btn-primary" onclick="adicionarOrcamento()">+ Adicionar</button>
       </div>
     </div>
+  </div>
+
+  <!-- Import Excel -->
+  <div style="background:var(--blue-light);border:1px solid #A9CCE3;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      <div style="font-size:12px;font-weight:600;color:var(--blue);margin-bottom:3px">Importar do Excel</div>
+      <div style="font-size:11px;color:var(--text3)">Planilha com colunas: <strong>obra · totalizador · codigo · descricao · valor</strong></div>
+    </div>
+    <button class="btn-primary" style="background:var(--blue)" onclick="document.getElementById('orc-import-input').click()">⬆ Importar Excel</button>
+    <input type="file" id="orc-import-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarOrcamento(this)">
+    <button class="btn-secondary" onclick="baixarModeloOrcamento()">⬇ Baixar Modelo</button>
+    <span id="status-orc-import" style="font-size:12px;color:var(--text3)"></span>
   </div>
 
   <div class="tbl-card">
@@ -1789,6 +1959,7 @@ function removerOrcamento(i) {
       <div style="display:flex;align-items:center;gap:10px">
         <span class="tbl-badge" id="count-orcamento">0 itens</span>
         <span class="tbl-badge" id="total-orcamento" style="background:var(--blue-light);color:var(--blue)">R$ 0,00</span>
+        <button class="btn-export" onclick="exportarOrcamento()">⬇ Exportar Excel</button>
       </div>
     </div>
     <div class="tbl-wrap">
@@ -1796,6 +1967,7 @@ function removerOrcamento(i) {
         <thead>
           <tr>
             <th>Obra</th>
+            <th>Totalizador</th>
             <th>Código</th>
             <th>Descrição</th>
             <th class="r">Valor Orçado (R$)</th>
@@ -1803,7 +1975,7 @@ function removerOrcamento(i) {
           </tr>
         </thead>
         <tbody id="body-orcamento">
-          <tr><td colspan="5"><div class="empty-state"><p>Nenhum item cadastrado</p></div></td></tr>
+          <tr><td colspan="6"><div class="empty-state"><p>Nenhum item cadastrado</p></div></td></tr>
         </tbody>
       </table>
     </div>
