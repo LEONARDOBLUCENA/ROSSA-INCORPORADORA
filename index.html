@@ -1456,11 +1456,11 @@ function renderDtlhOrcTable(pagas, f) {
 
   const normCod = s => String(s||'').trim().toLowerCase().replace(/\s+/g,'');
 
-  // Pré-calcula comprometido por item
+  // Pré-calcula comprometido por item — filtra por obra DO ITEM (não do filtro da tela)
   const calcItem = o => {
     const codOrc = normCod(o.codigo);
-    const comprometido = pagas
-      .filter(p => normCod(p.codItem) === codOrc && normCod(p.codItem) !== '')
+    const comprometido = DATA.pagas
+      .filter(p => ccMatch(p.cc||'', o.obra) && normCod(p.codItem) === codOrc && codOrc !== '')
       .reduce((s,p) => s+(p.valorObra||0), 0);
     const saldo      = o.valor - comprometido;
     const pct        = o.valor > 0 ? comprometido/o.valor : 0;
@@ -1538,9 +1538,11 @@ function renderDtlhOrcTable(pagas, f) {
 
   tbody.innerHTML = html;
 
-  // Aviso de lançamentos sem match
+  // Aviso de lançamentos sem match — usa pagas da(s) obra(s) do orçamento
+  const obrasOrc = [...new Set(itens.map(o=>o.obra))];
+  const pagasDeObra = DATA.pagas.filter(p => obrasOrc.some(ob => ccMatch(p.cc||'', ob)));
   const codigos = new Set(itens.map(o => normCod(o.codigo)));
-  const semMatch = pagas.filter(p => {
+  const semMatch = pagasDeObra.filter(p => {
     const c = normCod(p.codItem);
     return c === '' || !codigos.has(c);
   });
