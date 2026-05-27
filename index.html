@@ -509,11 +509,23 @@ function parseBRNum(s) {
   return isNaN(v)?0:v;
 }
 function parseDateBR(s) {
-  if(!s)return null;
-  s=String(s).trim();
-  const m=s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
-  if(m){let y=parseInt(m[3]);if(y<100)y+=2000;return new Date(y,parseInt(m[2])-1,parseInt(m[1]));}
-  const d=new Date(s);return isNaN(d)?null:d;
+  if(!s) return null;
+  s = String(s).trim();
+  // dd/mm/yyyy ou dd-mm-yyyy ou dd.mm.yyyy
+  const mBR = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if(mBR) {
+    let y = parseInt(mBR[3]);
+    if(y < 100) y += 2000;
+    const d = new Date(y, parseInt(mBR[2])-1, parseInt(mBR[1]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // yyyy-mm-dd (ISO, vindo do backup JSON)
+  const mISO = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(mISO) {
+    const d = new Date(parseInt(mISO[1]), parseInt(mISO[2])-1, parseInt(mISO[3]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
 }
 function parseTSV(text) {
   const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
@@ -883,13 +895,55 @@ function renderFatTable(key, bodyId, countId, cols) {
 // EXPORT EXCEL
 // ══════════════════════════════════════════════════════
 function exportExcel(key) {
-  const tbl=document.getElementById('tbl-'+key);
-  if(!tbl)return;
-  const wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.table_to_sheet(tbl);
-  const names={pagas:'Contas Pagas',recebidas:'Contas Recebidas',areceber:'Contas a Receber'};
-  XLSX.utils.book_append_sheet(wb,ws,names[key]||key);
-  XLSX.writeFile(wb,'Rossa_'+names[key].replace(/ /g,'_')+'.xlsx');
+  const names = {pagas:'Contas Pagas', recebidas:'Contas Recebidas', areceber:'Contas a Receber'};
+  const fmtDate = d => d ? d.toLocaleDateString('pt-BR') : '';
+  const fmtNum  = v => (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  let rows = [];
+  if(key === 'pagas') {
+    rows = DATA.pagas.map(r => ({
+      'Data Pagamento':       fmtDate(r.dataPag),
+      'Nome do Credor':       r.credor||'',
+      'Centro de Custo':      r.cc||'',
+      'Conta Corrente':       r.conta||'',
+      'Plano Financeiro':     r.plano||'',
+      'Tipo':                 r.tipo||'',
+      'Valor Aprop. Fin.':    fmtNum(r.valor)
+    }));
+  } else if(key === 'recebidas') {
+    rows = DATA.recebidas.map(r => ({
+      'Centro de Custo':  r.cc||'',
+      'Nome do Cliente':  r.cliente||'',
+      'Dt. Baixa':        fmtDate(r.dtBaixa),
+      'Data Vecto.':      fmtDate(r.dtVecto),
+      'Tipo':             r.tipo||'',
+      'Líquido':          fmtNum(r.liquido)
+    }));
+  } else if(key === 'areceber') {
+    rows = DATA.areceber.map(r => ({
+      'Centro de Custo':  r.cc||'',
+      'Nome do Cliente':  r.cliente||'',
+      'Data Vecto.':      fmtDate(r.dtVecto),
+      'Status':           r.inadimplente ? 'Inadimplente' : 'A Receber',
+      'Total':            fmtNum(r.liquido)
+    }));
+  }
+
+  if(!rows.length){ alert('Nenhum dado para exportar.'); return; }
+
+  const wb = XLSX.utils.book_new();
+  // raw:false garante que tudo vai como texto, sem conversão automática de datas/números
+  const ws = XLSX.utils.json_to_sheet(rows, {raw: false});
+
+  // Ajusta largura das colunas automaticamente
+  const cols = Object.keys(rows[0]);
+  ws['!cols'] = cols.map(c => ({
+    wch: Math.max(c.length, ...rows.map(r => String(r[c]||'').length)) + 2
+  }));
+
+  XLSX.utils.book_append_sheet(wb, ws, names[key]||key);
+  const date = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  XLSX.writeFile(wb, `Rossa_${(names[key]||key).replace(/ /g,'_')}_${date}.xlsx`);
 }
 
 // ══════════════════════════════════════════════════════
