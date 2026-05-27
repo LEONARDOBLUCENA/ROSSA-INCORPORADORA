@@ -673,7 +673,7 @@ function processPagasText(txt) {
     credor:    findColKey(first, ['Nome do Credor','NomeCredor','nome credor','credor','fornecedor','nome fornecedor']),
     descObra:  findColKey(first, ['Desc obra','DescObra','desc. obra','descricao obra','nome obra']),
     unidConst: findColKey(first, ['Desc unid construtiva','DescUnidConstrutiva','unid construtiva','unidade construtiva']),
-    codItem:   findColKey(first, ['Codigo Item Orcamento','CodItemOrcamento','cod item orcamento','codigo item','cod. item']),
+    codItem:   findColKey(first, ['Codigo Item Orcamento','Código Item Orçamento','CodItemOrcamento','cod item orcamento','codigo item orcamento','codigo item','cod. item','cod item','item orcamento','itemorcamento']),
     descItem:  findColKey(first, ['Descricao Item Orcamento','DescItemOrcamento','desc item orcamento','descricao item']),
   };
 
@@ -701,7 +701,7 @@ function processPagasText(txt) {
     const credor   = (findColKey(r,['Nome do Credor','NomeCredor','nome credor','credor','fornecedor'])).value;
     const descObra = (findColKey(r,['Desc obra','DescObra','desc. obra','descricao obra','nome obra'])).value;
     const unidConst= (findColKey(r,['Desc unid construtiva','DescUnidConstrutiva','unid construtiva','unidade construtiva'])).value;
-    const codItem  = (findColKey(r,['Codigo Item Orcamento','CodItemOrcamento','cod item orcamento','codigo item','cod. item'])).value;
+    const codItem  = (findColKey(r,['Codigo Item Orcamento','Código Item Orçamento','CodItemOrcamento','cod item orcamento','codigo item orcamento','codigo item','cod. item','cod item','item orcamento','itemorcamento'])).value;
     const descItem = (findColKey(r,['Descricao Item Orcamento','DescItemOrcamento','desc item orcamento','descricao item'])).value;
     const tipo     = conta.toUpperCase().includes('REAPROPFIN') ? 'PERMUTA/OUTROS' : 'CAIXA';
     return { dataPag, cc, conta, valor, valorObra, plano, credor, descObra, unidConst, codItem, descItem, tipo,
