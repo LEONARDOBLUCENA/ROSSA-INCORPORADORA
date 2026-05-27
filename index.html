@@ -1438,7 +1438,9 @@ function renderDtlh() {
   if(ftEl) ftEl.className = 'dtlh-group-total pos';
 
   // ── Tabela Orçamento vs Comprometido ──
-  renderDtlhOrcTable(pagas, f);
+  // Comprometido é acumulado total da obra — não filtra por ano/mês
+  const pagasObra = DATA.pagas.filter(r => !f.obra || ccMatch(r.cc||'', f.obra));
+  renderDtlhOrcTable(pagasObra, f);
 }
 
 function renderDtlhOrcTable(pagas, f) {
@@ -1452,10 +1454,13 @@ function renderDtlhOrcTable(pagas, f) {
     return;
   }
 
+  const normCod = s => String(s||'').trim().toLowerCase().replace(/\s+/g,'');
+
   // Pré-calcula comprometido por item
   const calcItem = o => {
+    const codOrc = normCod(o.codigo);
     const comprometido = pagas
-      .filter(p => p.codItem && p.codItem.trim() === o.codigo.trim())
+      .filter(p => normCod(p.codItem) === codOrc && normCod(p.codItem) !== '')
       .reduce((s,p) => s+(p.valorObra||0), 0);
     const saldo      = o.valor - comprometido;
     const pct        = o.valor > 0 ? comprometido/o.valor : 0;
@@ -1533,7 +1538,28 @@ function renderDtlhOrcTable(pagas, f) {
 
   tbody.innerHTML = html;
 
-  // KPI Saldo do Orçamento
+  // Aviso de lançamentos sem match
+  const codigos = new Set(itens.map(o => normCod(o.codigo)));
+  const semMatch = pagas.filter(p => {
+    const c = normCod(p.codItem);
+    return c === '' || !codigos.has(c);
+  });
+  const valorSemMatch = semMatch.reduce((s,p)=>s+(p.valorObra||0),0);
+  let avisoEl = document.getElementById('dt-orc-aviso');
+  if(!avisoEl){
+    avisoEl = document.createElement('div');
+    avisoEl.id = 'dt-orc-aviso';
+    avisoEl.style.cssText = 'margin-top:8px;padding:10px 16px;font-size:12px;border-left:3px solid';
+    const tblCard = document.getElementById('dt-orc-body').closest('.tbl-card');
+    tblCard.parentNode.insertBefore(avisoEl, tblCard.nextSibling);
+  }
+  if(semMatch.length && valorSemMatch > 0){
+    avisoEl.style.borderColor='#B7950B';avisoEl.style.background='#FEF9E7';
+    avisoEl.style.color='#7D6608';avisoEl.style.display='block';
+    avisoEl.innerHTML=`⚠ <strong>${semMatch.length} lançamento(s)</strong> de Contas Pagas com <strong>Vlr Aprop Obra = ${fmt(valorSemMatch)}</strong> não vinculados a nenhum item do orçamento (código ausente ou sem correspondência).`;
+  } else {
+    if(avisoEl) avisoEl.style.display='none';
+  }
   set('dt-orcamento', fmt(grandSaldo));
   const orcEl = document.getElementById('dt-orcamento');
   if(orcEl) orcEl.className = 'dtlh-item-val '+(grandSaldo>=0?'':'neg');
