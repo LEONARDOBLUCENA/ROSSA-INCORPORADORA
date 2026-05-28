@@ -210,7 +210,6 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 </nav>
 
-<!-- ══════════════════════════════════════════════ DASHBOARD -->
 <div class="page active" id="page-dash">
   <div class="sec-title">Dashboard Geral</div>
   <div class="sec-sub">Visão consolidada — Rossa Incorporadora</div>
@@ -224,7 +223,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 
   <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
-    <!-- KPI Recebido -->
+    
     <div class="kpi-card c-green">
       <div class="kpi-label">Total Recebido</div>
       <div class="kpi-val pos" id="d-kpi-recebido">—</div>
@@ -240,7 +239,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         </div>
       </div>
     </div>
-    <!-- KPI Pago -->
+    
     <div class="kpi-card c-red">
       <div class="kpi-label">Total Pago</div>
       <div class="kpi-val neg" id="d-kpi-pago">—</div>
@@ -256,7 +255,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         </div>
       </div>
     </div>
-    <!-- KPI Resultado -->
+    
     <div class="kpi-card c-blue">
       <div class="kpi-label">Resultado (Rec. − Pago)</div>
       <div class="kpi-val" id="d-kpi-resultado">—</div>
@@ -338,7 +337,6 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════ CONTAS PAGAS -->
 <div class="page" id="page-pagas">
   <div class="sec-title">Contas Pagas</div>
   <div class="sec-sub">Cole aqui a tabela exportada do sistema financeiro</div>
@@ -403,7 +401,6 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════ CONTAS RECEBIDAS -->
 <div class="page" id="page-recebidas">
   <div class="sec-title">Contas Recebidas</div>
   <div class="sec-sub">Cole aqui a tabela de faturamentos recebidos (baixados)</div>
@@ -461,7 +458,6 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════ CONTAS A RECEBER -->
 <div class="page" id="page-areceber">
   <div class="sec-title">Contas a Receber</div>
   <div class="sec-sub">Cole aqui a tabela de faturamentos em aberto</div>
@@ -518,17 +514,16 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════
+
 // STATE
-// ══════════════════════════════════════════════════════
+
 const DATA = { pagas:[], recebidas:[], areceber:[] };
 const CHARTS = {};
 const MESES_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MESES_SH  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-// ══════════════════════════════════════════════════════
 // NAV
-// ══════════════════════════════════════════════════════
+
 function goTab(btn) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
@@ -536,9 +531,8 @@ function goTab(btn) {
   btn.classList.add('active');
 }
 
-// ══════════════════════════════════════════════════════
 // UTILS
-// ══════════════════════════════════════════════════════
+
 function fmt(v) {
   if(v==null||isNaN(v))return'—';
   return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -616,9 +610,8 @@ function tipoFaturamento(acrescimos) {
   return'CAIXA';
 }
 
-// ══════════════════════════════════════════════════════
 // PASTE — wiring (após DOM pronto)
-// ══════════════════════════════════════════════════════
+
 window.addEventListener('load', () => {
   wirePaste('paste-pagas',    processPagasText,    'status-pagas');
   wirePaste('paste-recebidas',processRecibidasText,'status-recebidas');
@@ -649,9 +642,8 @@ function wirePaste(taId, processFn, statusId) {
   });
 }
 
-// ══════════════════════════════════════════════════════
 // DIAGNÓSTICO — renderiza painel mostrando mapeamento de colunas
-// ══════════════════════════════════════════════════════
+
 function renderDiag(containerId, allHeaders, mappings, firstRow) {
   const el = document.getElementById(containerId);
   if(!el) return;
@@ -703,9 +695,8 @@ function findColKey(row, candidates) {
   return { foundKey: null, value: '' };
 }
 
-// ══════════════════════════════════════════════════════
 // PARSE — CONTAS PAGAS
-// ══════════════════════════════════════════════════════
+
 function processPagasText(txt) {
   const rows = parseTSV(txt);
   if(!rows.length){ setStatus('status-pagas','Nenhum dado encontrado. Verifique se copiou com cabeçalho.',false); return; }
@@ -829,9 +820,8 @@ function renderPagasTable(){
   }).join('');
 }
 
-// ══════════════════════════════════════════════════════
 // PARSE — CONTAS RECEBIDAS
-// ══════════════════════════════════════════════════════
+
 function processRecibidasText(txt) {
   const rows=parseTSV(txt);
   if(!rows.length){setStatus('status-recebidas','Nenhum dado encontrado.',false);return;}
@@ -853,9 +843,8 @@ function limparRecebidas(){
   renderDashboard();
 }
 
-// ══════════════════════════════════════════════════════
 // PARSE — CONTAS A RECEBER (Centro de Custo, Data Vecto., Total)
-// ══════════════════════════════════════════════════════
+
 function processAReceberText(txt) {
   const rows = parseTSV(txt);
   if(!rows.length){ setStatus('status-areceber','Nenhum dado encontrado.',false); return; }
@@ -1066,9 +1055,8 @@ function renderFatTable(key, bodyId, countId, cols) {
   }).join('');
 }
 
-// ══════════════════════════════════════════════════════
 // EXPORT EXCEL
-// ══════════════════════════════════════════════════════
+
 function exportExcel(key) {
   const names = {pagas:'Contas Pagas', recebidas:'Contas Recebidas', areceber:'Contas a Receber'};
   const fmtDate = d => d ? d.toLocaleDateString('pt-BR') : '';
@@ -1126,9 +1114,8 @@ function exportExcel(key) {
   XLSX.writeFile(wb, `Rossa_${(names[key]||key).replace(/ /g,'_')}_${date}.xlsx`);
 }
 
-// ══════════════════════════════════════════════════════
 // DASHBOARD FILTERS
-// ══════════════════════════════════════════════════════
+
 function updateDashFilters() {
   const anos=[...new Set([...DATA.pagas,...DATA.recebidas,...DATA.areceber].map(r=>r.ano).filter(x=>x!=null))].sort();
   const meses=[...new Set([...DATA.pagas,...DATA.recebidas,...DATA.areceber].map(r=>r.mes).filter(x=>x!=null))].sort((a,b)=>a-b);
@@ -1139,9 +1126,11 @@ function updateDashFilters() {
 }
 function fillSelect(id,values,valFn,labelFn){
   const sel=document.getElementById(id);
-  const first=sel.options[0];
-  sel.innerHTML='';sel.appendChild(first);
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">'+sel.options[0]?.textContent+'</option>';
   values.forEach(v=>{const o=document.createElement('option');o.value=valFn(v);o.textContent=labelFn(v);sel.appendChild(o);});
+  if(cur)sel.value=cur;
 }
 function clearDashFilters(){['d-ano','d-mes','d-cc'].forEach(id=>document.getElementById(id).value='');renderDashboard();}
 function normCC(s){ return (s||'').trim().toUpperCase().replace(/\s+/g,' '); }
@@ -1149,9 +1138,8 @@ function getF(){return{ano:document.getElementById('d-ano').value,mes:document.g
 function ccMatch(a,b){return normCC(a)===normCC(b);}
 function applyF(arr){const f=getF();return arr.filter(r=>(!f.ano||String(r.ano)===f.ano)&&(!f.mes||String(r.mes)===f.mes)&&(!f.cc||ccMatch(r.cc||'',f.cc)));}
 
-// ══════════════════════════════════════════════════════
 // DASHBOARD RENDER
-// ══════════════════════════════════════════════════════
+
 function renderDashboard() {
   const pagas    =applyF(DATA.pagas);
   const recebidas=applyF(DATA.recebidas);
@@ -1194,9 +1182,8 @@ function renderDashboard() {
 }
 function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 
-// ══════════════════════════════════════════════════════
 // CHARTS
-// ══════════════════════════════════════════════════════
+
 const PAL=['#C0392B','#1A7A3C','#B7950B','#1A5276','#7D3C98','#784212','#1A6161','#2E4057'];
 
 function monthKeys(arrs) {
@@ -1306,9 +1293,8 @@ function renderCharts(pagas,recebidas) {
   }
 }
 
-// ══════════════════════════════════════════════════════
 // BACKUP / RESTORE JSON
-// ══════════════════════════════════════════════════════
+
 function backupJSON() {
   const payload = {
     version: 1,
@@ -1377,9 +1363,9 @@ function restoreJSON(input) {
 }
 </script>
 <script>
-// ══════════════════════════════════════════════════════
+
 // PLANO FINANCEIRO TABLE
-// ══════════════════════════════════════════════════════
+
 function renderPlanoTable(pagas) {
   const planos={};
   pagas.forEach(r=>{
@@ -1411,9 +1397,8 @@ function renderPlanoTable(pagas) {
   }).join('');
 }
 
-// ══════════════════════════════════════════════════════
 // ESTOQUE
-// ══════════════════════════════════════════════════════
+
 // DATA.estoque = [{obra, unidade, valor}]
 if(!DATA.estoque) DATA.estoque = [];
 
@@ -1466,9 +1451,8 @@ function removerEstoque(i) {
   renderDtlh();
 }
 
-// ══════════════════════════════════════════════════════
 // DASHBOARD DTLH — FILTERS
-// ══════════════════════════════════════════════════════
+
 function updateDtlhFilters() {
   const obras = [...new Set([
     ...DATA.recebidas.map(r=>r.cc),
@@ -1518,9 +1502,8 @@ function applyDtF(arr) {
   );
 }
 
-// ══════════════════════════════════════════════════════
 // DASHBOARD DTLH — RENDER
-// ══════════════════════════════════════════════════════
+
 function renderDtlh() {
   const f = getDtF();
 
@@ -1722,9 +1705,8 @@ function renderDtlhOrcTable(pagas, f) {
   if(orcEl) orcEl.className = 'dtlh-item-val '+(grandSaldo>=0?'':'neg');
 }
 
-// ══════════════════════════════════════════════════════
 // ORÇAMENTO
-// ══════════════════════════════════════════════════════
+
 if(!DATA.orcamento) DATA.orcamento = [];
 
 function adicionarOrcamento() {
@@ -2010,12 +1992,11 @@ function debugOrcamento() {
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════ DASHBOARD DTLH -->
 <div class="page" id="page-dtlh">
   <div class="sec-title">Dashboard Dtlh de Obra</div>
   <div class="sec-sub">Análise detalhada por empreendimento</div>
 
-  <!-- Filtros + checkbox estoque -->
+  
   <div class="filters-bar">
     <span class="filter-label">Filtrar</span>
     <select class="filter-select" id="dt-obra"><option value="">Todas as obras</option></select>
@@ -2035,17 +2016,17 @@ function debugOrcamento() {
     <button class="btn-ghost" onclick="clearDtlhFilters()">✕ Limpar</button>
   </div>
 
-  <!-- KPI Saldo Principal (largura total) -->
+  
   <div class="dtlh-kpi-main" id="dt-saldo-card" style="margin-bottom:16px">
     <div class="kpi-label">Saldo — Faturamento Total − Despesas</div>
     <div class="kpi-val" id="dt-saldo">—</div>
     <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:6px" id="dt-saldo-sub">—</div>
   </div>
 
-  <!-- Duas colunas de KPIs -->
+  
   <div class="dtlh-layout">
 
-    <!-- COLUNA FATURAMENTO -->
+    
     <div class="dtlh-col">
       <div class="dtlh-kpi-group">
         <div class="dtlh-group-header">
@@ -2083,7 +2064,7 @@ function debugOrcamento() {
       </div>
     </div>
 
-    <!-- COLUNA DESPESAS -->
+    
     <div class="dtlh-col">
       <div class="dtlh-kpi-group">
         <div class="dtlh-group-header">
@@ -2121,9 +2102,9 @@ function debugOrcamento() {
       </div>
     </div>
 
-  </div><!-- /dtlh-layout -->
+  </div>
 
-  <!-- Tabela Orçamento vs Comprometido -->
+  
   <div class="tbl-card" style="margin-top:16px">
     <div class="tbl-head">
       <div class="tbl-title">Orçamento por Item</div>
@@ -2153,7 +2134,6 @@ function debugOrcamento() {
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════ ORÇAMENTO -->
 <div class="page" id="page-orcamento">
   <div class="sec-title">Orçamento</div>
   <div class="sec-sub">Cadastre o orçamento por item de cada obra — ou importe via Excel</div>
@@ -2189,7 +2169,7 @@ function debugOrcamento() {
     </div>
   </div>
 
-  <!-- Import Excel -->
+  
   <div style="background:var(--blue-light);border:1px solid #A9CCE3;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     <div style="flex:1;min-width:200px">
       <div style="font-size:12px;font-weight:600;color:var(--blue);margin-bottom:3px">Importar do Excel</div>
