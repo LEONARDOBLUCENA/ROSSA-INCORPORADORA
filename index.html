@@ -26,7 +26,8 @@ nav{background:var(--text);display:flex;align-items:center;height:60px;padding:0
 .nav-logo-mark{width:34px;height:34px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:#fff}
 .nav-logo-text{font-family:'Playfair Display',serif;font-size:18px;font-weight:600;color:#fff;letter-spacing:.02em}
 .nav-logo-text span{color:var(--brand)}
-.nav-tabs{display:flex;height:60px}
+.nav-tabs{display:flex;height:60px;overflow-x:auto;scrollbar-width:none}
+.nav-tabs::-webkit-scrollbar{display:none}
 .nav-tab{background:none;border:none;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:0 22px;cursor:pointer;height:100%;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap}
 .nav-tab:hover{color:rgba(255,255,255,.85)}
 .nav-tab.active{color:#fff;border-bottom-color:var(--brand)}
@@ -142,7 +143,11 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   .nav-tab{padding:0 12px;font-size:12px}
 }
 
-/* ── DTLH DASHBOARD ── */
+/* ── INLINE FILTERS (data pages) ── */
+.inline-filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;margin-bottom:12px}
+.inline-filters .filter-select{min-width:120px}
+.inline-filters .filter-input{border:1px solid var(--border);background:var(--bg);padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;min-width:140px}
+.inline-filters .filter-input:focus{border-color:var(--brand)}
 .dtlh-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
 .dtlh-col{display:flex;flex-direction:column;gap:12px}
 .dtlh-kpi-main{background:var(--text);color:#fff;padding:22px 24px;position:relative;overflow:hidden}
@@ -361,6 +366,17 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         <button class="btn-export" onclick="exportExcel('pagas')">⬇ Exportar Excel</button>
       </div>
     </div>
+    <div style="padding:10px 20px 0;border-bottom:1px solid var(--border)">
+      <div class="inline-filters">
+        <span class="filter-label">Filtrar</span>
+        <select class="filter-select" id="fp-ano" onchange="renderPagasTable()"><option value="">Todos os anos</option></select>
+        <select class="filter-select" id="fp-mes" onchange="renderPagasTable()"><option value="">Todos os meses</option></select>
+        <input class="filter-input" id="fp-credor" placeholder="Credor..." oninput="renderPagasTable()">
+        <select class="filter-select" id="fp-cc" onchange="renderPagasTable()"><option value="">Todos os CCs</option></select>
+        <select class="filter-select" id="fp-plano" onchange="renderPagasTable()"><option value="">Todos os planos</option></select>
+        <button class="btn-ghost" onclick="clearPagasFilters()">✕</button>
+      </div>
+    </div>
     <div class="tbl-wrap">
       <table id="tbl-pagas">
         <thead>
@@ -415,6 +431,16 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
         <button class="btn-export" onclick="exportExcel('recebidas')">⬇ Exportar Excel</button>
       </div>
     </div>
+    <div style="padding:10px 20px 0;border-bottom:1px solid var(--border)">
+      <div class="inline-filters">
+        <span class="filter-label">Filtrar</span>
+        <select class="filter-select" id="fr-ano" onchange="renderFatTable('recebidas','body-recebidas','count-recebidas',6)"><option value="">Todos os anos</option></select>
+        <select class="filter-select" id="fr-mes" onchange="renderFatTable('recebidas','body-recebidas','count-recebidas',6)"><option value="">Todos os meses</option></select>
+        <input class="filter-input" id="fr-cliente" placeholder="Cliente..." oninput="renderFatTable('recebidas','body-recebidas','count-recebidas',6)">
+        <select class="filter-select" id="fr-cc" onchange="renderFatTable('recebidas','body-recebidas','count-recebidas',6)"><option value="">Todos os CCs</option></select>
+        <button class="btn-ghost" onclick="clearRecibidasFilters()">✕</button>
+      </div>
+    </div>
     <div class="tbl-wrap">
       <table id="tbl-recebidas">
         <thead>
@@ -460,6 +486,16 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
       <div style="display:flex;align-items:center;gap:10px">
         <span class="tbl-badge" id="count-areceber">0 registros</span>
         <button class="btn-export" onclick="exportExcel('areceber')">⬇ Exportar Excel</button>
+      </div>
+    </div>
+    <div style="padding:10px 20px 0;border-bottom:1px solid var(--border)">
+      <div class="inline-filters">
+        <span class="filter-label">Filtrar</span>
+        <select class="filter-select" id="fa-ano" onchange="renderAReceberTable()"><option value="">Todos os anos</option></select>
+        <select class="filter-select" id="fa-mes" onchange="renderAReceberTable()"><option value="">Todos os meses</option></select>
+        <input class="filter-input" id="fa-cliente" placeholder="Cliente..." oninput="renderAReceberTable()">
+        <select class="filter-select" id="fa-cc" onchange="renderAReceberTable()"><option value="">Todos os CCs</option></select>
+        <button class="btn-ghost" onclick="clearAReceberFilters()">✕</button>
       </div>
     </div>
     <div class="tbl-wrap">
@@ -743,23 +779,49 @@ function limparPagas(){
   renderDashboard();
 }
 
+function clearPagasFilters(){
+  ['fp-ano','fp-mes','fp-cc','fp-plano'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const ci=document.getElementById('fp-credor');if(ci)ci.value='';
+  renderPagasTable();
+}
+
 function renderPagasTable(){
   const tbody=document.getElementById('body-pagas');
-  document.getElementById('count-pagas').textContent=DATA.pagas.length+' registros';
-  if(!DATA.pagas.length){tbody.innerHTML='<tr><td colspan="12"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>';return;}
-  tbody.innerHTML=DATA.pagas.map(r=>{
+  // Populate filter options from current data
+  const anos=[...new Set(DATA.pagas.map(r=>r.ano).filter(x=>x!=null))].sort();
+  const meses=[...new Set(DATA.pagas.map(r=>r.mes).filter(x=>x!=null))].sort((a,b)=>a-b);
+  const ccs=[...new Set(DATA.pagas.map(r=>r.cc).filter(Boolean))].sort();
+  const planos=[...new Set(DATA.pagas.map(r=>r.plano).filter(Boolean))].sort();
+  fillSelect('fp-ano',anos,v=>v,v=>v);
+  fillSelect('fp-mes',meses,v=>v,v=>MESES_PT[v]);
+  fillSelect('fp-cc',ccs,v=>v,v=>v);
+  fillSelect('fp-plano',planos,v=>v,v=>v);
+
+  // Apply filters
+  const fAno  = document.getElementById('fp-ano')?.value||'';
+  const fMes  = document.getElementById('fp-mes')?.value||'';
+  const fCred = (document.getElementById('fp-credor')?.value||'').toLowerCase().trim();
+  const fCC   = document.getElementById('fp-cc')?.value||'';
+  const fPlan = document.getElementById('fp-plano')?.value||'';
+
+  const filtered = DATA.pagas.filter(r=>
+    (!fAno  || String(r.ano)===fAno) &&
+    (!fMes  || String(r.mes)===fMes) &&
+    (!fCred || (r.credor||'').toLowerCase().includes(fCred)) &&
+    (!fCC   || ccMatch(r.cc||'',fCC)) &&
+    (!fPlan || r.plano===fPlan)
+  );
+
+  document.getElementById('count-pagas').textContent=filtered.length+' de '+DATA.pagas.length+' registros';
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="12"><div class="empty-state"><p>Nenhum registro encontrado</p></div></td></tr>';return;}
+  tbody.innerHTML=filtered.map(r=>{
     const cls=r.tipo==='PERMUTA/OUTROS'?'bg-gold':'bg-blue';
     const d=r.dataPag?r.dataPag.toLocaleDateString('pt-BR'):'—';
     return`<tr>
-      <td>${d}</td>
-      <td>${r.credor||'—'}</td>
-      <td>${r.cc||'—'}</td>
-      <td>${r.descObra||'—'}</td>
-      <td>${r.unidConst||'—'}</td>
-      <td>${r.codItem||'—'}</td>
-      <td>${r.descItem||'—'}</td>
-      <td>${r.conta||'—'}</td>
-      <td>${r.plano||'—'}</td>
+      <td>${d}</td><td>${r.credor||'—'}</td><td>${r.cc||'—'}</td>
+      <td>${r.descObra||'—'}</td><td>${r.unidConst||'—'}</td>
+      <td>${r.codItem||'—'}</td><td>${r.descItem||'—'}</td>
+      <td>${r.conta||'—'}</td><td>${r.plano||'—'}</td>
       <td><span class="badge ${cls}">${r.tipo}</span></td>
       <td class="r val-neg">${fmt(r.valor)}</td>
       <td class="r val-neg">${fmt(r.valorObra)}</td>
@@ -864,12 +926,31 @@ function limparAReceber(){
 
 function renderAReceberTable() {
   const tbody = document.getElementById('body-areceber');
-  document.getElementById('count-areceber').textContent = DATA.areceber.length + ' registros';
-  if(!DATA.areceber.length){
-    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>';
+  const arr = DATA.areceber;
+  // Populate dropdowns
+  const anos=[...new Set(arr.map(r=>r.ano).filter(x=>x!=null))].sort();
+  const meses=[...new Set(arr.map(r=>r.mes).filter(x=>x!=null))].sort((a,b)=>a-b);
+  const ccs=[...new Set(arr.map(r=>r.cc).filter(Boolean))].sort();
+  fillSelect('fa-ano',anos,v=>v,v=>v);
+  fillSelect('fa-mes',meses,v=>v,v=>MESES_PT[v]);
+  fillSelect('fa-cc',ccs,v=>v,v=>v);
+  // Apply filters
+  const fAno=(document.getElementById('fa-ano')?.value||'');
+  const fMes=(document.getElementById('fa-mes')?.value||'');
+  const fCli=(document.getElementById('fa-cliente')?.value||'').toLowerCase().trim();
+  const fCC=(document.getElementById('fa-cc')?.value||'');
+  const filtered=arr.filter(r=>
+    (!fAno||String(r.ano)===fAno)&&
+    (!fMes||String(r.mes)===fMes)&&
+    (!fCli||(r.cliente||'').toLowerCase().includes(fCli))&&
+    (!fCC||ccMatch(r.cc||'',fCC))
+  );
+  document.getElementById('count-areceber').textContent = filtered.length+' de '+arr.length+' registros';
+  if(!filtered.length){
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>Nenhum registro encontrado</p></div></td></tr>';
     return;
   }
-  tbody.innerHTML = DATA.areceber.map(r => {
+  tbody.innerHTML = filtered.map(r => {
     const statusCls = r.inadimplente ? 'bg-red'  : 'bg-gold';
     const statusTxt = r.inadimplente ? 'Inadimplente' : 'A Receber';
     const valCls    = r.inadimplente ? 'val-neg' : 'val-gold';
@@ -921,17 +1002,62 @@ function parseFaturamento(rows, diagId) {
   }).filter(r => r.liquido !== 0 || r.cc);
 }
 
+function clearRecibidasFilters(){
+  ['fr-ano','fr-mes','fr-cc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const ci=document.getElementById('fr-cliente');if(ci)ci.value='';
+  renderFatTable('recebidas','body-recebidas','count-recebidas',6);
+}
+function clearAReceberFilters(){
+  ['fa-ano','fa-mes','fa-cc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const ci=document.getElementById('fa-cliente');if(ci)ci.value='';
+  renderAReceberTable();
+}
+
 function renderFatTable(key, bodyId, countId, cols) {
   const arr=DATA[key];
+  const valClass=key==='recebidas'?'val-pos':'val-gold';
+
+  // Populate + apply filters for recebidas
+  if(key==='recebidas') {
+    const anos=[...new Set(arr.map(r=>r.ano).filter(x=>x!=null))].sort();
+    const meses=[...new Set(arr.map(r=>r.mes).filter(x=>x!=null))].sort((a,b)=>a-b);
+    const ccs=[...new Set(arr.map(r=>r.cc).filter(Boolean))].sort();
+    fillSelect('fr-ano',anos,v=>v,v=>v);
+    fillSelect('fr-mes',meses,v=>v,v=>MESES_PT[v]);
+    fillSelect('fr-cc',ccs,v=>v,v=>v);
+    const fAno=(document.getElementById('fr-ano')?.value||'');
+    const fMes=(document.getElementById('fr-mes')?.value||'');
+    const fCli=(document.getElementById('fr-cliente')?.value||'').toLowerCase().trim();
+    const fCC=(document.getElementById('fr-cc')?.value||'');
+    const filtered=arr.filter(r=>
+      (!fAno||String(r.ano)===fAno)&&
+      (!fMes||String(r.mes)===fMes)&&
+      (!fCli||(r.cliente||'').toLowerCase().includes(fCli))&&
+      (!fCC||ccMatch(r.cc||'',fCC))
+    );
+    document.getElementById(countId).textContent=filtered.length+' de '+arr.length+' registros';
+    if(!filtered.length){document.getElementById(bodyId).innerHTML=`<tr><td colspan="${cols}"><div class="empty-state"><p>Nenhum registro encontrado</p></div></td></tr>`;return;}
+    document.getElementById(bodyId).innerHTML=filtered.map(r=>{
+      const cls=r.tipo==='PERMUTA/OUTROS'?'bg-gold':'bg-blue';
+      return`<tr>
+        <td>${r.cc||'—'}</td><td>${r.cliente||'—'}</td>
+        <td>${r.dtBaixa?r.dtBaixa.toLocaleDateString('pt-BR'):'—'}</td>
+        <td>${r.dtVecto?r.dtVecto.toLocaleDateString('pt-BR'):'—'}</td>
+        <td><span class="badge ${cls}">${r.tipo}</span></td>
+        <td class="r ${valClass}">${fmt(r.liquido)}</td>
+      </tr>`;
+    }).join('');
+    return;
+  }
+
+  // Default (no filters)
   document.getElementById(countId).textContent=arr.length+' registros';
   const empty=`<tr><td colspan="${cols}"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>`;
   if(!arr.length){document.getElementById(bodyId).innerHTML=empty;return;}
-  const valClass=key==='recebidas'?'val-pos':'val-gold';
   document.getElementById(bodyId).innerHTML=arr.map(r=>{
     const cls=r.tipo==='PERMUTA/OUTROS'?'bg-gold':'bg-blue';
     return`<tr>
-      <td>${r.cc||'—'}</td>
-      <td>${r.cliente||'—'}</td>
+      <td>${r.cc||'—'}</td><td>${r.cliente||'—'}</td>
       <td>${r.dtBaixa?r.dtBaixa.toLocaleDateString('pt-BR'):'—'}</td>
       <td>${r.dtVecto?r.dtVecto.toLocaleDateString('pt-BR'):'—'}</td>
       <td><span class="badge ${cls}">${r.tipo}</span></td>
@@ -1307,26 +1433,31 @@ function adicionarEstoque() {
 
 function renderEstoqueTable() {
   const tbody = document.getElementById('body-estoque');
-  const total = DATA.estoque.reduce((s,r)=>s+r.valor,0);
-  document.getElementById('count-estoque').textContent = DATA.estoque.length + ' unidades';
+  // Populate obra filter
+  const obras=[...new Set(DATA.estoque.map(r=>r.obra).filter(Boolean))].sort();
+  fillSelect('fe-obra',obras,v=>v,v=>v);
+  // Apply filter
+  const fObra=(document.getElementById('fe-obra')?.value||'');
+  const filtered=DATA.estoque.filter(r=>!fObra||ccMatch(r.obra,fObra));
+  const total = filtered.reduce((s,r)=>s+r.valor,0);
+  document.getElementById('count-estoque').textContent = filtered.length + ' unidades';
   document.getElementById('total-estoque').textContent = fmt(total);
-  // Update datalist for obra autocomplete
-  const obras = [...new Set([
-    ...DATA.recebidas.map(r=>r.cc),
-    ...DATA.areceber.map(r=>r.cc),
-    ...DATA.pagas.map(r=>r.cc)
-  ].filter(Boolean))];
-  document.getElementById('est-obra-list').innerHTML = obras.map(o=>`<option value="${o}">`).join('');
-  if(!DATA.estoque.length) {
-    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>Nenhuma unidade cadastrada</p></div></td></tr>';
+  // Autocomplete obras from all sources
+  const todasObras = [...new Set([...DATA.pagas,...DATA.recebidas,...DATA.areceber].map(r=>r.cc).filter(Boolean))];
+  document.getElementById('est-obra-list').innerHTML = todasObras.map(o=>`<option value="${o}">`).join('');
+  if(!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>Nenhuma unidade encontrada</p></div></td></tr>';
     return;
   }
-  tbody.innerHTML = DATA.estoque.map((r,i) => `<tr>
-    <td>${r.obra}</td>
-    <td>${r.unidade}</td>
-    <td class="r val-gold">${fmt(r.valor)}</td>
-    <td style="text-align:center"><button onclick="removerEstoque(${i})" style="background:none;border:none;color:var(--brand);cursor:pointer;font-size:14px" title="Remover">✕</button></td>
-  </tr>`).join('');
+  tbody.innerHTML = filtered.map((r) => {
+    const i = DATA.estoque.indexOf(r);
+    return `<tr>
+      <td>${r.obra}</td>
+      <td>${r.unidade}</td>
+      <td class="r val-gold">${fmt(r.valor)}</td>
+      <td style="text-align:center"><button onclick="removerEstoque(${i})" style="background:none;border:none;color:var(--brand);cursor:pointer;font-size:14px" title="Remover">✕</button></td>
+    </tr>`;
+  }).join('');
 }
 
 function removerEstoque(i) {
@@ -1852,6 +1983,13 @@ function debugOrcamento() {
       <div style="display:flex;align-items:center;gap:10px">
         <span class="tbl-badge" id="count-estoque">0 unidades</span>
         <span class="tbl-badge" id="total-estoque" style="background:var(--brand-light);color:var(--brand)">R$ 0,00</span>
+      </div>
+    </div>
+    <div style="padding:10px 20px 0;border-bottom:1px solid var(--border)">
+      <div class="inline-filters">
+        <span class="filter-label">Filtrar</span>
+        <select class="filter-select" id="fe-obra" onchange="renderEstoqueTable()"><option value="">Todas as obras</option></select>
+        <button class="btn-ghost" onclick="document.getElementById('fe-obra').value='';renderEstoqueTable()">✕</button>
       </div>
     </div>
     <div class="tbl-wrap">
