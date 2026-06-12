@@ -56,7 +56,7 @@ function processCSVText(txt){
   setStatus('status-csv','+'+novos.length+' registros \u2014 total: '+DATA.csv.length+'.',true);
   renderCSVTable();updateDtlhFilters();renderDtlh();renderFluxo();renderCaixaInicialCampos();autoSave();
 }
-function limparCSV(){document.getElementById('paste-csv').value='';DATA.csv=[];document.getElementById('body-csv').innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr>';document.getElementById('count-csv').textContent='0 registros';const d=document.getElementById('diag-csv');if(d){d.style.display='none';d.innerHTML='';}setStatus('status-csv','','');renderDashboard();renderDtlh();autoSave();}
+function limparCSV(){document.getElementById('paste-csv').value='';DATA.csv=[];document.getElementById('body-csv').innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr>';document.getElementById('count-csv').textContent='0 registros';const d=document.getElementById('diag-csv');if(d){d.style.display='none';d.innerHTML='';}setStatus('status-csv','','');renderDashboard();renderDtlh();renderDash();autoSave();}
 function clearCSVFilters(){['fcsv-ano','fcsv-mes','fcsv-cc','fcsv-conta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderCSVTable();}
 function renderCSVTable(){
   const arr=DATA.csv;
@@ -189,8 +189,10 @@ function renderFluxo(){
   const obraSel=document.getElementById('fc-obra')?.value||'';
   const thead=document.getElementById('thead-fluxo'),tbody=document.getElementById('tbody-fluxo'),tfoot=document.getElementById('tfoot-fluxo');
   if(!thead||!tbody||!tfoot)return;
+  const anoSel=document.getElementById('fc-ano')?.value||'';
   fillSelect('fc-obra',[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort(),v=>v,v=>v);
-  const dados=DATA.csv.filter(r=>!obraSel||ccMatch(r.cc||'',obraSel));
+  fillSelect('fc-ano',[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
+  const dados=DATA.csv.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel));
 
   // Colunas dinâmicas: todas as combinações ano-mes presentes nos dados, ordenadas
   const colSet=new Set();
@@ -722,7 +724,7 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
 
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px">
     <div class="kpi-card c-green">
-      <div class="kpi-label">Total de Entradas</div>
+      <div class="kpi-label">Faturamento Líquido</div>
       <div class="kpi-val pos" id="dash-entradas">—</div>
       <div class="kpi-sub" id="dash-entradas-n">0 lançamentos</div>
     </div>
@@ -741,12 +743,12 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
     <div class="chart-card">
       <div class="chart-title">Entradas por Mês</div>
-      <div class="chart-subtitle">Receitas mensais (FATURAMENTO)</div>
+      <div class="chart-subtitle">Faturamento bruto − Descontos por mês</div>
       <canvas id="dash-ch-entradas"></canvas>
     </div>
     <div class="chart-card">
       <div class="chart-title">Saídas por Mês</div>
-      <div class="chart-subtitle">Despesas mensais (PAGAMENTO + DESCONTO)</div>
+      <div class="chart-subtitle">Pagamentos mensais</div>
       <canvas id="dash-ch-saidas"></canvas>
     </div>
   </div>
@@ -774,6 +776,8 @@ tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span class="filter-label">Obra</span>
         <select class="filter-select" id="fc-obra" onchange="renderCaixaInicialCampos();renderFluxo()" style="min-width:150px"><option value="">Todas as obras</option></select>
+        <span class="filter-label">Ano</span>
+        <select class="filter-select" id="fc-ano" onchange="renderFluxo()" style="min-width:100px"><option value="">Todos os anos</option></select>
         <span class="tbl-badge" id="fc-badge">—</span>
         <button class="btn-export" onclick="exportarFluxo()" style="padding:5px 12px;font-size:11px">&#8595; Excel</button>
       </div>
@@ -1131,13 +1135,16 @@ function renderDash() {
   );
 
   const entradas = data.filter(r=>r.tipo==='FATURAMENTO');
-  const saidas   = data.filter(r=>r.tipo==='PAGAMENTO'||r.tipo==='DESCONTO');
+  const saidas   = data.filter(r=>r.tipo==='PAGAMENTO'||r.tipo==='DESCONTO_OBTIDO');
+  const descontos= data.filter(r=>r.tipo==='DESCONTO');
   const totEnt   = entradas.reduce((s,r)=>s+Math.abs(r.valor),0);
   const totSai   = saidas.reduce((s,r)=>s+Math.abs(r.valor),0);
-  const saldo    = totEnt - totSai;
+  const totDsc   = descontos.reduce((s,r)=>s+Math.abs(r.valor),0);
+  const totEntLiq= totEnt - totDsc;
+  const saldo    = totEntLiq - totSai;
 
-  set('dash-entradas',   fmt(totEnt));
-  set('dash-entradas-n', entradas.length+' lançamentos');
+  set('dash-entradas',   fmt(totEntLiq));
+  set('dash-entradas-n', entradas.length+' lançamentos | Desc: '+fmt(totDsc));
   set('dash-saidas',     fmt(totSai));
   set('dash-saidas-n',   saidas.length+' lançamentos');
   const sEl = document.getElementById('dash-saldo');
@@ -1150,7 +1157,11 @@ function renderDash() {
   const labels = [...keys].sort().map(k=>MESES_SH[k%100]+'/'+Math.floor(k/100));
   const sortedKeys = [...keys].sort();
 
-  const mEnt = sortedKeys.map(k=>entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0));
+  const mEnt = sortedKeys.map(k=>{
+    const f=entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0);
+    const d=descontos.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0);
+    return f-d;
+  });
   const mSai = sortedKeys.map(k=>saidas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0));
   const mRes = mEnt.map((v,i)=>v-mSai[i]);
 
