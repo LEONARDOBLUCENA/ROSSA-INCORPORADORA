@@ -362,7 +362,7 @@ tbody td.c{text-align:center}
   <div class="estoque-form">
     <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:600;margin-bottom:14px">Adicionar Unidade</div>
     <div class="form-row">
-      <div class="form-group"><label>Obra</label><select class="form-input" id="est-obra"><option value="">Selecione a obra</option></select></div>
+      <div class="form-group"><label>Obra</label><input class="form-input" id="est-obra" placeholder="Nome da obra" style="min-width:180px"></div>
       <div class="form-group"><label>Unidade</label><input class="form-input" id="est-unidade" placeholder="Ex: Apto 101"></div>
       <div class="form-group"><label>Status</label><select class="form-input" id="est-status"><option value="Disponível">Disponível</option><option value="Vendido">Vendido</option><option value="Permuta">Permuta</option></select></div>
       <div class="form-group"><label>Área (m²)</label><input class="form-input" id="est-area" placeholder="Ex: 65" type="text" style="max-width:100px"></div>
@@ -428,9 +428,9 @@ tbody td.c{text-align:center}
 const DATA={csv:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{},prev:[]};
 const GHUB={
   token:['ghp_DMtc','LFDDPZIq7QGo','GgJvmTc1TbfSMf0H9mw1'].join(''),
-  repo:'LEONARDOBLUCENA/SOLUCIONE-INCORPORADORA',
+  repo:'LEONARDOBLUCENA/ROSSA-INCORPORADORA',
   file:'data.json',
-  raw:'https://raw.githubusercontent.com/LEONARDOBLUCENA/SOLUCIONE-INCORPORADORA/main/data.json'
+  raw:'https://raw.githubusercontent.com/LEONARDOBLUCENA/ROSSA-INCORPORADORA/main/data.json'
 };
 let _ghubSaving=false,_ghubDirty=false,_ghubSha=null;
 const CHARTS={};
@@ -573,7 +573,6 @@ function updateFluxoFilters(){
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
   fillSelect('fc-obra',obras,v=>v,v=>v);
   fillSelect('fc-ano',[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
-  fillSelect('est-obra',obras,v=>v,v=>v);
   fillSelect('dt-obra',obras,v=>v,v=>v);
 }
 function renderFluxo(){
@@ -775,7 +774,7 @@ function renderEstoqueTable(){
   set('total-estoque',fmt(totalVal));
   const tbody=document.getElementById('body-estoque');if(!tbody)return;
   if(!filtered.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhuma unidade</p></div></td></tr>';return;}
-  tbody.innerHTML=filtered.map((r,i)=>'<tr><td>'+r.obra+'</td><td>'+r.unidade+'</td><td><span class="badge '+(r.status==='Disponível'?'bg-green':r.status==='Vendido'?'bg-red':'bg-gold')+'">'+r.status+'</span></td><td class="r">'+(r.area?r.area.toLocaleString('pt-BR',{minimumFractionDigits:2})+'m²':'—')+'</td><td class="r">'+(r.venda?fmt(r.venda):'—')+'</td><td class="c"><button onclick="removerEstoque('+DATA.estoque.indexOf(r)+')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px">✕</button></td></tr>').join('');
+  tbody.innerHTML=filtered.map(r=>{const idx=DATA.estoque.indexOf(r);return'<tr><td>'+r.obra+'</td><td>'+r.unidade+'</td><td><span class="badge '+(r.status==='Disponível'?'bg-green':r.status==='Vendido'?'bg-red':'bg-gold')+'">'+r.status+'</span></td><td class="r">'+(r.area?r.area.toLocaleString('pt-BR',{minimumFractionDigits:2})+'m²':'—')+'</td><td class="r">'+(r.venda?fmt(r.venda):'—')+'</td><td class="c"><button onclick="removerEstoque('+idx+')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px">✕</button></td></tr>';}).join('');
 }
 function removerEstoque(i){DATA.estoque.splice(i,1);renderEstoqueTable();renderDtlh();autoSave();}
 function exportarEstoque(){
