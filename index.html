@@ -458,11 +458,6 @@ tbody td.c{text-align:center}
     <button class="btn-ghost" onclick="document.getElementById('proj-obra').value='';renderProj()">✕ Limpar</button>
     <div style="margin-left:auto"><button class="btn-export" onclick="exportarProj()">⬇ Excel</button></div>
   </div>
-  <!-- Painel de premissas de despesa -->
-  <div class="tbl-card" style="margin-bottom:14px">
-    <div class="tbl-head"><div class="tbl-title">Premissas de Despesa</div><span style="font-size:11px;color:var(--text3)">Média dos últimos N meses do CSV — por Centro de Custo</span></div>
-    <div id="proj-premissas-panel" style="padding:14px 18px;display:flex;flex-wrap:wrap;gap:18px"></div>
-  </div>
   <div class="tbl-card">
     <div class="tbl-head"><div class="tbl-title">Projeção Mensal</div><span class="tbl-badge" id="proj-badge">—</span></div>
     <div style="overflow-x:auto;overflow-y:auto;max-height:70vh">
@@ -949,33 +944,19 @@ function apresentacaoDtlh(){
 }
 
 // ── PROJEÇÃO ROSSA ────────────────────────────────────────────────────────────
-const PROJ_CC_CSV=['PALAZZO DEL ROSSA','DIAMOND PRIME','GRAND PLACE'];
-function projUsaCSV(cc){return PROJ_CC_CSV.some(x=>normCC(cc).includes(x));}
+// CCs que usam dados de despesa direto do CSV (sem premissa de média)
+const PROJ_CC_CSV_PURO=['DIAMOND PRIME'];
+// CCs com premissas de obra (Saldo Orçamento, Início Obra, Tempo Obra)
+const PROJ_CC_OBRA=['PALAZZO DEL ROSSA','GRAND PLACE'];
 
-function buildPremisasPanel(ccs){
-  const panel=document.getElementById('proj-premissas-panel');if(!panel)return;
-  if(!DATA.projPremissas)DATA.projPremissas={};
-  const ccsPremissa=ccs.filter(cc=>!projUsaCSV(cc));
-  if(!ccsPremissa.length){panel.innerHTML='<span style="font-size:12px;color:var(--text3)">Todos os centros de custo usam dados do CSV.</span>';return;}
-  panel.innerHTML=ccsPremissa.map(cc=>{
-    const key='media_'+cc;
-    const val=DATA.projPremissas[key]||6;
-    return'<div style="display:flex;flex-direction:column;gap:4px;min-width:180px">'
-      +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)">'+cc+'</div>'
-      +'<div style="display:flex;align-items:center;gap:6px">'
-      +'<span style="font-size:11px;color:var(--text2)">Média dos últimos</span>'
-      +'<input type="number" min="1" max="24" step="1" value="'+val+'" data-cc="'+cc.replace(/"/g,'&quot;')+'" '
-      +'onchange="DATA.projPremissas[\'media_'+cc.replace(/'/g,"\\'")+'\']=parseInt(this.value)||6;renderProj();autoSave()" '
-      +'style="width:52px;border:1px solid var(--brand);background:#fff;padding:4px 6px;font-size:13px;font-weight:600;text-align:center;outline:none">'
-      +'<span style="font-size:11px;color:var(--text2)">meses</span>'
-      +'</div>'
-      +'<div style="font-size:11px;color:var(--text3)" id="proj-media-val-'+btoa(cc).replace(/[^a-zA-Z0-9]/g,'')+'">calculando...</div>'
-      +'</div>';
-  }).join('');
+function projTipo(cc){
+  const n=normCC(cc);
+  if(PROJ_CC_CSV_PURO.some(x=>n.includes(x)))return'csv';
+  if(PROJ_CC_OBRA.some(x=>n.includes(x)))return'obra';
+  return'media';// premissa de média
 }
 
 function calcMediaDesp(cc, nMeses){
-  // Pegar os últimos nMeses com dados de pagamento para este CC
   const hoje=new Date();const mesAtualKey=hoje.getFullYear()*100+hoje.getMonth();
   const mesesComDados=[...new Set(
     DATA.csv.filter(r=>ccMatch(r.cc||'',cc)&&r.tipo==='PAGAMENTO'&&r.ano!=null&&r.mes!=null&&(r.ano*100+r.mes)<mesAtualKey)
@@ -989,6 +970,72 @@ function calcMediaDesp(cc, nMeses){
   return total/mesesComDados.length;
 }
 
+function getPremissa(key,def){if(!DATA.projPremissas)DATA.projPremissas={};return DATA.projPremissas[key]!==undefined?DATA.projPremissas[key]:def;}
+function setPremissa(key,val){if(!DATA.projPremissas)DATA.projPremissas={};DATA.projPremissas[key]=val;renderProj();autoSave();}
+
+// Gera o HTML do bloco de premissas para um CC — aparece dentro do <thead>
+function premissaHeaderHTML(cc){
+  const tipo=projTipo(cc);
+  const safeKey=cc.replace(/[^a-zA-Z0-9]/g,'_');
+  const inp=(label,key,def,tipo,extra)=>{
+    const v=getPremissa(key,def);
+    return'<div style="display:flex;align-items:center;gap:4px;white-space:nowrap;margin-bottom:3px">'
+      +'<span style="font-size:10px;color:var(--text3)">'+label+'</span>'
+      +'<input type="'+(tipo||'number')+'" value="'+v+'" '+(extra||'')+' '
+      +'onchange="setPremissa(\''+key+'\',this.type===\'number\'?parseFloat(this.value)||0:this.value)" '
+      +'style="border:1px solid var(--brand);background:#fff;padding:2px 5px;font-size:11px;font-weight:600;outline:none;'+(tipo==='date'?'width:120px':'width:58px;text-align:center')+'">'
+      +'</div>';
+  };
+  if(tipo==='media'){
+    const nM=getPremissa('media_n_'+safeKey,6);
+    const media=calcMediaDesp(cc,nM);
+    return'<div style="padding:6px 8px;background:#FEF9E7;border-bottom:1px solid #f0e0a0;font-size:10px">'
+      +inp('Média últimos','media_n_'+safeKey,6,'number','min="1" max="24" step="1"')
+      +'<span style="font-size:10px;color:var(--text3)"> meses</span>'
+      +'<div style="font-size:10px;color:#B7950B;margin-top:2px">⌀ '+fmt(media)+'/mês</div>'
+      +'</div>';
+  }
+  if(tipo==='obra'){
+    return'<div style="padding:6px 8px;background:#EAF4FB;border-bottom:1px solid #aad4f0;font-size:10px">'
+      +inp('Saldo Orç. R$','obra_saldo_'+safeKey,0,'number','min="0" step="1000"')
+      +inp('Início Obra','obra_inicio_'+safeKey,'','date','')
+      +inp('Tempo (meses)','obra_tempo_'+safeKey,24,'number','min="1" step="1"')
+      +'</div>';
+  }
+  // csv puro — sem premissa
+  return'<div style="padding:6px 8px;background:#f9fefb;border-bottom:1px solid #c8e6c9;font-size:10px;color:var(--text3)">Dados do CSV</div>';
+}
+
+// Calcula despesa para um CC em um mês (rowKey = ano*100+mes)
+function calcDesp(cc, rowKeys, mat_csv){
+  const tipo=projTipo(cc);
+  const safeKey=cc.replace(/[^a-zA-Z0-9]/g,'_');
+  if(tipo==='csv'){
+    return rowKeys.map((_,ri)=>mat_csv[cc]?mat_csv[cc][ri]:0);
+  }
+  if(tipo==='media'){
+    const nM=parseInt(getPremissa('media_n_'+safeKey,6))||6;
+    const media=calcMediaDesp(cc,nM);
+    return rowKeys.map(()=>media);
+  }
+  if(tipo==='obra'){
+    // Distribuição linear do saldo orçamento ao longo do tempo de obra
+    const saldo=parseFloat(getPremissa('obra_saldo_'+safeKey,0))||0;
+    const tempo=parseInt(getPremissa('obra_tempo_'+safeKey,24))||1;
+    const inicioStr=getPremissa('obra_inicio_'+safeKey,'');
+    const mensalObra=saldo/tempo;
+    if(!inicioStr)return rowKeys.map(()=>mensalObra>0?mensalObra:0);
+    const inicio=new Date(inicioStr+'T12:00:00');
+    return rowKeys.map(k=>{
+      const ano=Math.floor(k/100),mes=k%100;
+      const d=new Date(ano,mes,1);
+      const mesesDesdeInicio=Math.round((d-inicio)/(30.44*24*3600*1000));
+      return(mesesDesdeInicio>=0&&mesesDesdeInicio<tempo)?mensalObra:0;
+    });
+  }
+  return rowKeys.map(()=>0);
+}
+
 function renderProj(){
   updateFluxoFilters();
   const obraF=document.getElementById('proj-obra')?.value||'';
@@ -999,7 +1046,6 @@ function renderProj(){
   const hoje=new Date();
   const mesAtualKey=hoje.getFullYear()*100+hoje.getMonth();
   const dados=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF)));
-  // Meses do atual em diante
   const rowSet=new Set();
   dados.forEach(r=>{if(r.ano!=null&&r.mes!=null){const k=r.ano*100+r.mes;if(k>=mesAtualKey)rowSet.add(k);}});
   const rowKeys=[...rowSet].sort();
@@ -1008,67 +1054,53 @@ function renderProj(){
     tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado a partir do mês atual</p></div></td></tr>';
     set('proj-badge','—');return;
   }
-  // CCs no período
   const ccsSet=new Set();
   dados.forEach(r=>{if(r.ano!=null&&r.mes!=null&&(r.ano*100+r.mes)>=mesAtualKey)ccsSet.add(r.cc||'(Sem CC)');});
-  // Também incluir CCs que têm FAT no período mas podem não ter PAG
   const ccs=[...ccsSet].sort();
 
-  // Construir painel de premissas (só CCs que não usam CSV)
-  buildPremisasPanel(ccs);
-
-  // Para cada CC: FAT por mês (do CSV, período atual+), PAG por mês (CSV ou premissa)
-  // mat[cc][ri] = {fat, pag}
-  const mat={};
-  ccs.forEach(cc=>{mat[cc]=rowKeys.map(()=>({fat:0,pag:0}));});
-
-  // FAT — sempre do CSV
+  // mat_csv[cc][ri] = pag do CSV (usado para tipo=csv)
+  const mat_csv={};
+  ccs.forEach(cc=>{mat_csv[cc]=rowKeys.map(()=>0);});
   dados.forEach(r=>{
     const k=r.ano!=null&&r.mes!=null?r.ano*100+r.mes:0;
     if(k<mesAtualKey)return;
     const ri=rowKeys.indexOf(k);if(ri<0)return;
     const cc=r.cc||'(Sem CC)';
-    if(r.tipo==='FATURAMENTO'&&mat[cc])mat[cc][ri].fat+=r.valor;
+    if(r.tipo==='PAGAMENTO'&&mat_csv[cc])mat_csv[cc][ri]+=Math.abs(r.valor);
   });
 
-  // PAG — CSV para exceções, premissa (média) para os demais
-  ccs.forEach(cc=>{
-    if(projUsaCSV(cc)){
-      // Usa CSV diretamente
-      dados.forEach(r=>{
-        const k=r.ano!=null&&r.mes!=null?r.ano*100+r.mes:0;
-        if(k<mesAtualKey)return;
-        const ri=rowKeys.indexOf(k);if(ri<0)return;
-        if(ccMatch(r.cc||'',cc)&&r.tipo==='PAGAMENTO')mat[cc][ri].pag+=Math.abs(r.valor);
-      });
-    } else {
-      // Premissa: média dos últimos N meses
-      const key='media_'+cc;
-      const nMeses=parseInt(DATA.projPremissas&&DATA.projPremissas[key])||6;
-      const media=calcMediaDesp(cc,nMeses);
-      // Atualizar label de valor médio no painel
-      const safeId=btoa(cc).replace(/[^a-zA-Z0-9]/g,'');
-      const lbl=document.getElementById('proj-media-val-'+safeId);
-      if(lbl)lbl.textContent='Média: '+fmt(media)+' / mês ('+nMeses+' meses)';
-      // Replicar em todos os meses da projeção
-      rowKeys.forEach((_,ri)=>{mat[cc][ri].pag=media;});
-    }
+  // FAT por CC por mês (sempre CSV)
+  const mat_fat={};
+  ccs.forEach(cc=>{mat_fat[cc]=rowKeys.map(()=>0);});
+  dados.forEach(r=>{
+    const k=r.ano!=null&&r.mes!=null?r.ano*100+r.mes:0;
+    if(k<mesAtualKey)return;
+    const ri=rowKeys.indexOf(k);if(ri<0)return;
+    const cc=r.cc||'(Sem CC)';
+    if(r.tipo==='FATURAMENTO'&&mat_fat[cc])mat_fat[cc][ri]+=r.valor;
   });
+
+  // Despesa final por CC por mês
+  const mat_pag={};
+  ccs.forEach(cc=>{mat_pag[cc]=calcDesp(cc,rowKeys,mat_csv);});
 
   const SD='position:sticky;left:0;z-index:3;';
-  // ── THEAD ──
-  let th1='<th style="'+SD+'background:#f5f5f5;padding:8px 12px;min-width:85px">Mês/Ano</th>';
+
+  // ── THEAD: 3 linhas — premissa | nome CC | fat/desp/saldo ──
+  let thPrem='<th style="'+SD+'background:#f5f5f5;padding:8px 12px;border-bottom:0"></th>';
+  let th1='<th style="'+SD+'background:#f5f5f5;padding:5px 12px;font-size:10px;font-weight:400;color:var(--text3)">Mês/Ano</th>';
   let th2='<th style="'+SD+'background:#f5f5f5;padding:6px 12px;font-size:10px"></th>';
   ccs.forEach(cc=>{
-    const badge=projUsaCSV(cc)?'':'<span style="font-size:9px;background:#FEF9E7;color:#B7950B;padding:1px 5px;margin-left:4px;border-radius:2px">premissa</span>';
-    th1+='<th colspan="3" style="text-align:center;padding:5px 10px;font-size:11px;font-weight:700;border-left:2px solid #bbb;background:#EEF7EE">'+cc+badge+'</th>';
+    thPrem+='<th colspan="3" style="padding:0;border-left:2px solid #bbb;vertical-align:top">'+premissaHeaderHTML(cc)+'</th>';
+    th1+='<th colspan="3" style="text-align:center;padding:5px 10px;font-size:11px;font-weight:700;border-left:2px solid #bbb;background:#EEF7EE">'+cc+'</th>';
     th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#e8f5e9;color:#1B6B35;border-left:2px solid #bbb">Faturamento</th>';
-    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#FADBD8;color:#C0392B">Despesa'+(projUsaCSV(cc)?'':' ⌀')+'</th>';
+    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#FADBD8;color:#C0392B">Despesa</th>';
     th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#EAF4FB;color:#1a5276">Saldo</th>';
   });
+  thPrem+='<th style="background:#1a5276;border-left:2px solid #154360"></th>';
   th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#1a5276;color:#fff;border-left:2px solid #154360;min-width:110px">Saldo Total</th>';
   th2+='<th style="background:#1a5276;border-left:2px solid #154360"></th>';
-  thead.innerHTML='<tr style="background:#f5f5f5">'+th1+'</tr><tr style="background:#f5f5f5">'+th2+'</tr>';
+  thead.innerHTML='<tr>'+thPrem+'</tr><tr style="background:#f5f5f5">'+th1+'</tr><tr style="background:#f5f5f5">'+th2+'</tr>';
 
   // ── TBODY ──
   let rows='';
@@ -1078,11 +1110,11 @@ function renderProj(){
     const isAtual=k===mesAtualKey;
     const rowBg=isAtual?'background:#fffde7':'';
     let tds='';let saldoTotal=0;
-    ccs.forEach((cc,ci)=>{
-      const {fat,pag}=mat[cc][ri];
+    ccs.forEach(cc=>{
+      const fat=mat_fat[cc][ri];
+      const pag=mat_pag[cc][ri];
       const sl=fat-pag;saldoTotal+=sl;
-      const bl='border-left:2px solid #bbb';
-      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb;'+bl+'">'+(fat?fmt(fat):'<span style="color:#ccc">—</span>')+'</td>';
+      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb;border-left:2px solid #bbb">'+(fat?fmt(fat):'<span style="color:#ccc">—</span>')+'</td>';
       tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#fff9f9">'+(pag?'<span style="color:#C0392B">'+fmt(pag)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';
       tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f0f8ff;font-weight:500;color:'+(sl>=0?'#1B6B35':'#C0392B')+'">'+(fat||pag?fmtSgn(sl):'<span style="color:#ccc">—</span>')+'</td>';
     });
@@ -1094,9 +1126,9 @@ function renderProj(){
 
   // ── TFOOT ──
   let tfCols='';let grandSaldo=0;
-  ccs.forEach((cc)=>{
-    const totFat=rowKeys.reduce((s,k,ri)=>s+mat[cc][ri].fat,0);
-    const totPag=rowKeys.reduce((s,k,ri)=>s+mat[cc][ri].pag,0);
+  ccs.forEach(cc=>{
+    const totFat=mat_fat[cc].reduce((s,v)=>s+v,0);
+    const totPag=mat_pag[cc].reduce((s,v)=>s+v,0);
     const totSl=totFat-totPag;grandSaldo+=totSl;
     tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#c8e6c9;border-left:2px solid #bbb">'+fmt(totFat)+'</td>';
     tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#ffcdd2;color:#C0392B">'+fmt(totPag)+'</td>';
