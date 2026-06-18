@@ -409,6 +409,38 @@ tbody td.c{text-align:center}
   </div>
 </div>
 
+<!-- ===================== PROJEÇÃO ROSSA ===================== -->
+<div class="page" id="page-proj">
+  <div class="sec-title">Projeção Rossa</div>
+  <div class="sec-sub">Visão consolidada mensal de faturamentos e despesas — mês atual em diante</div>
+  <div class="filters-bar">
+    <span class="filter-label">Obra</span>
+    <select class="filter-select" id="proj-obra" onchange="renderProj()"><option value="">Todas as obras</option></select>
+    <button class="btn-ghost" onclick="document.getElementById('proj-obra').value='';renderProj()">&#x2715; Limpar</button>
+    <div style="margin-left:auto"><button class="btn-export" onclick="exportarProj()">&#x2B07; Excel</button></div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);margin-bottom:14px">
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)">Caixa Inicial</span>
+        <input type="number" id="proj-caixa-ini" placeholder="0,00" step="0.01" onchange="renderProj()" style="border:1px solid var(--brand);background:#fff;padding:5px 10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:var(--text);outline:none;text-align:right;width:160px">
+      </div>
+      <div id="proj-obras-panel" style="display:flex;gap:24px;flex-wrap:wrap"></div>
+    </div>
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-head"><div class="tbl-title">Projeção Mensal</div><span class="tbl-badge" id="proj-badge">&#x2014;</span></div>
+    <div style="overflow-x:auto;overflow-y:auto;max-height:70vh">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead id="thead-proj"></thead>
+        <tbody id="tbody-proj"><tr><td colspan="3"><div class="empty-state"><p>Carregue dados no CSV Analítico</p></div></td></tr></tbody>
+        <tfoot id="tfoot-proj"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+
 <script>
 // ── DADOS GLOBAIS ─────────────────────────────────────────────────────────────
 const DATA={csv:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{},prev:[],projPremissas:{}};
