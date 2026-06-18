@@ -172,6 +172,19 @@ tbody td.c{text-align:center}
   .nav-tab{padding:0 10px;font-size:11px}
   .prev-summary{grid-template-columns:1fr 1fr}
 }
+
+/* MULTISELECT MESES */
+.mes-picker{position:relative;display:inline-block}
+.mes-picker-btn{border:1px solid var(--border);background:var(--bg);padding:6px 28px 6px 10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);cursor:pointer;min-width:160px;text-align:left;position:relative;outline:none}
+.mes-picker-btn::after{content:'▾';position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text3)}
+.mes-picker-dropdown{display:none;position:absolute;top:100%;left:0;z-index:300;background:#fff;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:200px;max-height:320px;overflow-y:auto}
+.mes-picker-dropdown.open{display:block}
+.mes-picker-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--text);transition:background .1s}
+.mes-picker-item:hover{background:var(--bg)}
+.mes-picker-item input[type=checkbox]{accent-color:var(--brand);cursor:pointer}
+.mes-picker-actions{display:flex;gap:6px;padding:6px 10px;border-top:1px solid var(--border);background:var(--surface2)}
+.mes-picker-actions button{flex:1;font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 0;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text2)}
+.mes-picker-actions button:hover{border-color:var(--brand);color:var(--brand)}
 </style>
 </head>
 <body>
@@ -217,8 +230,17 @@ tbody td.c{text-align:center}
     <span class="filter-label">Filtrar</span>
     <select class="filter-select" id="dash-obra" onchange="renderDash()"><option value="">Todas as obras</option></select>
     <select class="filter-select" id="dash-ano" onchange="renderDash()"><option value="">Todos os anos</option></select>
-    <select class="filter-select" id="dash-mes" onchange="renderDash()"><option value="">Todos os meses</option></select>
-    <button class="btn-ghost" onclick="document.getElementById('dash-obra').value='';document.getElementById('dash-ano').value='';document.getElementById('dash-mes').value='';renderDash()">✕ Limpar</button>
+    <div class="mes-picker" id="mes-picker-wrap">
+      <button class="mes-picker-btn" id="mes-picker-btn" onclick="toggleMesPicker(event)">Todos os meses</button>
+      <div class="mes-picker-dropdown" id="mes-picker-dropdown" onclick="event.stopPropagation()">
+        <div id="mes-picker-items"></div>
+        <div class="mes-picker-actions">
+          <button onclick="selecionarTodosMeses()">Todos</button>
+          <button onclick="limparMeses()">Limpar</button>
+        </div>
+      </div>
+    </div>
+    <button class="btn-ghost" onclick="document.getElementById('dash-obra').value='';document.getElementById('dash-ano').value='';limparMeses();renderDash()">✕ Limpar</button>
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-green"><div class="kpi-label">Faturamento Líquido</div><div class="kpi-val pos" id="dash-entradas">—</div><div class="kpi-sub" id="dash-entradas-n">0 lançamentos</div></div>
@@ -564,12 +586,11 @@ function renderDash(){
   const anos=[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort();
   fillSelect('dash-obra',obras,v=>v,v=>v);
   fillSelect('dash-ano',anos,v=>v,v=>String(v));
-  fillSelect('dash-mes',MESES_PT.map((n,i)=>({i,n})),v=>v.i,v=>v.n,'Todos os meses');
+  buildMesPicker();
   const obraF=document.getElementById('dash-obra')?.value||'';
   const anoF=document.getElementById('dash-ano')?.value||'';
-  const mesF=document.getElementById('dash-mes')?.value;
-  const mesFN=mesF!==''&&mesF!=null?parseInt(mesF):null;
-  const data=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(mesFN===null||r.mes===mesFN));
+  const mesesSel=getMesesSelecionados();
+  const data=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
   const entradas=data.filter(r=>r.tipo==='FATURAMENTO');
   const saidas=data.filter(r=>r.tipo==='PAGAMENTO');
   const descontos=data.filter(r=>r.tipo==='DESCONTO');
@@ -595,6 +616,35 @@ function renderDash(){
   const ccs=[...new Set(data.map(r=>r.cc).filter(Boolean))];const ccVals=ccs.map(c=>data.filter(r=>r.cc===c).reduce((s,r)=>s+Math.abs(r.valor),0));
   destroyChart('dash-ch-cc');if(ccs.length&&document.getElementById('dash-ch-cc'))CHARTS['dash-ch-cc']=new Chart(document.getElementById('dash-ch-cc'),{type:'doughnut',data:{labels:ccs,datasets:[{data:ccVals,backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:11}}},tooltip:tip}}});
 }
+
+// ── MULTISELECT MESES ─────────────────────────────────────────────────────────
+let _mesesSel=new Set();
+function buildMesPicker(){
+  const container=document.getElementById('mes-picker-items');if(!container)return;
+  const mesesNoCsv=new Set(DATA.csv.map(r=>r.mes).filter(x=>x!=null));
+  container.innerHTML=MESES_PT.map((n,i)=>{
+    const dis=!mesesNoCsv.has(i);
+    return'<label class="mes-picker-item" style="'+(dis?'opacity:.4;pointer-events:none':'')+'"><input type="checkbox" value="'+i+'" '+((_mesesSel.has(i))&&!dis?'checked':'')+(dis?'disabled':'')+' onchange="onMesChange(this)"> '+n+'</label>';
+  }).join('');
+  atualizarBtnMes();
+}
+function onMesChange(cb){
+  if(cb.checked)_mesesSel.add(parseInt(cb.value));else _mesesSel.delete(parseInt(cb.value));
+  atualizarBtnMes();renderDash();
+}
+function getMesesSelecionados(){return[..._mesesSel];}
+function atualizarBtnMes(){
+  const btn=document.getElementById('mes-picker-btn');if(!btn)return;
+  if(!_mesesSel.size){btn.textContent='Todos os meses';}
+  else if(_mesesSel.size<=3){btn.textContent=[..._mesesSel].sort((a,b)=>a-b).map(i=>MESES_ABR[i]).join(', ');}
+  else{btn.textContent=_mesesSel.size+' meses';}
+  // Re-append arrow via CSS ::after — just ensure text is set
+}
+function toggleMesPicker(e){e.stopPropagation();const d=document.getElementById('mes-picker-dropdown');if(d)d.classList.toggle('open');}
+function selecionarTodosMeses(){_mesesSel=new Set();document.querySelectorAll('#mes-picker-items input').forEach(cb=>{if(!cb.disabled){cb.checked=false;}});atualizarBtnMes();renderDash();}
+function limparMeses(){_mesesSel=new Set();document.querySelectorAll('#mes-picker-items input').forEach(cb=>{cb.checked=false;});atualizarBtnMes();renderDash();}
+document.addEventListener('click',()=>{const d=document.getElementById('mes-picker-dropdown');if(d)d.classList.remove('open');});
+
 
 // ── FLUXO DE CAIXA ────────────────────────────────────────────────────────────
 function updateFluxoFilters(){
@@ -901,80 +951,126 @@ function renderProj(){
   const tbody=document.getElementById('tbody-proj');
   const tfoot=document.getElementById('tfoot-proj');
   if(!thead||!tbody||!tfoot)return;
-  // Mês atual (início do mês atual)
   const hoje=new Date();
   const mesAtualKey=hoje.getFullYear()*100+hoje.getMonth();
   const dados=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF)));
-  // Coletar meses a partir do mês atual até o último disponível no CSV
+  // Meses do atual em diante
   const colSet=new Set();
   dados.forEach(r=>{if(r.ano!=null&&r.mes!=null){const k=r.ano*100+r.mes;if(k>=mesAtualKey)colSet.add(k);}});
-  const colKeys=[...colSet].sort();
-  if(!colKeys.length){
+  const rowKeys=[...colSet].sort();
+  if(!rowKeys.length){
     thead.innerHTML='';tfoot.innerHTML='';
     tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado a partir do mês atual</p></div></td></tr>';
     set('proj-badge','—');return;
   }
-  // Coletar contas de faturamento e pagamento únicas
-  const fatContas=new Set(),pagContas=new Set();
+  // Coletar CCs presentes nos dados filtrados (dentro do período)
+  const ccsSet=new Set();
+  dados.forEach(r=>{if(r.ano!=null&&r.mes!=null&&(r.ano*100+r.mes)>=mesAtualKey)ccsSet.add(r.cc||'(Sem CC)');});
+  const ccs=[...ccsSet].sort();
+  // Para cada CC: quais contas de faturamento e quais de despesa
+  // Estrutura: ccFat[cc] = Set de contas FAT; ccPag[cc] = Set de contas PAG
+  const ccFat={},ccPag={};
+  ccs.forEach(c=>{ccFat[c]=new Set();ccPag[c]=new Set();});
   dados.forEach(r=>{
-    const k=r.ano*100+r.mes;if(!colKeys.includes(k))return;
-    if(r.tipo==='FATURAMENTO')fatContas.add(r.conta||'(Sem conta)');
-    else if(r.tipo==='PAGAMENTO')pagContas.add(r.conta||'(Sem conta)');
+    const k=r.ano!=null&&r.mes!=null?r.ano*100+r.mes:0;
+    if(k<mesAtualKey)return;
+    const cc=r.cc||'(Sem CC)';
+    if(r.tipo==='FATURAMENTO')ccFat[cc].add(r.conta||'(Sem conta)');
+    else if(r.tipo==='PAGAMENTO')ccPag[cc].add(r.conta||'(Sem conta)');
   });
-  const fatArr=[...fatContas].sort();
-  const pagArr=[...pagContas].sort();
-  const NC=colKeys.length;
-  const colAno=colKeys.map(k=>Math.floor(k/100));
-  const colMes=colKeys.map(k=>k%100);
-  // Montar dados: fatMap[conta][colIdx] e pagMap[conta][colIdx]
-  const fatMap={},pagMap={};
-  fatArr.forEach(c=>{fatMap[c]=Array(NC).fill(0);});
-  pagArr.forEach(c=>{pagMap[c]=Array(NC).fill(0);});
+  // Montar lista de colunas: [{cc, tipo:'FAT'|'PAG', conta}] + Saldo
+  const cols=[];
+  ccs.forEach(cc=>{
+    [...ccFat[cc]].sort().forEach(conta=>cols.push({cc,tipo:'FAT',conta}));
+    [...ccPag[cc]].sort().forEach(conta=>cols.push({cc,tipo:'PAG',conta}));
+  });
+  const NC=cols.length;
+  // Calcular valores: val[colIdx][rowIdx]
+  const val=cols.map(()=>rowKeys.map(()=>0));
   dados.forEach(r=>{
-    const k=r.ano*100+r.mes;const ci=colKeys.indexOf(k);if(ci<0)return;
-    if(r.tipo==='FATURAMENTO'){const c=r.conta||'(Sem conta)';if(fatMap[c])fatMap[c][ci]+=r.valor;}
-    else if(r.tipo==='PAGAMENTO'){const c=r.conta||'(Sem conta)';if(pagMap[c])pagMap[c][ci]+=Math.abs(r.valor);}
+    const k=r.ano!=null&&r.mes!=null?r.ano*100+r.mes:0;
+    if(k<mesAtualKey)return;
+    const ri=rowKeys.indexOf(k);if(ri<0)return;
+    const cc=r.cc||'(Sem CC)';
+    const conta=r.conta||'(Sem conta)';
+    if(r.tipo==='FATURAMENTO'){const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='FAT'&&c.conta===conta);if(ci>=0)val[ci][ri]+=r.valor;}
+    else if(r.tipo==='PAGAMENTO'){const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='PAG'&&c.conta===conta);if(ci>=0)val[ci][ri]+=Math.abs(r.valor);}
   });
-  // Totais por mês
-  const totFatM=Array(NC).fill(0),totPagM=Array(NC).fill(0);
-  fatArr.forEach(c=>fatMap[c].forEach((v,i)=>totFatM[i]+=v));
-  pagArr.forEach(c=>pagMap[c].forEach((v,i)=>totPagM[i]+=v));
-  const resultM=totFatM.map((v,i)=>v-totPagM[i]);
-  const SD='position:sticky;left:0;z-index:2;background:';
-  const NF=fatArr.length,NP=pagArr.length,NCOLS=NF+NP+1;
-  // Cabeçalho
-  let thFat=fatArr.map(c=>'<th class="r" style="min-width:110px;padding:6px 8px;font-size:10px;background:#e8f5e9;color:#1B6B35">'+c+'</th>').join('');
-  let thPag=pagArr.map(c=>'<th class="r" style="min-width:110px;padding:6px 8px;font-size:10px;background:#FADBD8;color:#C0392B">'+c+'</th>').join('');
-  thead.innerHTML=
-    '<tr style="background:#f5f5f5">'
-    +'<th style="min-width:80px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5;padding:8px 12px">Mês/Ano</th>'
-    +(fatArr.length?'<th colspan="'+fatArr.length+'" style="text-align:center;padding:5px 8px;font-size:11px;background:#D5F5E3;color:#1B6B35;border-bottom:2px solid #a5d6a7">FATURAMENTOS</th>':'')
-    +(pagArr.length?'<th colspan="'+pagArr.length+'" style="text-align:center;padding:5px 8px;font-size:11px;background:#FADBD8;color:#C0392B;border-bottom:2px solid #f1948a">DESPESAS</th>':'')
-    +'</tr>'
-    +'<tr style="background:#f5f5f5">'
-    +'<th style="position:sticky;left:0;top:0;z-index:3;background:#f5f5f5;padding:6px 12px;font-size:10px">Período</th>'
-    +thFat+thPag
-    +'</tr>';
-  // Linhas
-  let rows=colKeys.map((k,i)=>{
-    const label=MESES_ABR[colMes[i]]+'/'+colAno[i];
+  // Saldo por linha = sum(FAT cols) - sum(PAG cols)
+  const saldoRow=rowKeys.map((_,ri)=>{
+    const fat=cols.reduce((s,c,ci)=>s+(c.tipo==='FAT'?val[ci][ri]:0),0);
+    const pag=cols.reduce((s,c,ci)=>s+(c.tipo==='PAG'?val[ci][ri]:0),0);
+    return fat-pag;
+  });
+  // ── THEAD ──
+  // Linha 1: Mês/Ano | [CC com colspan=nFat+nPag por CC] | Saldo
+  // Linha 2: "" | [conta1, conta2...] por CC | ""
+  const SD='position:sticky;left:0;z-index:3;background:';
+  let th1='<th style="'+SD+'#f5f5f5;padding:8px 12px;min-width:80px;top:0">Mês/Ano</th>';
+  let th2='<th style="'+SD+'#f5f5f5;padding:6px 12px;font-size:10px;top:0"></th>';
+  ccs.forEach(cc=>{
+    const nf=[...ccFat[cc]].length,np=[...ccPag[cc]].length,span=nf+np;
+    if(!span)return;
+    th1+='<th colspan="'+span+'" style="text-align:center;padding:5px 8px;font-size:11px;font-weight:700;border-left:2px solid #ccc;background:#EEF7EE">'+cc+'</th>';
+    [...ccFat[cc]].sort().forEach(c=>th2+='<th class="r" style="min-width:110px;padding:5px 8px;font-size:10px;background:#e8f5e9;color:#1B6B35;border-left:1px solid #c8e6c9">'+c+'</th>');
+    [...ccPag[cc]].sort().forEach(c=>th2+='<th class="r" style="min-width:110px;padding:5px 8px;font-size:10px;background:#FADBD8;color:#C0392B;border-left:1px solid #f1948a">'+c+'</th>');
+  });
+  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#1a5276;color:#fff;border-left:2px solid #154360;min-width:110px">Saldo</th>';
+  th2+='<th style="background:#1a5276;border-left:2px solid #154360"></th>';
+  thead.innerHTML='<tr style="background:#f5f5f5">'+th1+'</tr><tr style="background:#f5f5f5">'+th2+'</tr>';
+  // ── TBODY ──
+  let rows='';
+  rowKeys.forEach((k,ri)=>{
+    const ano=Math.floor(k/100),mes=k%100;
+    const label=MESES_ABR[mes]+'/'+ano;
     const isAtual=k===mesAtualKey;
-    const rowBg=isAtual?'background:#fffde7;font-weight:600':'';
-    let tds=fatArr.map(c=>{const v=fatMap[c][i];return'<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb">'+(v?fmt(v):'<span style="color:#ccc">—</span>')+'</td>';}).join('');
-    tds+=pagArr.map(c=>{const v=pagMap[c][i];return'<td class="r" style="padding:5px 8px;font-size:11px;background:#fff9f9">'+(v?'<span style="color:#C0392B">'+fmt(v)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';}).join('');
-    return'<tr style="border-bottom:1px solid var(--border);'+rowBg+'"><td style="'+SD+(isAtual?'#fffde7':'#fff')+';padding:5px 12px;font-size:11px;font-weight:600">'+label+(isAtual?' ◀':'')+'</td>'+tds+'</tr>';
-  }).join('');
+    const rowBg=isAtual?'background:#fffde7':'';
+    let tds='';
+    ccs.forEach(cc=>{
+      const nf=[...ccFat[cc]].length,np=[...ccPag[cc]].length;if(!nf&&!np)return;
+      let first=true;
+      [...ccFat[cc]].sort().forEach(conta=>{
+        const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='FAT'&&c.conta===conta);
+        const v=ci>=0?val[ci][ri]:0;
+        const bl=first?'border-left:2px solid #ccc':'';first=false;
+        tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb;'+bl+'">'+(v?fmt(v):'<span style="color:#ccc">—</span>')+'</td>';
+      });
+      [...ccPag[cc]].sort().forEach(conta=>{
+        const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='PAG'&&c.conta===conta);
+        const v=ci>=0?val[ci][ri]:0;
+        const bl=first?'border-left:2px solid #ccc':'';first=false;
+        tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#fff9f9;'+bl+'">'+(v?'<span style="color:#C0392B">'+fmt(v)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';
+      });
+    });
+    const sl=saldoRow[ri];
+    const slColor=sl>=0?'#A9DFBF':'#F1948A';
+    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+slColor+';border-left:2px solid #154360">'+fmtSgn(sl)+'</td>';
+    rows+='<tr style="border-bottom:1px solid var(--border);'+rowBg+'"><td style="'+SD+(isAtual?'#fffde7':'#fff')+';padding:5px 12px;font-size:11px;font-weight:600">'+label+(isAtual?' ◀':'')+'</td>'+tds+'</tr>';
+  });
   tbody.innerHTML=rows;
-  // Totais no tfoot
-  let tfFat=fatArr.map((_,fi)=>{const tot=colKeys.reduce((s,k,i)=>s+fatMap[fatArr[fi]][i],0);return'<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#c8e6c9">'+fmt(tot)+'</td>';}).join('');
-  let tfPag=pagArr.map((_,pi)=>{const tot=colKeys.reduce((s,k,i)=>s+pagMap[pagArr[pi]][i],0);return'<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#ffcdd2;color:#C0392B">'+fmt(tot)+'</td>';}).join('');
-  tfoot.innerHTML=
-    '<tr style="border-top:2px solid #bbb;background:#f0f0f0">'
-    +'<td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px;font-weight:700">Total</td>'
-    +tfFat+tfPag
-    +'</tr>';
-  set('proj-badge',colKeys.length+' meses · '+fatArr.length+' faturamentos · '+pagArr.length+' despesas');
+  // ── TFOOT totais ──
+  let tfCols='';
+  ccs.forEach(cc=>{
+    let first=true;
+    [...ccFat[cc]].sort().forEach(conta=>{
+      const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='FAT'&&c.conta===conta);
+      const tot=ci>=0?val[ci].reduce((s,v)=>s+v,0):0;
+      const bl=first?'border-left:2px solid #ccc':'';first=false;
+      tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#c8e6c9;'+bl+'">'+fmt(tot)+'</td>';
+    });
+    [...ccPag[cc]].sort().forEach(conta=>{
+      const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='PAG'&&c.conta===conta);
+      const tot=ci>=0?val[ci].reduce((s,v)=>s+v,0):0;
+      const bl=first?'border-left:2px solid #ccc':'';first=false;
+      tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#ffcdd2;color:#C0392B;'+bl+'">'+fmt(tot)+'</td>';
+    });
+  });
+  const slTot=saldoRow.reduce((s,v)=>s+v,0);
+  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+(slTot>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #154360">'+fmtSgn(slTot)+'</td>';
+  tfoot.innerHTML='<tr style="border-top:2px solid #bbb"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px;font-weight:700;background:#f0f0f0">Total</td>'+tfCols+'</tr>';
+  set('proj-badge',rowKeys.length+' meses · '+ccs.length+' centros de custo');
 }
+
 function exportarProj(){
   const thead=document.getElementById('thead-proj');const tbody=document.getElementById('tbody-proj');const tfoot=document.getElementById('tfoot-proj');
   if(!tbody){alert('Nenhum dado.');return;}
