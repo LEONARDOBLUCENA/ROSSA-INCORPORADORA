@@ -458,6 +458,18 @@ tbody td.c{text-align:center}
     <button class="btn-ghost" onclick="document.getElementById('proj-obra').value='';renderProj()">✕ Limpar</button>
     <div style="margin-left:auto"><button class="btn-export" onclick="exportarProj()">⬇ Excel</button></div>
   </div>
+  <!-- Painel fixo: Caixa Inicial + premissas de obra -->
+  <div style="background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);margin-bottom:14px">
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)">Caixa Inicial</span>
+        <input type="number" id="proj-caixa-ini" placeholder="0,00" step="0.01"
+          onchange="renderProj()"
+          style="border:1px solid var(--brand);background:#fff;padding:5px 10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:var(--text);outline:none;text-align:right;width:160px">
+      </div>
+      <div id="proj-obras-panel" style="display:flex;gap:24px;flex-wrap:wrap"></div>
+    </div>
+  </div>
   <div class="tbl-card">
     <div class="tbl-head"><div class="tbl-title">Projeção Mensal</div><span class="tbl-badge" id="proj-badge">—</span></div>
     <div style="overflow-x:auto;overflow-y:auto;max-height:70vh">
@@ -999,14 +1011,55 @@ function premissaHeaderHTML(cc){
       +'</div>';
   }
   if(tipo==='obra'){
-    return'<div style="padding:6px 8px;background:#EAF4FB;border-bottom:1px solid #aad4f0;font-size:10px">'
-      +inp('Saldo Orç. R$','obra_saldo_'+safeKey,0,'number','min="0" step="1000"')
-      +inp('Início Obra','obra_inicio_'+safeKey,'','date','')
-      +inp('Tempo (meses)','obra_tempo_'+safeKey,24,'number','min="1" step="1"')
+    const saldo=getPremissa('obra_saldo_'+safeKey,0);
+    const tempo=getPremissa('obra_tempo_'+safeKey,24);
+    const inicio=getPremissa('obra_inicio_'+safeKey,'');
+    const inicioFmt=inicio?inicio.substring(0,7):'—';
+    return'<div style="padding:5px 7px;background:#EAF4FB;border-bottom:1px solid #aad4f0;font-size:9px;color:var(--text2)">'
+      +'<div>Orç: <b>'+fmt(saldo)+'</b></div>'
+      +'<div>Início: <b>'+inicioFmt+'</b></div>'
+      +'<div>'+tempo+' meses</div>'
+      +'<div style="font-size:9px;color:#1a5276;margin-top:1px">▸ editar acima ↑</div>'
       +'</div>';
   }
   // csv puro — sem premissa
-  return'<div style="padding:6px 8px;background:#f9fefb;border-bottom:1px solid #c8e6c9;font-size:10px;color:var(--text3)">Dados do CSV</div>';
+  return'<div style="padding:5px 7px;background:#f9fefb;border-bottom:1px solid #c8e6c9;font-size:9px;color:var(--text3)">CSV</div>';
+}
+
+// Painel fixo acima da tabela com campos completos das obras
+function buildObrasPanel(ccs){
+  const panel=document.getElementById('proj-obras-panel');if(!panel)return;
+  const allCcs=ccs||window._projLastCCs||[];
+  const obraCCs=allCcs.filter(cc=>projTipo(cc)==='obra');
+  if(!obraCCs.length){panel.innerHTML='';return;}
+  panel.innerHTML=obraCCs.map(cc=>{
+    const safeKey=cc.replace(/[^a-zA-Z0-9]/g,'_');
+    const saldo=getPremissa('obra_saldo_'+safeKey,0);
+    const inicio=getPremissa('obra_inicio_'+safeKey,'');
+    const tempo=getPremissa('obra_tempo_'+safeKey,24);
+    const inicioMonth=inicio?inicio.substring(0,7):'';
+    return'<div style="display:flex;flex-direction:column;gap:5px;padding:8px 14px;background:var(--blue-light);border:1px solid #aad4f0;min-width:200px">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--blue)">'+cc+'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+        +'<span style="font-size:11px;color:var(--text3);min-width:85px">Saldo Orç.</span>'
+        +'<input type="number" value="'+saldo+'" min="0" step="1000" placeholder="R$ 0"'
+        +' onchange="setPremissa(\'obra_saldo_\'+safeKey,parseFloat(this.value)||0)"'
+        +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:140px;text-align:right">'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+        +'<span style="font-size:11px;color:var(--text3);min-width:85px">Início da Obra</span>'
+        +'<input type="month" value="'+inicioMonth+'"'
+        +' onchange="setPremissa(\'obra_inicio_\'+safeKey,this.value+\'-01\')"'
+        +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:140px">'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+        +'<span style="font-size:11px;color:var(--text3);min-width:85px">Tempo (meses)</span>'
+        +'<input type="number" value="'+tempo+'" min="1" step="1"'
+        +' onchange="setPremissa(\'obra_tempo_\'+safeKey,parseInt(this.value)||24)"'
+        +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:70px;text-align:center">'
+      +'</div>'
+      +'</div>';
+  }).join('');
 }
 
 // Calcula despesa para um CC em um mês (rowKey = ano*100+mes)
@@ -1103,12 +1156,27 @@ function renderProj(){
     if(af)th2+='<th class="r" style="min-width:90px;padding:5px 8px;font-size:10px;background:#FEF9E7;color:#B7950B">Afetação 4%</th>';
     th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#EAF4FB;color:#1a5276">Saldo</th>';
   });
-  thPrem+='<th style="background:#1a5276;border-left:2px solid #154360"></th>';
+  thPrem+='<th style="background:#1a5276;border-left:2px solid #154360"></th><th style="background:#154360;border-left:2px solid #0d3250"></th>';
   th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#1a5276;color:#fff;border-left:2px solid #154360;min-width:110px">Saldo Total</th>';
-  th2+='<th style="background:#1a5276;border-left:2px solid #154360"></th>';
+  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#154360;color:#fff;border-left:2px solid #0d3250;min-width:120px">Caixa Acumulado</th>';
+  th2+='<th style="background:#1a5276;border-left:2px solid #154360"></th><th style="background:#154360;border-left:2px solid #0d3250"></th>';
   thead.innerHTML='<tr>'+thPrem+'</tr><tr style="background:#f5f5f5">'+th1+'</tr><tr style="background:#f5f5f5">'+th2+'</tr>';
+  window._projLastCCs=ccs;buildObrasPanel(ccs);
 
   // ── TBODY ──
+  // Pré-calcular saldoTotal por linha para o caixa acumulado
+  const saldosPorLinha=rowKeys.map((k,ri)=>{
+    let st=0;
+    ccs.forEach(cc=>{
+      const fat=mat_fat[cc][ri];const pag=mat_pag[cc][ri];
+      const af=projTemAfetacao(cc)?(ri>0?mat_fat[cc][ri-1]*0.04:0):0;
+      st+=fat-pag-af;
+    });
+    return st;
+  });
+  const caixaIniProj=parseFloat(document.getElementById('proj-caixa-ini')?.value)||0;
+  const caixaAcumProj=[];let accProj=caixaIniProj;
+  saldosPorLinha.forEach(s=>{accProj+=s;caixaAcumProj.push(accProj);});
   let rows='';
   rowKeys.forEach((k,ri)=>{
     const ano=Math.floor(k/100),mes=k%100;
@@ -1129,6 +1197,8 @@ function renderProj(){
     });
     const slColor=saldoTotal>=0?'#A9DFBF':'#F1948A';
     tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+slColor+';border-left:2px solid #154360">'+fmtSgn(saldoTotal)+'</td>';
+    const ca=caixaAcumProj[ri];const caColor=ca>=0?'#A9DFBF':'#F1948A';
+    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#154360;color:'+caColor+';border-left:2px solid #0d3250">'+fmtSgn(ca)+'</td>';
     rows+='<tr style="border-bottom:1px solid var(--border);'+rowBg+'"><td style="'+SD+'background:'+(isAtual?'#fffde7':'#fff')+';padding:5px 12px;font-size:11px;font-weight:600">'+label+(isAtual?' ◀':'')+'</td>'+tds+'</tr>';
   });
   tbody.innerHTML=rows;
@@ -1147,6 +1217,8 @@ function renderProj(){
     tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#d6eaf8;color:'+(totSl>=0?'#1B6B35':'#C0392B')+'">'+fmtSgn(totSl)+'</td>';
   });
   tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+(grandSaldo>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #154360">'+fmtSgn(grandSaldo)+'</td>';
+  const caFinal=caixaAcumProj.length?caixaAcumProj[caixaAcumProj.length-1]:caixaIniProj;
+  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#154360;color:'+(caFinal>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #0d3250">'+fmtSgn(caFinal)+'</td>';
   tfoot.innerHTML='<tr style="border-top:2px solid #bbb"><td style="'+SD+'padding:6px 12px;font-size:11px;font-weight:700;background:#f0f0f0">Total</td>'+tfCols+'</tr>';
   set('proj-badge',rowKeys.length+' meses · '+ccs.length+' centros de custo');
 }
