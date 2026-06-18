@@ -183,11 +183,12 @@ tbody td.c{text-align:center}
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Dashboard</button>
-    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Resumo Executivo</button>
+    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Fluxo de Obra</button>
     <button class="nav-tab" data-tab="csv" onclick="goTab(this)">CSV Analítico</button>
-    <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa</button>
+    <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
     <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
     <button class="nav-tab" data-tab="prev" onclick="goTab(this)">Previsão por Período</button>
+    <button class="nav-tab" data-tab="proj" onclick="goTab(this)">Projeção Rossa</button>
   </div>
   <div class="nav-actions">
     <span id="jbin-status">⟳ Carregando...</span>
@@ -216,7 +217,8 @@ tbody td.c{text-align:center}
     <span class="filter-label">Filtrar</span>
     <select class="filter-select" id="dash-obra" onchange="renderDash()"><option value="">Todas as obras</option></select>
     <select class="filter-select" id="dash-ano" onchange="renderDash()"><option value="">Todos os anos</option></select>
-    <button class="btn-ghost" onclick="document.getElementById('dash-obra').value='';document.getElementById('dash-ano').value='';renderDash()">✕ Limpar</button>
+    <select class="filter-select" id="dash-mes" onchange="renderDash()"><option value="">Todos os meses</option></select>
+    <button class="btn-ghost" onclick="document.getElementById('dash-obra').value='';document.getElementById('dash-ano').value='';document.getElementById('dash-mes').value='';renderDash()">✕ Limpar</button>
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-green"><div class="kpi-label">Faturamento Líquido</div><div class="kpi-val pos" id="dash-entradas">—</div><div class="kpi-sub" id="dash-entradas-n">0 lançamentos</div></div>
@@ -235,7 +237,7 @@ tbody td.c{text-align:center}
 
 <!-- ===================== RESUMO EXECUTIVO ===================== -->
 <div class="page" id="page-dtlh">
-  <div class="sec-title">Resumo Executivo</div>
+  <div class="sec-title">Fluxo de Obra</div>
   <div class="sec-sub">Projeção de caixa por obra com premissas comerciais</div>
   <div class="filters-bar">
     <span class="filter-label">Obra</span>
@@ -326,7 +328,7 @@ tbody td.c{text-align:center}
 
 <!-- ===================== FLUXO DE CAIXA ===================== -->
 <div class="page" id="page-fluxo">
-  <div class="sec-title">Fluxo de Caixa</div>
+  <div class="sec-title">Fluxo de Caixa Geral</div>
   <div class="sec-sub">Receitas e despesas por conta, abertas mês a mês</div>
   <div class="tbl-card">
     <div class="tbl-head">
@@ -423,6 +425,29 @@ tbody td.c{text-align:center}
   </div>
 </div>
 
+
+<!-- ===================== PROJEÇÃO ROSSA ===================== -->
+<div class="page" id="page-proj">
+  <div class="sec-title">Projeção Rossa</div>
+  <div class="sec-sub">Visão consolidada mensal de faturamentos e despesas — mês atual em diante</div>
+  <div class="filters-bar">
+    <span class="filter-label">Obra</span>
+    <select class="filter-select" id="proj-obra" onchange="renderProj()"><option value="">Todas as obras</option></select>
+    <button class="btn-ghost" onclick="document.getElementById('proj-obra').value='';renderProj()">✕ Limpar</button>
+    <div style="margin-left:auto"><button class="btn-export" onclick="exportarProj()">⬇ Excel</button></div>
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-head"><div class="tbl-title">Projeção Mensal</div><span class="tbl-badge" id="proj-badge">—</span></div>
+    <div style="overflow-x:auto;overflow-y:auto;max-height:70vh">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead id="thead-proj"></thead>
+        <tbody id="tbody-proj"><tr><td colspan="3"><div class="empty-state"><p>Carregue dados no CSV Analítico</p></div></td></tr></tbody>
+        <tfoot id="tfoot-proj"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── DADOS GLOBAIS ─────────────────────────────────────────────────────────────
 const DATA={csv:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{},prev:[]};
@@ -509,7 +534,7 @@ function processCSVText(txt){
   }).filter(r=>r.valor!==0||r.cc);
   DATA.csv=[...DATA.csv,...novos];
   setStatus('status-csv','+'+novos.length+' registros — total: '+DATA.csv.length+'.',true);
-  renderCSVTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderCaixaInicialCampos();autoSave();
+  renderCSVTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderCaixaInicialCampos();autoSave();
 }
 function limparCSV(){DATA.csv=[];renderCSVTable();renderDash();renderDtlh();renderFluxo();renderCaixaInicialCampos();setStatus('status-csv','',null);const d=document.getElementById('diag-csv');if(d){d.style.display='none';d.innerHTML='';}autoSave();}
 function clearCSVFilters(){['fcsv-ano','fcsv-mes','fcsv-cc','fcsv-conta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderCSVTable();}
@@ -539,9 +564,12 @@ function renderDash(){
   const anos=[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort();
   fillSelect('dash-obra',obras,v=>v,v=>v);
   fillSelect('dash-ano',anos,v=>v,v=>String(v));
+  fillSelect('dash-mes',MESES_PT.map((n,i)=>({i,n})),v=>v.i,v=>v.n,'Todos os meses');
   const obraF=document.getElementById('dash-obra')?.value||'';
   const anoF=document.getElementById('dash-ano')?.value||'';
-  const data=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF));
+  const mesF=document.getElementById('dash-mes')?.value;
+  const mesFN=mesF!==''&&mesF!=null?parseInt(mesF):null;
+  const data=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(mesFN===null||r.mes===mesFN));
   const entradas=data.filter(r=>r.tipo==='FATURAMENTO');
   const saidas=data.filter(r=>r.tipo==='PAGAMENTO');
   const descontos=data.filter(r=>r.tipo==='DESCONTO');
@@ -575,6 +603,7 @@ function updateFluxoFilters(){
   fillSelect('fc-ano',[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
   fillSelect('est-obra',obras,v=>v,v=>v,'Selecione a obra');
   fillSelect('dt-obra',obras,v=>v,v=>v);
+  fillSelect('proj-obra',obras,v=>v,v=>v);
 }
 function renderFluxo(){
   const obraSel=document.getElementById('fc-obra')?.value||'';
@@ -616,7 +645,6 @@ function renderFluxo(){
   const ci=parseFloat(DATA.caixaInicial['_total']||0)||0;
   const saldo=[];let acc=ci;rv.forEach(v=>{acc+=v;saldo.push(acc);});
   tfoot.innerHTML=
-    '<tr style="background:#FEF9E7;font-weight:600"><td style="'+SD+'#FEF9E7;padding:6px 12px;font-size:11px">Previsto Líquido</td>'+tPrevM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#B7950B">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4;color:#B7950B">'+f2(tPrevM.reduce((s,v)=>s+v,0))+'</td></tr>'+
     '<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Resultado do Período</td>'+rv.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#1B6B35':'#C0392B')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(rt>=0?'#1B6B35':'#C0392B')+'">'+f2(rt)+'</td></tr>'+
     '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Caixa Inicial</td>'+colKeys.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(ci):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(ci)+'</td></tr>'+
     '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(saldo.length?saldo[saldo.length-1]>=0?'#A9DFBF':'#F1948A':'#fff')+'">'+f2(saldo.length?saldo[saldo.length-1]:ci)+'</td></tr>';
@@ -865,6 +893,96 @@ function apresentacaoDtlh(){
   win.document.close();setTimeout(()=>win.print(),400);
 }
 
+// ── PROJEÇÃO ROSSA ────────────────────────────────────────────────────────────
+function renderProj(){
+  updateFluxoFilters();
+  const obraF=document.getElementById('proj-obra')?.value||'';
+  const thead=document.getElementById('thead-proj');
+  const tbody=document.getElementById('tbody-proj');
+  const tfoot=document.getElementById('tfoot-proj');
+  if(!thead||!tbody||!tfoot)return;
+  // Mês atual (início do mês atual)
+  const hoje=new Date();
+  const mesAtualKey=hoje.getFullYear()*100+hoje.getMonth();
+  const dados=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF)));
+  // Coletar meses a partir do mês atual até o último disponível no CSV
+  const colSet=new Set();
+  dados.forEach(r=>{if(r.ano!=null&&r.mes!=null){const k=r.ano*100+r.mes;if(k>=mesAtualKey)colSet.add(k);}});
+  const colKeys=[...colSet].sort();
+  if(!colKeys.length){
+    thead.innerHTML='';tfoot.innerHTML='';
+    tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado a partir do mês atual</p></div></td></tr>';
+    set('proj-badge','—');return;
+  }
+  // Coletar contas de faturamento e pagamento únicas
+  const fatContas=new Set(),pagContas=new Set();
+  dados.forEach(r=>{
+    const k=r.ano*100+r.mes;if(!colKeys.includes(k))return;
+    if(r.tipo==='FATURAMENTO')fatContas.add(r.conta||'(Sem conta)');
+    else if(r.tipo==='PAGAMENTO')pagContas.add(r.conta||'(Sem conta)');
+  });
+  const fatArr=[...fatContas].sort();
+  const pagArr=[...pagContas].sort();
+  const NC=colKeys.length;
+  const colAno=colKeys.map(k=>Math.floor(k/100));
+  const colMes=colKeys.map(k=>k%100);
+  // Montar dados: fatMap[conta][colIdx] e pagMap[conta][colIdx]
+  const fatMap={},pagMap={};
+  fatArr.forEach(c=>{fatMap[c]=Array(NC).fill(0);});
+  pagArr.forEach(c=>{pagMap[c]=Array(NC).fill(0);});
+  dados.forEach(r=>{
+    const k=r.ano*100+r.mes;const ci=colKeys.indexOf(k);if(ci<0)return;
+    if(r.tipo==='FATURAMENTO'){const c=r.conta||'(Sem conta)';if(fatMap[c])fatMap[c][ci]+=r.valor;}
+    else if(r.tipo==='PAGAMENTO'){const c=r.conta||'(Sem conta)';if(pagMap[c])pagMap[c][ci]+=Math.abs(r.valor);}
+  });
+  // Totais por mês
+  const totFatM=Array(NC).fill(0),totPagM=Array(NC).fill(0);
+  fatArr.forEach(c=>fatMap[c].forEach((v,i)=>totFatM[i]+=v));
+  pagArr.forEach(c=>pagMap[c].forEach((v,i)=>totPagM[i]+=v));
+  const resultM=totFatM.map((v,i)=>v-totPagM[i]);
+  const SD='position:sticky;left:0;z-index:2;background:';
+  const NF=fatArr.length,NP=pagArr.length,NCOLS=NF+NP+1;
+  // Cabeçalho
+  let thFat=fatArr.map(c=>'<th class="r" style="min-width:110px;padding:6px 8px;font-size:10px;background:#e8f5e9;color:#1B6B35">'+c+'</th>').join('');
+  let thPag=pagArr.map(c=>'<th class="r" style="min-width:110px;padding:6px 8px;font-size:10px;background:#FADBD8;color:#C0392B">'+c+'</th>').join('');
+  thead.innerHTML=
+    '<tr style="background:#f5f5f5">'
+    +'<th style="min-width:80px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5;padding:8px 12px">Mês/Ano</th>'
+    +(fatArr.length?'<th colspan="'+fatArr.length+'" style="text-align:center;padding:5px 8px;font-size:11px;background:#D5F5E3;color:#1B6B35;border-bottom:2px solid #a5d6a7">FATURAMENTOS</th>':'')
+    +(pagArr.length?'<th colspan="'+pagArr.length+'" style="text-align:center;padding:5px 8px;font-size:11px;background:#FADBD8;color:#C0392B;border-bottom:2px solid #f1948a">DESPESAS</th>':'')
+    +'</tr>'
+    +'<tr style="background:#f5f5f5">'
+    +'<th style="position:sticky;left:0;top:0;z-index:3;background:#f5f5f5;padding:6px 12px;font-size:10px">Período</th>'
+    +thFat+thPag
+    +'</tr>';
+  // Linhas
+  let rows=colKeys.map((k,i)=>{
+    const label=MESES_ABR[colMes[i]]+'/'+colAno[i];
+    const isAtual=k===mesAtualKey;
+    const rowBg=isAtual?'background:#fffde7;font-weight:600':'';
+    let tds=fatArr.map(c=>{const v=fatMap[c][i];return'<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb">'+(v?fmt(v):'<span style="color:#ccc">—</span>')+'</td>';}).join('');
+    tds+=pagArr.map(c=>{const v=pagMap[c][i];return'<td class="r" style="padding:5px 8px;font-size:11px;background:#fff9f9">'+(v?'<span style="color:#C0392B">'+fmt(v)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';}).join('');
+    return'<tr style="border-bottom:1px solid var(--border);'+rowBg+'"><td style="'+SD+(isAtual?'#fffde7':'#fff')+';padding:5px 12px;font-size:11px;font-weight:600">'+label+(isAtual?' ◀':'')+'</td>'+tds+'</tr>';
+  }).join('');
+  tbody.innerHTML=rows;
+  // Totais no tfoot
+  let tfFat=fatArr.map((_,fi)=>{const tot=colKeys.reduce((s,k,i)=>s+fatMap[fatArr[fi]][i],0);return'<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#c8e6c9">'+fmt(tot)+'</td>';}).join('');
+  let tfPag=pagArr.map((_,pi)=>{const tot=colKeys.reduce((s,k,i)=>s+pagMap[pagArr[pi]][i],0);return'<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#ffcdd2;color:#C0392B">'+fmt(tot)+'</td>';}).join('');
+  tfoot.innerHTML=
+    '<tr style="border-top:2px solid #bbb;background:#f0f0f0">'
+    +'<td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px;font-weight:700">Total</td>'
+    +tfFat+tfPag
+    +'</tr>';
+  set('proj-badge',colKeys.length+' meses · '+fatArr.length+' faturamentos · '+pagArr.length+' despesas');
+}
+function exportarProj(){
+  const thead=document.getElementById('thead-proj');const tbody=document.getElementById('tbody-proj');const tfoot=document.getElementById('tfoot-proj');
+  if(!tbody){alert('Nenhum dado.');return;}
+  const rows=[];
+  [thead,tbody,tfoot].forEach(t=>{if(!t)return;Array.from(t.querySelectorAll('tr')).forEach(tr=>{const cells=Array.from(tr.querySelectorAll('th,td')).map(c=>(c.innerText||c.textContent||'').trim());if(cells.some(c=>c))rows.push(cells);});});
+  const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'Projeção Rossa');XLSX.writeFile(wb,'Rossa_Projecao_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
+}
+
 // ── GITHUB STORAGE ─────────────────────────────────────────────────────────────
 function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},prev:DATA.prev.map(r=>({...r,data:r.data?r.data.toISOString():null})),dtlhUnidades:DATA.dtlhUnidades||{}});}
 async function ghubSave(){
@@ -890,13 +1008,13 @@ async function jbinLoad(){
     DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.dtlhUnidades=d.dtlhUnidades||{};
     fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
-    renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderPrev();renderCaixaInicialCampos();setJbinStatus('ok');
+    renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();setJbinStatus('ok');
   }catch(e){console.error(e);setJbinStatus('error');}
 }
 function setJbinStatus(s){const el=document.getElementById('jbin-status');if(!el)return;const map={loading:['⟳ Carregando...','#888'],saving:['⟳ Salvando...','#888'],ok:['✓ Sincronizado','#1B6B35'],error:['✕ Erro','#C0392B'],empty:['— Sem dados','#888']};const[txt,col]=map[s]||['','#888'];el.textContent=txt;el.style.color=col;}
 function autoSave(){ghubSave();}
 function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto,prev:DATA.prev.map(r=>({...r,data:r.data?r.data.toISOString():null})),dtlhUnidades:DATA.dtlhUnidades||{}}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
-function restoreJSON(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const p=JSON.parse(e.target.result);const d=p.data||p;DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.dtlhUnidades=d.dtlhUnidades||{};renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderPrev();renderCaixaInicialCampos();autoSave();alert('Restaurado! '+DATA.csv.length+' registros CSV.');}catch(err){alert('Erro: '+err.message);}};reader.readAsText(file);input.value='';}
+function restoreJSON(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const p=JSON.parse(e.target.result);const d=p.data||p;DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.dtlhUnidades=d.dtlhUnidades||{};renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();autoSave();alert('Restaurado! '+DATA.csv.length+' registros CSV.');}catch(err){alert('Erro: '+err.message);}};reader.readAsText(file);input.value='';}
 </script>
 </body>
 </html>
