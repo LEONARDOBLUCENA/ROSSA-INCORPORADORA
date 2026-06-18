@@ -947,6 +947,11 @@ function apresentacaoDtlh(){
 // CCs que usam dados de despesa direto do CSV (sem premissa de média)
 // CCs com premissas de obra (Saldo Orçamento, Início Obra, Tempo Obra)
 const PROJ_CC_OBRA=['PALAZZO DELL ROSSA','PALAZZO DEL ROSSA','GRAND PLACE','DIAMOND PRIME'];
+// CCs que têm coluna extra de Afetação = 4% do faturamento
+const PROJ_CC_AFETACAO=['PALAZZO DELL ROSSA','PALAZZO DEL ROSSA','GRAND PLACE','DIAMOND PRIME','ELEGACEN TOWER','ELEGANCE TOWER'];
+function projTemAfetacao(cc){const n=normCC(cc);return PROJ_CC_AFETACAO.some(x=>n.includes(x));}
+// Colspan de cada CC: 3 normal, 4 com afetação
+function projColspan(cc){return projTemAfetacao(cc)?4:3;}
 
 function projTipo(cc){
   const n=normCC(cc);
@@ -1089,10 +1094,13 @@ function renderProj(){
   let th1='<th style="'+SD+'background:#f5f5f5;padding:5px 12px;font-size:10px;font-weight:400;color:var(--text3)">Mês/Ano</th>';
   let th2='<th style="'+SD+'background:#f5f5f5;padding:6px 12px;font-size:10px"></th>';
   ccs.forEach(cc=>{
-    thPrem+='<th colspan="3" style="padding:0;border-left:2px solid #bbb;vertical-align:top">'+premissaHeaderHTML(cc)+'</th>';
-    th1+='<th colspan="3" style="text-align:center;padding:5px 10px;font-size:11px;font-weight:700;border-left:2px solid #bbb;background:#EEF7EE">'+cc+'</th>';
+    const cs=projColspan(cc);
+    const af=projTemAfetacao(cc);
+    thPrem+='<th colspan="'+cs+'" style="padding:0;border-left:2px solid #bbb;vertical-align:top">'+premissaHeaderHTML(cc)+'</th>';
+    th1+='<th colspan="'+cs+'" style="text-align:center;padding:5px 10px;font-size:11px;font-weight:700;border-left:2px solid #bbb;background:#EEF7EE">'+cc+'</th>';
     th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#e8f5e9;color:#1B6B35;border-left:2px solid #bbb">Faturamento</th>';
     th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#FADBD8;color:#C0392B">Despesa</th>';
+    if(af)th2+='<th class="r" style="min-width:90px;padding:5px 8px;font-size:10px;background:#FEF9E7;color:#B7950B">Afetação 4%</th>';
     th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#EAF4FB;color:#1a5276">Saldo</th>';
   });
   thPrem+='<th style="background:#1a5276;border-left:2px solid #154360"></th>';
@@ -1111,10 +1119,12 @@ function renderProj(){
     ccs.forEach(cc=>{
       const fat=mat_fat[cc][ri];
       const pag=mat_pag[cc][ri];
-      const sl=fat-pag;saldoTotal+=sl;
+      const af=projTemAfetacao(cc)?fat*0.04:0;
+      const sl=fat-pag-af;saldoTotal+=sl;
       tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb;border-left:2px solid #bbb">'+(fat?fmt(fat):'<span style="color:#ccc">—</span>')+'</td>';
       tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#fff9f9">'+(pag?'<span style="color:#C0392B">'+fmt(pag)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';
-      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f0f8ff;font-weight:500;color:'+(sl>=0?'#1B6B35':'#C0392B')+'">'+(fat||pag?fmtSgn(sl):'<span style="color:#ccc">—</span>')+'</td>';
+      if(projTemAfetacao(cc))tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#fffde7;color:#B7950B">'+(af?fmt(af):'<span style="color:#ccc">—</span>')+'</td>';
+      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f0f8ff;font-weight:500;color:'+(sl>=0?'#1B6B35':'#C0392B')+'">'+(fat||pag||af?fmtSgn(sl):'<span style="color:#ccc">—</span>')+'</td>';
     });
     const slColor=saldoTotal>=0?'#A9DFBF':'#F1948A';
     tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+slColor+';border-left:2px solid #154360">'+fmtSgn(saldoTotal)+'</td>';
@@ -1127,9 +1137,11 @@ function renderProj(){
   ccs.forEach(cc=>{
     const totFat=mat_fat[cc].reduce((s,v)=>s+v,0);
     const totPag=mat_pag[cc].reduce((s,v)=>s+v,0);
-    const totSl=totFat-totPag;grandSaldo+=totSl;
+    const totAf=projTemAfetacao(cc)?totFat*0.04:0;
+    const totSl=totFat-totPag-totAf;grandSaldo+=totSl;
     tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#c8e6c9;border-left:2px solid #bbb">'+fmt(totFat)+'</td>';
     tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#ffcdd2;color:#C0392B">'+fmt(totPag)+'</td>';
+    if(projTemAfetacao(cc))tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#FEF9E7;color:#B7950B">'+fmt(totAf)+'</td>';
     tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#d6eaf8;color:'+(totSl>=0?'#1B6B35':'#C0392B')+'">'+fmtSgn(totSl)+'</td>';
   });
   tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+(grandSaldo>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #154360">'+fmtSgn(grandSaldo)+'</td>';
