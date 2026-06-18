@@ -775,16 +775,16 @@ function renderDtlh(){
     // Chaves: no mês da entrega
     if(pChaves>0&&dataChaves){const chMes=meses.findIndex(x=>x.ano===dataChaves.getFullYear()&&x.mes===dataChaves.getMonth());if(chMes>=0)prevVendasPorMes[chMes]+=vVendaMes*pChaves;}
   });
-  // Afetação (4%) do A Receber
-  const afetPorMes=aRecPorMes.map(v=>v*0.04);
+  // Afetação (4%) do A Receber — paga no mês SEGUINTE ao faturamento
+  const afetPorMes=aRecPorMes.map((v,i)=>i>0?aRecPorMes[i-1]*0.04:0);
   // Fat. Líquido = A Receber - Afetação
   const fatLiqPorMes=aRecPorMes.map((v,i)=>v-afetPorMes[i]);
   // Nec. Caixa = Fat. Líquido - Saldo Orç.
   const necCaixaPorMes=fatLiqPorMes.map((v,i)=>v-saldoOrcPorMes[i]);
   // Comissão 6% sobre valor vendido
   const comissaoPorMes=meses.map((m,i)=>unVendidasPorMes[i]*(vm||0)*0.06);
-  // Afetação Prevista = 4% da Prev. Vendas
-  const afetPrevPorMes=prevVendasPorMes.map(v=>v*0.04);
+  // Afetação Prevista = 4% da Prev. Vendas — paga no mês SEGUINTE
+  const afetPrevPorMes=prevVendasPorMes.map((v,i)=>i>0?prevVendasPorMes[i-1]*0.04:0);
   // Nec. Caixa Mensal = (Nec. Caixa + Prev. Vendas) - (Comissão + Afet. Prevista)
   const necCaixaMensal=necCaixaPorMes.map((v,i)=>(v+prevVendasPorMes[i])-(comissaoPorMes[i]+afetPrevPorMes[i]));
   // Caixa Acumulado
@@ -1119,7 +1119,8 @@ function renderProj(){
     ccs.forEach(cc=>{
       const fat=mat_fat[cc][ri];
       const pag=mat_pag[cc][ri];
-      const af=projTemAfetacao(cc)?fat*0.04:0;
+      // Afetação = 4% do faturamento do mês ANTERIOR
+      const af=projTemAfetacao(cc)?(ri>0?mat_fat[cc][ri-1]*0.04:0):0;
       const sl=fat-pag-af;saldoTotal+=sl;
       tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb;border-left:2px solid #bbb">'+(fat?fmt(fat):'<span style="color:#ccc">—</span>')+'</td>';
       tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#fff9f9">'+(pag?'<span style="color:#C0392B">'+fmt(pag)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';
@@ -1137,7 +1138,8 @@ function renderProj(){
   ccs.forEach(cc=>{
     const totFat=mat_fat[cc].reduce((s,v)=>s+v,0);
     const totPag=mat_pag[cc].reduce((s,v)=>s+v,0);
-    const totAf=projTemAfetacao(cc)?totFat*0.04:0;
+    // Afetação total = soma de fat[i-1]*0.04 para cada mês — equivale ao total deslocado
+    const totAf=projTemAfetacao(cc)?rowKeys.reduce((s,k,ri)=>s+(ri>0?mat_fat[cc][ri-1]*0.04:0),0):0;
     const totSl=totFat-totPag-totAf;grandSaldo+=totSl;
     tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#c8e6c9;border-left:2px solid #bbb">'+fmt(totFat)+'</td>';
     tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#ffcdd2;color:#C0392B">'+fmt(totPag)+'</td>';
