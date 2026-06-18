@@ -1151,15 +1151,17 @@ function renderProj(){
     const af=projTemAfetacao(cc);
     thPrem+='<th colspan="'+cs+'" style="padding:0;border-left:2px solid #bbb;vertical-align:top">'+premissaHeaderHTML(cc)+'</th>';
     th1+='<th colspan="'+cs+'" style="text-align:center;padding:5px 10px;font-size:11px;font-weight:700;border-left:2px solid #bbb;background:#EEF7EE">'+cc+'</th>';
-    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#e8f5e9;color:#1B6B35;border-left:2px solid #bbb">Faturamento</th>';
-    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#FADBD8;color:#C0392B">Despesa</th>';
-    if(af)th2+='<th class="r" style="min-width:90px;padding:5px 8px;font-size:10px;background:#FEF9E7;color:#B7950B">Afetação 4%</th>';
-    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#EAF4FB;color:#1a5276">Saldo</th>';
+    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;color:#1B6B35;border-left:2px solid #bbb">Faturamento</th>';
+    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;color:#C0392B">Despesa</th>';
+    if(af)th2+='<th class="r" style="min-width:90px;padding:5px 8px;font-size:10px;color:#B7950B">Afetação 4%</th>';
+    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;color:#1a5276">Saldo</th>';
   });
-  thPrem+='<th style="background:#1a5276;border-left:2px solid #154360"></th><th style="background:#154360;border-left:2px solid #0d3250"></th>';
+  thPrem+='<th style="background:#1B6B35;border-left:2px solid #155228"></th><th style="background:#C0392B;border-left:2px solid #922B21"></th><th style="background:#1a5276;border-left:2px solid #154360"></th><th style="background:#154360;border-left:2px solid #0d3250"></th>';
+  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#1B6B35;color:#fff;border-left:2px solid #155228;min-width:110px">Total Fat.</th>';
+  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#C0392B;color:#fff;border-left:2px solid #922B21;min-width:110px">Total Desp.</th>';
   th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#1a5276;color:#fff;border-left:2px solid #154360;min-width:110px">Saldo Total</th>';
   th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#154360;color:#fff;border-left:2px solid #0d3250;min-width:120px">Caixa Acumulado</th>';
-  th2+='<th style="background:#1a5276;border-left:2px solid #154360"></th><th style="background:#154360;border-left:2px solid #0d3250"></th>';
+  th2+='<th style="background:#1B6B35;border-left:2px solid #155228"></th><th style="background:#C0392B;border-left:2px solid #922B21"></th><th style="background:#1a5276;border-left:2px solid #154360"></th><th style="background:#154360;border-left:2px solid #0d3250"></th>';
   thead.innerHTML='<tr>'+thPrem+'</tr><tr style="background:#f5f5f5">'+th1+'</tr><tr style="background:#f5f5f5">'+th2+'</tr>';
   window._projLastCCs=ccs;buildObrasPanel(ccs);
 
@@ -1190,11 +1192,16 @@ function renderProj(){
       // Afetação = 4% do faturamento do mês ANTERIOR
       const af=projTemAfetacao(cc)?(ri>0?mat_fat[cc][ri-1]*0.04:0):0;
       const sl=fat-pag-af;saldoTotal+=sl;
-      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb;border-left:2px solid #bbb">'+(fat?fmt(fat):'<span style="color:#ccc">—</span>')+'</td>';
-      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#fff9f9">'+(pag?'<span style="color:#C0392B">'+fmt(pag)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';
-      if(projTemAfetacao(cc))tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#fffde7;color:#B7950B">'+(af?fmt(af):'<span style="color:#ccc">—</span>')+'</td>';
-      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f0f8ff;font-weight:500;color:'+(sl>=0?'#1B6B35':'#C0392B')+'">'+(fat||pag||af?fmtSgn(sl):'<span style="color:#ccc">—</span>')+'</td>';
+      tds+='<td class="r" style="padding:5px 8px;font-size:11px;border-left:2px solid #bbb;color:#1B6B35">'+(fat?fmt(fat):'<span style="color:#ccc">—</span>')+'</td>';
+      tds+='<td class="r" style="padding:5px 8px;font-size:11px;color:#C0392B">'+(pag?fmt(pag):'<span style="color:#ccc">—</span>')+'</td>';
+      if(projTemAfetacao(cc))tds+='<td class="r" style="padding:5px 8px;font-size:11px;color:#B7950B">'+(af?fmt(af):'<span style="color:#ccc">—</span>')+'</td>';
+      tds+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:500;color:'+(sl>=0?'#1B6B35':'#C0392B')+'">'+(fat||pag||af?fmtSgn(sl):'<span style="color:#ccc">—</span>')+'</td>';
     });
+    // Totais de faturamento e despesa do mês (todos os CCs)
+    const totFatRow=ccs.reduce((s,cc)=>s+mat_fat[cc][ri],0);
+    const totDespRow=ccs.reduce((s,cc)=>{const pag=mat_pag[cc][ri];const af=projTemAfetacao(cc)?(ri>0?mat_fat[cc][ri-1]*0.04:0):0;return s+pag+af;},0);
+    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1B6B35;color:#fff;border-left:2px solid #155228">'+fmt(totFatRow)+'</td>';
+    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#C0392B;color:#fff;border-left:2px solid #922B21">'+fmt(totDespRow)+'</td>';
     const slColor=saldoTotal>=0?'#A9DFBF':'#F1948A';
     tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+slColor+';border-left:2px solid #154360">'+fmtSgn(saldoTotal)+'</td>';
     const ca=caixaAcumProj[ri];const caColor=ca>=0?'#A9DFBF':'#F1948A';
@@ -1211,11 +1218,15 @@ function renderProj(){
     // Afetação total = soma de fat[i-1]*0.04 para cada mês — equivale ao total deslocado
     const totAf=projTemAfetacao(cc)?rowKeys.reduce((s,k,ri)=>s+(ri>0?mat_fat[cc][ri-1]*0.04:0),0):0;
     const totSl=totFat-totPag-totAf;grandSaldo+=totSl;
-    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#c8e6c9;border-left:2px solid #bbb">'+fmt(totFat)+'</td>';
-    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#ffcdd2;color:#C0392B">'+fmt(totPag)+'</td>';
-    if(projTemAfetacao(cc))tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#FEF9E7;color:#B7950B">'+fmt(totAf)+'</td>';
-    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#d6eaf8;color:'+(totSl>=0?'#1B6B35':'#C0392B')+'">'+fmtSgn(totSl)+'</td>';
+    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;color:#1B6B35;border-left:2px solid #bbb">'+fmt(totFat)+'</td>';
+    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;color:#C0392B">'+fmt(totPag)+'</td>';
+    if(projTemAfetacao(cc))tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;color:#B7950B">'+fmt(totAf)+'</td>';
+    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;color:'+(totSl>=0?'#1B6B35':'#C0392B')+'">'+fmtSgn(totSl)+'</td>';
   });
+  const grandFat=ccs.reduce((s,cc)=>s+mat_fat[cc].reduce((ss,v)=>ss+v,0),0);
+  const grandDesp=ccs.reduce((s,cc)=>{const tp=mat_pag[cc].reduce((ss,v)=>ss+v,0);const ta=projTemAfetacao(cc)?rowKeys.reduce((ss,k,ri)=>ss+(ri>0?mat_fat[cc][ri-1]*0.04:0),0):0;return s+tp+ta;},0);
+  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1B6B35;color:#fff;border-left:2px solid #155228">'+fmt(grandFat)+'</td>';
+  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#C0392B;color:#fff;border-left:2px solid #922B21">'+fmt(grandDesp)+'</td>';
   tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+(grandSaldo>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #154360">'+fmtSgn(grandSaldo)+'</td>';
   const caFinal=caixaAcumProj.length?caixaAcumProj[caixaAcumProj.length-1]:caixaIniProj;
   tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#154360;color:'+(caFinal>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #0d3250">'+fmtSgn(caFinal)+'</td>';
