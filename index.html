@@ -196,12 +196,11 @@ tbody td.c{text-align:center}
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Dashboard</button>
-    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Fluxo de Obra</button>
-    <button class="nav-tab" data-tab="csv" onclick="goTab(this)">CSV Analítico</button>
+    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Simulação de Venda - Fluxo</button>
     <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
-    <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
-    <button class="nav-tab" data-tab="prev" onclick="goTab(this)">Previsão por Período</button>
     <button class="nav-tab" data-tab="proj" onclick="goTab(this)">Projeção Rossa</button>
+    <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
+    <button class="nav-tab" data-tab="csv" onclick="goTab(this)">CSV Analítico</button>
   </div>
   <div class="nav-actions">
     <span id="jbin-status">⟳ Carregando...</span>
@@ -259,7 +258,7 @@ tbody td.c{text-align:center}
 
 <!-- ===================== RESUMO EXECUTIVO ===================== -->
 <div class="page" id="page-dtlh">
-  <div class="sec-title">Fluxo de Obra</div>
+  <div class="sec-title">Simulação de Venda - Fluxo</div>
   <div class="sec-sub">Projeção de caixa por obra com premissas comerciais</div>
   <div class="filters-bar">
     <span class="filter-label">Obra</span>
@@ -411,43 +410,6 @@ tbody td.c{text-align:center}
 </div>
 
 <!-- ===================== PREVISÃO POR PERÍODO ===================== -->
-<div class="page" id="page-prev">
-  <div class="sec-title">Previsão por Período</div>
-  <div class="sec-sub">Cole dados do ERP para visualizar recebimentos e pagamentos futuros por centro de custo</div>
-  <div class="paste-section">
-    <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de previsão no ERP, copie a tabela (Ctrl+C) e cole abaixo.<br>Colunas: <strong>Data · Valor · Nome Centro de Custo · Conta · Complemento</strong> — lógica: "a pagar" → PAGAR | "a receber" → RECEBER</div>
-    <textarea class="paste-box" id="paste-prev" placeholder="Cole aqui os dados de previsão do ERP"></textarea>
-    <div class="paste-actions">
-      <button class="btn-secondary" onclick="limparPrev()">✕ Limpar</button>
-      <span class="paste-status" id="status-prev"></span>
-    </div>
-  </div>
-  <div class="filters-bar">
-    <span class="filter-label">Período</span>
-    <span style="font-size:12px;color:var(--text3)">De</span>
-    <input type="date" class="filter-input" id="prev-de" onchange="renderPrev()" style="max-width:150px">
-    <span style="font-size:12px;color:var(--text3)">Até</span>
-    <input type="date" class="filter-input" id="prev-ate" onchange="renderPrev()" style="max-width:150px">
-    <span class="filter-label" style="margin-left:8px">Centro de Custo</span>
-    <select class="filter-select" id="prev-cc" onchange="renderPrev()"><option value="">Todos</option></select>
-    <button class="btn-ghost" onclick="limparFiltrosPrev()">✕ Limpar</button>
-    <div style="margin-left:auto;display:flex;gap:8px">
-      <button class="btn-primary" onclick="gerarWppCC()">📲 WhatsApp por CC</button>
-      <button class="btn-warn" onclick="gerarWppFornecedor()">📦 WhatsApp por Fornecedor</button>
-    </div>
-  </div>
-  <div class="prev-summary">
-    <div class="kpi-card c-green"><div class="kpi-label">Total a Receber</div><div class="kpi-val pos" id="prev-total-rec">—</div></div>
-    <div class="kpi-card c-red"><div class="kpi-label">Total a Pagar</div><div class="kpi-val neg" id="prev-total-pag">—</div></div>
-    <div class="kpi-card c-blue"><div class="kpi-label">Saldo do Período</div><div class="kpi-val" id="prev-saldo">—</div></div>
-  </div>
-  <div class="tbl-card">
-    <div class="tbl-head"><div class="tbl-title">Resumo Diário por Centro de Custo</div><span class="tbl-badge" id="prev-badge">—</span></div>
-    <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Centro de Custo</th><th class="r">A Receber</th><th class="r">A Pagar</th><th class="r">Saldo do Dia</th></tr></thead><tbody id="body-prev"><tr><td colspan="5"><div class="empty-state"><p>Nenhum dado — cole os dados acima</p></div></td></tr></tbody></table></div>
-  </div>
-</div>
-
-
 <!-- ===================== PROJEÇÃO ROSSA ===================== -->
 <div class="page" id="page-proj">
   <div class="sec-title">Projeção Rossa</div>
@@ -1043,19 +1005,22 @@ function buildObrasPanel(ccs){
       +'<div style="display:flex;align-items:center;gap:6px">'
         +'<span style="font-size:11px;color:var(--text3);min-width:85px">Saldo Orç.</span>'
         +'<input type="number" value="'+saldo+'" min="0" step="1000" placeholder="R$ 0"'
-        +' onchange="setPremissa(\'obra_saldo_\'+safeKey,parseFloat(this.value)||0)"'
+        +' data-key="obra_saldo_'+safeKey+'"'
+        +' onchange="setPremissa(this.dataset.key,parseFloat(this.value)||0)"'
         +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:140px;text-align:right">'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:6px">'
         +'<span style="font-size:11px;color:var(--text3);min-width:85px">Início da Obra</span>'
         +'<input type="month" value="'+inicioMonth+'"'
-        +' onchange="setPremissa(\'obra_inicio_\'+safeKey,this.value+\'-01\')"'
+        +' data-key="obra_inicio_'+safeKey+'"'
+        +' onchange="setPremissa(this.dataset.key,this.value+\'-01\')"'
         +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:140px">'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:6px">'
         +'<span style="font-size:11px;color:var(--text3);min-width:85px">Tempo (meses)</span>'
         +'<input type="number" value="'+tempo+'" min="1" step="1"'
-        +' onchange="setPremissa(\'obra_tempo_\'+safeKey,parseInt(this.value)||24)"'
+        +' data-key="obra_tempo_'+safeKey+'"'
+        +' onchange="setPremissa(this.dataset.key,parseInt(this.value)||24)"'
         +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:70px;text-align:center">'
       +'</div>'
       +'</div>';
@@ -1267,13 +1232,13 @@ async function jbinLoad(){
     DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};
     fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
-    renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();setJbinStatus('ok');
+    renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderCaixaInicialCampos();setJbinStatus('ok');
   }catch(e){console.error(e);setJbinStatus('error');}
 }
 function setJbinStatus(s){const el=document.getElementById('jbin-status');if(!el)return;const map={loading:['⟳ Carregando...','#888'],saving:['⟳ Salvando...','#888'],ok:['✓ Sincronizado','#1B6B35'],error:['✕ Erro','#C0392B'],empty:['— Sem dados','#888']};const[txt,col]=map[s]||['','#888'];el.textContent=txt;el.style.color=col;}
 function autoSave(){ghubSave();}
 function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto,prev:DATA.prev.map(r=>({...r,data:r.data?r.data.toISOString():null})),dtlhUnidades:DATA.dtlhUnidades||{}}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
-function restoreJSON(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const p=JSON.parse(e.target.result);const d=p.data||p;DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();autoSave();alert('Restaurado! '+DATA.csv.length+' registros CSV.');}catch(err){alert('Erro: '+err.message);}};reader.readAsText(file);input.value='';}
+function restoreJSON(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const p=JSON.parse(e.target.result);const d=p.data||p;DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderCaixaInicialCampos();autoSave();alert('Restaurado! '+DATA.csv.length+' registros CSV.');}catch(err){alert('Erro: '+err.message);}};reader.readAsText(file);input.value='';}
 </script>
 </body>
 </html>
