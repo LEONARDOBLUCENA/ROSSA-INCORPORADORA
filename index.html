@@ -568,9 +568,9 @@ function renderDash(){
   const entradas=data.filter(r=>r.tipo==='FATURAMENTO');
   const saidas=data.filter(r=>r.tipo==='PAGAMENTO');
   const descontos=data.filter(r=>r.tipo==='DESCONTO');
-  const totEnt=entradas.reduce((s,r)=>s+Math.abs(r.valor),0);
-  const totSai=saidas.reduce((s,r)=>s+Math.abs(r.valor),0);
-  const totDsc=descontos.reduce((s,r)=>s+Math.abs(r.valor),0);
+  const totEnt=entradas.reduce((s,r)=>s+r.valor,0);
+  const totSai=saidas.reduce((s,r)=>s+r.valor,0);
+  const totDsc=descontos.reduce((s,r)=>s+r.valor,0);
   const totEntLiq=totEnt-totDsc;
   const saldo=totEntLiq-totSai;
   set('dash-entradas',fmt(totEntLiq));set('dash-entradas-n',entradas.length+' lançamentos | Desc: '+fmt(totDsc));
@@ -579,15 +579,15 @@ function renderDash(){
   set('dash-saldo-sub',saldo>=0?'▲ Superávit':'▼ Déficit');
   const keys=new Set();data.forEach(r=>{if(r.data)keys.add(r.data.getFullYear()*100+r.data.getMonth());});
   const sortedKeys=[...keys].sort();const labels=sortedKeys.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
-  const mEnt=sortedKeys.map(k=>{const f=entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0);const d=descontos.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0);return f-d;});
-  const mSai=sortedKeys.map(k=>saidas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0));
+  const mEnt=sortedKeys.map(k=>{const f=entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+r.valor,0);const d=descontos.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+r.valor,0);return f-d;});
+  const mSai=sortedKeys.map(k=>saidas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+r.valor,0));
   const mRes=mEnt.map((v,i)=>v-mSai[i]);
   const yFmt={ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}};const tip={callbacks:{label:ctx=>' '+fmt(ctx.raw)}};
   const mkBar=(id,datasets)=>{destroyChart(id);if(document.getElementById(id))CHARTS[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets},options:{responsive:true,plugins:{legend:{display:datasets.length>1,position:'top',labels:{font:{size:11}}},tooltip:tip},scales:{y:yFmt}}});};
   mkBar('dash-ch-entradas',[{label:'Entradas',data:mEnt,backgroundColor:'#1A7A3C',borderRadius:3}]);
   mkBar('dash-ch-saidas',[{label:'Saídas',data:mSai,backgroundColor:'#C0392B',borderRadius:3}]);
   destroyChart('dash-ch-resultado');if(document.getElementById('dash-ch-resultado'))CHARTS['dash-ch-resultado']=new Chart(document.getElementById('dash-ch-resultado'),{type:'bar',data:{labels,datasets:[{label:'Resultado',data:mRes,backgroundColor:mRes.map(v=>v>=0?'#1A7A3C':'#C0392B'),borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:tip},scales:{y:yFmt}}});
-  const ccs=[...new Set(data.map(r=>r.cc).filter(Boolean))];const ccVals=ccs.map(c=>data.filter(r=>r.cc===c).reduce((s,r)=>s+Math.abs(r.valor),0));
+  const ccs=[...new Set(data.map(r=>r.cc).filter(Boolean))];const ccVals=ccs.map(c=>data.filter(r=>r.cc===c).reduce((s,r)=>s+r.valor,0));
   destroyChart('dash-ch-cc');if(ccs.length&&document.getElementById('dash-ch-cc'))CHARTS['dash-ch-cc']=new Chart(document.getElementById('dash-ch-cc'),{type:'doughnut',data:{labels:ccs,datasets:[{data:ccVals,backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:11}}},tooltip:tip}}});
 }
 
