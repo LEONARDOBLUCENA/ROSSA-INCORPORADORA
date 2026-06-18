@@ -945,13 +945,11 @@ function apresentacaoDtlh(){
 
 // ── PROJEÇÃO ROSSA ────────────────────────────────────────────────────────────
 // CCs que usam dados de despesa direto do CSV (sem premissa de média)
-const PROJ_CC_CSV_PURO=['DIAMOND PRIME'];
 // CCs com premissas de obra (Saldo Orçamento, Início Obra, Tempo Obra)
-const PROJ_CC_OBRA=['PALAZZO DEL ROSSA','GRAND PLACE'];
+const PROJ_CC_OBRA=['PALAZZO DEL ROSSA','GRAND PLACE','DIAMOND PRIME'];
 
 function projTipo(cc){
   const n=normCC(cc);
-  if(PROJ_CC_CSV_PURO.some(x=>n.includes(x)))return'csv';
   if(PROJ_CC_OBRA.some(x=>n.includes(x)))return'obra';
   return'media';// premissa de média
 }
