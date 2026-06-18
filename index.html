@@ -955,67 +955,41 @@ function renderProj(){
   const mesAtualKey=hoje.getFullYear()*100+hoje.getMonth();
   const dados=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF)));
   // Meses do atual em diante
-  const colSet=new Set();
-  dados.forEach(r=>{if(r.ano!=null&&r.mes!=null){const k=r.ano*100+r.mes;if(k>=mesAtualKey)colSet.add(k);}});
-  const rowKeys=[...colSet].sort();
+  const rowSet=new Set();
+  dados.forEach(r=>{if(r.ano!=null&&r.mes!=null){const k=r.ano*100+r.mes;if(k>=mesAtualKey)rowSet.add(k);}});
+  const rowKeys=[...rowSet].sort();
   if(!rowKeys.length){
     thead.innerHTML='';tfoot.innerHTML='';
     tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado a partir do mês atual</p></div></td></tr>';
     set('proj-badge','—');return;
   }
-  // Coletar CCs presentes nos dados filtrados (dentro do período)
+  // CCs presentes no período
   const ccsSet=new Set();
   dados.forEach(r=>{if(r.ano!=null&&r.mes!=null&&(r.ano*100+r.mes)>=mesAtualKey)ccsSet.add(r.cc||'(Sem CC)');});
   const ccs=[...ccsSet].sort();
-  // Para cada CC: quais contas de faturamento e quais de despesa
-  // Estrutura: ccFat[cc] = Set de contas FAT; ccPag[cc] = Set de contas PAG
-  const ccFat={},ccPag={};
-  ccs.forEach(c=>{ccFat[c]=new Set();ccPag[c]=new Set();});
-  dados.forEach(r=>{
-    const k=r.ano!=null&&r.mes!=null?r.ano*100+r.mes:0;
-    if(k<mesAtualKey)return;
-    const cc=r.cc||'(Sem CC)';
-    if(r.tipo==='FATURAMENTO')ccFat[cc].add(r.conta||'(Sem conta)');
-    else if(r.tipo==='PAGAMENTO')ccPag[cc].add(r.conta||'(Sem conta)');
-  });
-  // Montar lista de colunas: [{cc, tipo:'FAT'|'PAG', conta}] + Saldo
-  const cols=[];
-  ccs.forEach(cc=>{
-    [...ccFat[cc]].sort().forEach(conta=>cols.push({cc,tipo:'FAT',conta}));
-    [...ccPag[cc]].sort().forEach(conta=>cols.push({cc,tipo:'PAG',conta}));
-  });
-  const NC=cols.length;
-  // Calcular valores: val[colIdx][rowIdx]
-  const val=cols.map(()=>rowKeys.map(()=>0));
+  // Acumular FAT e PAG por CC por mês
+  // mat[cc][rowIdx] = {fat, pag}
+  const mat={};
+  ccs.forEach(cc=>{mat[cc]=rowKeys.map(()=>({fat:0,pag:0}));});
   dados.forEach(r=>{
     const k=r.ano!=null&&r.mes!=null?r.ano*100+r.mes:0;
     if(k<mesAtualKey)return;
     const ri=rowKeys.indexOf(k);if(ri<0)return;
     const cc=r.cc||'(Sem CC)';
-    const conta=r.conta||'(Sem conta)';
-    if(r.tipo==='FATURAMENTO'){const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='FAT'&&c.conta===conta);if(ci>=0)val[ci][ri]+=r.valor;}
-    else if(r.tipo==='PAGAMENTO'){const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='PAG'&&c.conta===conta);if(ci>=0)val[ci][ri]+=Math.abs(r.valor);}
+    if(r.tipo==='FATURAMENTO')mat[cc][ri].fat+=r.valor;
+    else if(r.tipo==='PAGAMENTO')mat[cc][ri].pag+=Math.abs(r.valor);
   });
-  // Saldo por linha = sum(FAT cols) - sum(PAG cols)
-  const saldoRow=rowKeys.map((_,ri)=>{
-    const fat=cols.reduce((s,c,ci)=>s+(c.tipo==='FAT'?val[ci][ri]:0),0);
-    const pag=cols.reduce((s,c,ci)=>s+(c.tipo==='PAG'?val[ci][ri]:0),0);
-    return fat-pag;
-  });
-  // ── THEAD ──
-  // Linha 1: Mês/Ano | [CC com colspan=nFat+nPag por CC] | Saldo
-  // Linha 2: "" | [conta1, conta2...] por CC | ""
-  const SD='position:sticky;left:0;z-index:3;background:';
-  let th1='<th style="'+SD+'#f5f5f5;padding:8px 12px;min-width:80px;top:0">Mês/Ano</th>';
-  let th2='<th style="'+SD+'#f5f5f5;padding:6px 12px;font-size:10px;top:0"></th>';
+  const SD='position:sticky;left:0;z-index:3;';
+  // ── THEAD ── linha 1: Mês | [CC colspan=3 cada] | Saldo Total
+  let th1='<th style="'+SD+'background:#f5f5f5;padding:8px 12px;min-width:85px">Mês/Ano</th>';
+  let th2='<th style="'+SD+'background:#f5f5f5;padding:6px 12px;font-size:10px"></th>';
   ccs.forEach(cc=>{
-    const nf=[...ccFat[cc]].length,np=[...ccPag[cc]].length,span=nf+np;
-    if(!span)return;
-    th1+='<th colspan="'+span+'" style="text-align:center;padding:5px 8px;font-size:11px;font-weight:700;border-left:2px solid #ccc;background:#EEF7EE">'+cc+'</th>';
-    [...ccFat[cc]].sort().forEach(c=>th2+='<th class="r" style="min-width:110px;padding:5px 8px;font-size:10px;background:#e8f5e9;color:#1B6B35;border-left:1px solid #c8e6c9">'+c+'</th>');
-    [...ccPag[cc]].sort().forEach(c=>th2+='<th class="r" style="min-width:110px;padding:5px 8px;font-size:10px;background:#FADBD8;color:#C0392B;border-left:1px solid #f1948a">'+c+'</th>');
+    th1+='<th colspan="3" style="text-align:center;padding:5px 10px;font-size:11px;font-weight:700;border-left:2px solid #bbb;background:#EEF7EE">'+cc+'</th>';
+    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#e8f5e9;color:#1B6B35;border-left:2px solid #bbb">Faturamento</th>';
+    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#FADBD8;color:#C0392B">Despesa</th>';
+    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;background:#EAF4FB;color:#1a5276">Saldo</th>';
   });
-  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#1a5276;color:#fff;border-left:2px solid #154360;min-width:110px">Saldo</th>';
+  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#1a5276;color:#fff;border-left:2px solid #154360;min-width:110px">Saldo Total</th>';
   th2+='<th style="background:#1a5276;border-left:2px solid #154360"></th>';
   thead.innerHTML='<tr style="background:#f5f5f5">'+th1+'</tr><tr style="background:#f5f5f5">'+th2+'</tr>';
   // ── TBODY ──
@@ -1026,48 +1000,33 @@ function renderProj(){
     const isAtual=k===mesAtualKey;
     const rowBg=isAtual?'background:#fffde7':'';
     let tds='';
-    ccs.forEach(cc=>{
-      const nf=[...ccFat[cc]].length,np=[...ccPag[cc]].length;if(!nf&&!np)return;
-      let first=true;
-      [...ccFat[cc]].sort().forEach(conta=>{
-        const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='FAT'&&c.conta===conta);
-        const v=ci>=0?val[ci][ri]:0;
-        const bl=first?'border-left:2px solid #ccc':'';first=false;
-        tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb;'+bl+'">'+(v?fmt(v):'<span style="color:#ccc">—</span>')+'</td>';
-      });
-      [...ccPag[cc]].sort().forEach(conta=>{
-        const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='PAG'&&c.conta===conta);
-        const v=ci>=0?val[ci][ri]:0;
-        const bl=first?'border-left:2px solid #ccc':'';first=false;
-        tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#fff9f9;'+bl+'">'+(v?'<span style="color:#C0392B">'+fmt(v)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';
-      });
+    let saldoTotal=0;
+    ccs.forEach((cc,ci)=>{
+      const {fat,pag}=mat[cc][ri];
+      const sl=fat-pag;saldoTotal+=sl;
+      const bl=ci===0?'border-left:2px solid #bbb':'border-left:2px solid #bbb';
+      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f9fefb;'+bl+'">'+(fat?fmt(fat):'<span style="color:#ccc">—</span>')+'</td>';
+      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#fff9f9">'+(pag?'<span style="color:#C0392B">'+fmt(pag)+'</span>':'<span style="color:#ccc">—</span>')+'</td>';
+      tds+='<td class="r" style="padding:5px 8px;font-size:11px;background:#f0f8ff;font-weight:500;color:'+(sl>=0?'#1B6B35':'#C0392B')+'">'+(fat||pag?fmtSgn(sl):'<span style="color:#ccc">—</span>')+'</td>';
     });
-    const sl=saldoRow[ri];
-    const slColor=sl>=0?'#A9DFBF':'#F1948A';
-    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+slColor+';border-left:2px solid #154360">'+fmtSgn(sl)+'</td>';
-    rows+='<tr style="border-bottom:1px solid var(--border);'+rowBg+'"><td style="'+SD+(isAtual?'#fffde7':'#fff')+';padding:5px 12px;font-size:11px;font-weight:600">'+label+(isAtual?' ◀':'')+'</td>'+tds+'</tr>';
+    const slColor=saldoTotal>=0?'#A9DFBF':'#F1948A';
+    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+slColor+';border-left:2px solid #154360">'+fmtSgn(saldoTotal)+'</td>';
+    rows+='<tr style="border-bottom:1px solid var(--border);'+rowBg+'"><td style="'+SD+'background:'+(isAtual?'#fffde7':'#fff')+';padding:5px 12px;font-size:11px;font-weight:600">'+label+(isAtual?' ◀':'')+'</td>'+tds+'</tr>';
   });
   tbody.innerHTML=rows;
-  // ── TFOOT totais ──
-  let tfCols='';
-  ccs.forEach(cc=>{
-    let first=true;
-    [...ccFat[cc]].sort().forEach(conta=>{
-      const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='FAT'&&c.conta===conta);
-      const tot=ci>=0?val[ci].reduce((s,v)=>s+v,0):0;
-      const bl=first?'border-left:2px solid #ccc':'';first=false;
-      tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#c8e6c9;'+bl+'">'+fmt(tot)+'</td>';
-    });
-    [...ccPag[cc]].sort().forEach(conta=>{
-      const ci=cols.findIndex(c=>c.cc===cc&&c.tipo==='PAG'&&c.conta===conta);
-      const tot=ci>=0?val[ci].reduce((s,v)=>s+v,0):0;
-      const bl=first?'border-left:2px solid #ccc':'';first=false;
-      tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#ffcdd2;color:#C0392B;'+bl+'">'+fmt(tot)+'</td>';
-    });
+  // ── TFOOT ──
+  let tfCols='';let grandSaldo=0;
+  ccs.forEach((cc,ci)=>{
+    const totFat=rowKeys.reduce((s,k,ri)=>s+mat[cc][ri].fat,0);
+    const totPag=rowKeys.reduce((s,k,ri)=>s+mat[cc][ri].pag,0);
+    const totSl=totFat-totPag;grandSaldo+=totSl;
+    const bl='border-left:2px solid #bbb';
+    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#c8e6c9;'+bl+'">'+fmt(totFat)+'</td>';
+    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#ffcdd2;color:#C0392B">'+fmt(totPag)+'</td>';
+    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;background:#d6eaf8;color:'+(totSl>=0?'#1B6B35':'#C0392B')+'">'+fmtSgn(totSl)+'</td>';
   });
-  const slTot=saldoRow.reduce((s,v)=>s+v,0);
-  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+(slTot>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #154360">'+fmtSgn(slTot)+'</td>';
-  tfoot.innerHTML='<tr style="border-top:2px solid #bbb"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px;font-weight:700;background:#f0f0f0">Total</td>'+tfCols+'</tr>';
+  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+(grandSaldo>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #154360">'+fmtSgn(grandSaldo)+'</td>';
+  tfoot.innerHTML='<tr style="border-top:2px solid #bbb"><td style="'+SD+'padding:6px 12px;font-size:11px;font-weight:700;background:#f0f0f0">Total</td>'+tfCols+'</tr>';
   set('proj-badge',rowKeys.length+' meses · '+ccs.length+' centros de custo');
 }
 
