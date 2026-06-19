@@ -636,9 +636,11 @@ function updateFluxoFilters(){
   fillSelect('proj-obra',obras,v=>v,v=>v);
 }
 function renderFluxo(){
+  updateFluxoFilters();
+  const fcAno=document.getElementById('fc-ano');
+  if(fcAno&&!fcAno.value){const anoAtual=String(new Date().getFullYear());if([...fcAno.options].some(o=>o.value===anoAtual))fcAno.value=anoAtual;}
   const obraSel=document.getElementById('fc-obra')?.value||'';
   const anoSel=document.getElementById('fc-ano')?.value||'';
-  updateFluxoFilters();
   const thead=document.getElementById('thead-fluxo'),tbody=document.getElementById('tbody-fluxo'),tfoot=document.getElementById('tfoot-fluxo');
   if(!thead||!tbody||!tfoot)return;
   const dados=DATA.csv.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel));
