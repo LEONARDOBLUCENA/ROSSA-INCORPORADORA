@@ -579,14 +579,19 @@ function renderDash(){
   set('dash-saldo-sub',saldo>=0?'▲ Superávit':'▼ Déficit');
   const keys=new Set();data.forEach(r=>{if(r.data)keys.add(r.data.getFullYear()*100+r.data.getMonth());});
   const sortedKeys=[...keys].sort();const labels=sortedKeys.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
+  const agora=new Date();const mesHojeKey=agora.getFullYear()*100+agora.getMonth();
+  const isFuturo=k=>k>mesHojeKey;
   const mEnt=sortedKeys.map(k=>{const f=entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+r.valor,0);const d=descontos.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+r.valor,0);return f-d;});
   const mSai=sortedKeys.map(k=>saidas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+r.valor,0));
   const mRes=mEnt.map((v,i)=>v-mSai[i]);
+  const clrEnt=sortedKeys.map(k=>isFuturo(k)?'#82C99A':'#1A7A3C');
+  const clrSai=sortedKeys.map(k=>isFuturo(k)?'#E8937F':'#C0392B');
+  const clrRes=sortedKeys.map((k,i)=>mRes[i]>=0?(isFuturo(k)?'#82C99A':'#1A7A3C'):(isFuturo(k)?'#E8937F':'#C0392B'));
   const yFmt={ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}};const tip={callbacks:{label:ctx=>' '+fmt(ctx.raw)}};
   const mkBar=(id,datasets)=>{destroyChart(id);if(document.getElementById(id))CHARTS[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets},options:{responsive:true,plugins:{legend:{display:datasets.length>1,position:'top',labels:{font:{size:11}}},tooltip:tip},scales:{y:yFmt}}});};
-  mkBar('dash-ch-entradas',[{label:'Entradas',data:mEnt,backgroundColor:'#1A7A3C',borderRadius:3}]);
-  mkBar('dash-ch-saidas',[{label:'Saídas',data:mSai,backgroundColor:'#C0392B',borderRadius:3}]);
-  destroyChart('dash-ch-resultado');if(document.getElementById('dash-ch-resultado'))CHARTS['dash-ch-resultado']=new Chart(document.getElementById('dash-ch-resultado'),{type:'bar',data:{labels,datasets:[{label:'Resultado',data:mRes,backgroundColor:mRes.map(v=>v>=0?'#1A7A3C':'#C0392B'),borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:tip},scales:{y:yFmt}}});
+  mkBar('dash-ch-entradas',[{label:'Entradas',data:mEnt,backgroundColor:clrEnt,borderRadius:3}]);
+  mkBar('dash-ch-saidas',[{label:'Saídas',data:mSai,backgroundColor:clrSai,borderRadius:3}]);
+  destroyChart('dash-ch-resultado');if(document.getElementById('dash-ch-resultado'))CHARTS['dash-ch-resultado']=new Chart(document.getElementById('dash-ch-resultado'),{type:'bar',data:{labels,datasets:[{label:'Resultado',data:mRes,backgroundColor:clrRes,borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:tip},scales:{y:yFmt}}});
   const ccs=[...new Set(data.map(r=>r.cc).filter(Boolean))];const ccVals=ccs.map(c=>data.filter(r=>r.cc===c).reduce((s,r)=>s+r.valor,0));
   destroyChart('dash-ch-cc');if(ccs.length&&document.getElementById('dash-ch-cc'))CHARTS['dash-ch-cc']=new Chart(document.getElementById('dash-ch-cc'),{type:'doughnut',data:{labels:ccs,datasets:[{data:ccVals,backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:11}}},tooltip:tip}}});
 }
@@ -623,10 +628,11 @@ document.addEventListener('click',()=>{const d=document.getElementById('mes-pick
 // ── FLUXO DE CAIXA ────────────────────────────────────────────────────────────
 function updateFluxoFilters(){
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
+  const obrasComEstoque=[...new Set(DATA.estoque.map(u=>u.obra).filter(Boolean))].sort();
   fillSelect('fc-obra',obras,v=>v,v=>v);
   fillSelect('fc-ano',[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
   fillSelect('est-obra',obras,v=>v,v=>v,'Selecione a obra');
-  fillSelect('dt-obra',obras,v=>v,v=>v);
+  fillSelect('dt-obra',obrasComEstoque,v=>v,v=>v);
   fillSelect('proj-obra',obras,v=>v,v=>v);
 }
 function renderFluxo(){
