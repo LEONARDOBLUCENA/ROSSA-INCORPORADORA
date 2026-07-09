@@ -344,7 +344,7 @@ tbody td.c{text-align:center}
         <button class="btn-ghost" onclick="clearCSVFilters()">✕</button>
       </div>
     </div>
-    <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Complemento</th><th>Centro de Custo</th><th>Conta</th><th>Tipo</th><th class="r">Valor (R$)</th></tr></thead><tbody id="body-csv"><tr><td colspan="6"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Complemento</th><th>Centro de Custo</th><th>Conta</th><th>Conta Corrente</th><th>Tipo</th><th class="r">Valor (R$)</th></tr></thead><tbody id="body-csv"><tr><td colspan="7"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
   </div>
 </div>
 
@@ -559,7 +559,7 @@ function processCSVText(txt){
     const valor=-Math.abs(parseBRNum(findColKey(r,['Valor aprop fin','Valor Aprop Fin','aprop fin']).value));
     const contaCorrente=fixEncoding(findColKey(r,['Conta corrente','Conta Corrente','conta corrente']).value);
     const movCaixa=!contaCorrente.toUpperCase().includes('REAPROPFIN');
-    return{data,complemento:credor,valor,cc,conta,tipo:'PAGAMENTO',movCaixa,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
+    return{data,complemento:credor,valor,cc,conta,tipo:'PAGAMENTO',movCaixa,contaCorrente,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(r=>r.valor!==0||r.cc);
   DATA.csv=[...DATA.csv,...novos];
   setStatus('status-csv','+'+novos.length+' registros — total: '+DATA.csv.length+'.',true);
@@ -577,11 +577,11 @@ function renderCSVTable(){
   const fil=arr.filter(r=>(!fA||String(r.ano)===fA)&&(!fM||String(r.mes)===fM)&&(!fC||ccMatch(r.cc||'',fC))&&(!fK||r.conta===fK));
   document.getElementById('count-csv').textContent=fil.length+' de '+arr.length+' registros';
   const tbody=document.getElementById('body-csv');
-  if(!fil.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
+  if(!fil.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
   tbody.innerHTML=fil.map(r=>{
     const tc=r.tipo==='FATURAMENTO'?'bg-green':r.tipo==='DESCONTO'?'bg-gold':r.tipo==='OUTROS'?'bg-blue':'bg-red';
     const vc=r.tipo==='FATURAMENTO'?'val-pos':r.tipo==='DESCONTO'?'val-gold':r.tipo==='OUTROS'?'val-blue':'val-neg';
-    return'<tr><td>'+(r.data?r.data.toLocaleDateString('pt-BR'):'—')+'</td><td>'+(r.complemento||'—')+'</td><td>'+(r.cc||'—')+'</td><td>'+(r.conta||'—')+'</td><td><span class="badge '+tc+'">'+r.tipo+'</span></td><td class="r '+vc+'">'+fmt(r.valor)+'</td></tr>';
+    return'<tr><td>'+(r.data?r.data.toLocaleDateString('pt-BR'):'—')+'</td><td>'+(r.complemento||'—')+'</td><td>'+(r.cc||'—')+'</td><td>'+(r.conta||'—')+'</td><td>'+(r.contaCorrente||'—')+'</td><td><span class="badge '+tc+'">'+r.tipo+'</span></td><td class="r '+vc+'">'+fmt(r.valor)+'</td></tr>';
   }).join('');
 }
 function exportExcelCSV(){if(!DATA.csv.length){alert('Nenhum dado.');return;}const rows=DATA.csv.map(r=>({'Data':r.data?r.data.toLocaleDateString('pt-BR'):'','Complemento':r.complemento||'','CC':r.cc||'','Conta':r.conta||'','Tipo':r.tipo||'','Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}));const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});XLSX.utils.book_append_sheet(wb,ws,'CSV');XLSX.writeFile(wb,'Rossa_CSV_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');}
