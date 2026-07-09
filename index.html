@@ -196,11 +196,12 @@ tbody td.c{text-align:center}
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Dashboard</button>
-    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Simulação de Venda - Fluxo</button>
-    <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
-    <button class="nav-tab" data-tab="proj" onclick="goTab(this)">Projeção Rossa</button>
-    <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
+    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Fluxo de Obra</button>
     <button class="nav-tab" data-tab="csv" onclick="goTab(this)">CSV Analítico</button>
+    <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
+    <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
+    <button class="nav-tab" data-tab="prev" onclick="goTab(this)">Previsão por Período</button>
+    <button class="nav-tab" data-tab="proj" onclick="goTab(this)">Projeção Rossa</button>
   </div>
   <div class="nav-actions">
     <span id="jbin-status">⟳ Carregando...</span>
@@ -258,7 +259,7 @@ tbody td.c{text-align:center}
 
 <!-- ===================== RESUMO EXECUTIVO ===================== -->
 <div class="page" id="page-dtlh">
-  <div class="sec-title">Simulação de Venda - Fluxo</div>
+  <div class="sec-title">Fluxo de Obra</div>
   <div class="sec-sub">Projeção de caixa por obra com premissas comerciais</div>
   <div class="filters-bar">
     <span class="filter-label">Obra</span>
@@ -316,7 +317,7 @@ tbody td.c{text-align:center}
   <div class="sec-title">CSV Analítico de Apropriações</div>
   <div class="sec-sub">Cole aqui os dados do relatório analítico exportado do ERP</div>
   <div class="paste-section">
-    <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório no ERP, selecione a tabela com cabeçalho, copie Ctrl+C, cole abaixo Ctrl+V.<br>Colunas esperadas: <strong>Data · Valor · Nome Centro de Custo · Conta · Complemento · Tipo conta</strong></div>
+    <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de <strong>Contas Pagas</strong> no ERP, selecione a tabela com cabeçalho, copie Ctrl+C, cole abaixo Ctrl+V.<br>Colunas utilizadas: <strong>Nome credor · Data pagamento · Desc centro custo · Desc plano fin · Valor aprop fin</strong></div>
     <textarea class="paste-box" id="paste-csv" placeholder="Clique aqui e cole com Ctrl+V — os dados são processados automaticamente"></textarea>
     <div class="paste-actions">
       <button class="btn-secondary" onclick="limparCSV()">✕ Limpar</button>
@@ -410,6 +411,43 @@ tbody td.c{text-align:center}
 </div>
 
 <!-- ===================== PREVISÃO POR PERÍODO ===================== -->
+<div class="page" id="page-prev">
+  <div class="sec-title">Previsão por Período</div>
+  <div class="sec-sub">Cole dados do ERP para visualizar recebimentos e pagamentos futuros por centro de custo</div>
+  <div class="paste-section">
+    <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de previsão no ERP, copie a tabela (Ctrl+C) e cole abaixo.<br>Colunas: <strong>Data · Valor · Nome Centro de Custo · Conta · Complemento</strong> — lógica: "a pagar" → PAGAR | "a receber" → RECEBER</div>
+    <textarea class="paste-box" id="paste-prev" placeholder="Cole aqui os dados de previsão do ERP"></textarea>
+    <div class="paste-actions">
+      <button class="btn-secondary" onclick="limparPrev()">✕ Limpar</button>
+      <span class="paste-status" id="status-prev"></span>
+    </div>
+  </div>
+  <div class="filters-bar">
+    <span class="filter-label">Período</span>
+    <span style="font-size:12px;color:var(--text3)">De</span>
+    <input type="date" class="filter-input" id="prev-de" onchange="renderPrev()" style="max-width:150px">
+    <span style="font-size:12px;color:var(--text3)">Até</span>
+    <input type="date" class="filter-input" id="prev-ate" onchange="renderPrev()" style="max-width:150px">
+    <span class="filter-label" style="margin-left:8px">Centro de Custo</span>
+    <select class="filter-select" id="prev-cc" onchange="renderPrev()"><option value="">Todos</option></select>
+    <button class="btn-ghost" onclick="limparFiltrosPrev()">✕ Limpar</button>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn-primary" onclick="gerarWppCC()">📲 WhatsApp por CC</button>
+      <button class="btn-warn" onclick="gerarWppFornecedor()">📦 WhatsApp por Fornecedor</button>
+    </div>
+  </div>
+  <div class="prev-summary">
+    <div class="kpi-card c-green"><div class="kpi-label">Total a Receber</div><div class="kpi-val pos" id="prev-total-rec">—</div></div>
+    <div class="kpi-card c-red"><div class="kpi-label">Total a Pagar</div><div class="kpi-val neg" id="prev-total-pag">—</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Saldo do Período</div><div class="kpi-val" id="prev-saldo">—</div></div>
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-head"><div class="tbl-title">Resumo Diário por Centro de Custo</div><span class="tbl-badge" id="prev-badge">—</span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Centro de Custo</th><th class="r">A Receber</th><th class="r">A Pagar</th><th class="r">Saldo do Dia</th></tr></thead><tbody id="body-prev"><tr><td colspan="5"><div class="empty-state"><p>Nenhum dado — cole os dados acima</p></div></td></tr></tbody></table></div>
+  </div>
+</div>
+
+
 <!-- ===================== PROJEÇÃO ROSSA ===================== -->
 <div class="page" id="page-proj">
   <div class="sec-title">Projeção Rossa</div>
@@ -491,42 +529,35 @@ window.addEventListener('load',()=>{
 });
 
 // ── CSV ANALÍTICO ─────────────────────────────────────────────────────────────
+function fixEncoding(s){try{return decodeURIComponent(escape(s));}catch(e){return s;}}
 function processCSVText(txt){
+  // Corrigir double-encoding Latin-1 → UTF-8
+  txt=fixEncoding(txt);
   const rows=parseTSV(txt);
   if(!rows.length){setStatus('status-csv','Nenhum dado encontrado.',false);return;}
   const allH=Object.keys(rows[0]),first=rows[0];
+  // Mapeamento novo formato (Contas Pagas ERP)
   const mData={
-    data:findColKey(first,['Data','data']),
-    complemento:findColKey(first,['Complemento','complemento','Historico','Lançamento']),
-    valor:findColExact(first,['Valor'],['Valor']),
-    cc:findColExact(first,['Nome centro de custo','Nome Centro de Custo','Nome CC'],['centro de custo','cc']),
-    conta:findColExact(first,['Conta','Plano de Contas'],['Conta','conta']),
-    tipoCC:findColKey(first,['Tipo conta','tipo conta','tipo_conta'])
+    credor:  findColKey(first,['Nome credor','credor']),
+    data:    findColKey(first,['Data pagamento','Data Pagamento']),
+    cc:      findColKey(first,['Desc centro custo','Desc Centro Custo','centro custo']),
+    conta:   findColKey(first,['Desc plano fin','Desc Plano Fin','plano fin']),
+    valor:   findColKey(first,['Valor aprop fin','Valor Aprop Fin','aprop fin'])
   };
   renderDiag('diag-csv',allH,[
-    {label:'Data',foundKey:mData.data.foundKey},
-    {label:'Complemento',foundKey:mData.complemento.foundKey},
-    {label:'Valor',foundKey:mData.valor.foundKey},
-    {label:'Nome Centro de Custo',foundKey:mData.cc.foundKey},
-    {label:'Conta',foundKey:mData.conta.foundKey},
-    {label:'Tipo conta',foundKey:mData.tipoCC.foundKey}
+    {label:'Nome credor',    foundKey:mData.credor.foundKey},
+    {label:'Data pagamento', foundKey:mData.data.foundKey},
+    {label:'Desc centro custo', foundKey:mData.cc.foundKey},
+    {label:'Desc plano fin', foundKey:mData.conta.foundKey},
+    {label:'Valor aprop fin',foundKey:mData.valor.foundKey}
   ],first);
   const novos=rows.map(r=>{
-    const data=parseDateBR(findColKey(r,['Data','data']).value);
-    const complemento=findColKey(r,['Complemento','complemento','Historico','Lançamento']).value;
-    const valor=Math.abs(parseBRNum(findColExact(r,['Valor'],['Valor']).value));
-    const cc=normCC(findColExact(r,['Nome centro de custo','Nome Centro de Custo','Nome CC'],['centro de custo','cc']).value);
-    const conta=findColExact(r,['Conta','Plano de Contas'],['Conta','conta']).value;
-    const tipoCC=findColKey(r,['Tipo conta','tipo conta','tipo_conta']).value;
-    const cu=complemento.toUpperCase(),contaU=conta.toUpperCase(),tipoCCU=tipoCC.toUpperCase();
-    // PERMUTA/OUTROS via REAPROPFIN em Conta Corrente
-    let tipo='PAGAMENTO';
-    if(tipoCCU.includes('RECEITA')||cu.includes('RECEBIMENTO')||cu.includes('A RECEBER')){tipo='FATURAMENTO';}
-    else if(cu.includes('DESCONTO CONCEDIDO')){tipo='DESCONTO';}
-    else if(tipoCCU.includes('PERMUTA')||tipoCCU.includes('REAPROPFIN')){tipo='OUTROS';}
-    let valorFinal=valor;
-    if(conta.includes('2020299')||conta.includes('2010498')){tipo='PAGAMENTO';valorFinal=-valor;}
-    return{data,complemento,valor:valorFinal,cc,conta,tipo,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
+    const credor=fixEncoding(findColKey(r,['Nome credor','credor']).value);
+    const data=parseDateBR(findColKey(r,['Data pagamento','Data Pagamento']).value);
+    const cc=normCC(fixEncoding(findColKey(r,['Desc centro custo','Desc Centro Custo','centro custo']).value));
+    const conta=fixEncoding(findColKey(r,['Desc plano fin','Desc Plano Fin','plano fin']).value);
+    const valor=-Math.abs(parseBRNum(findColKey(r,['Valor aprop fin','Valor Aprop Fin','aprop fin']).value));
+    return{data,complemento:credor,valor,cc,conta,tipo:'PAGAMENTO',mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(r=>r.valor!==0||r.cc);
   DATA.csv=[...DATA.csv,...novos];
   setStatus('status-csv','+'+novos.length+' registros — total: '+DATA.csv.length+'.',true);
@@ -568,9 +599,9 @@ function renderDash(){
   const entradas=data.filter(r=>r.tipo==='FATURAMENTO');
   const saidas=data.filter(r=>r.tipo==='PAGAMENTO');
   const descontos=data.filter(r=>r.tipo==='DESCONTO');
-  const totEnt=entradas.reduce((s,r)=>s+r.valor,0);
-  const totSai=saidas.reduce((s,r)=>s+r.valor,0);
-  const totDsc=descontos.reduce((s,r)=>s+r.valor,0);
+  const totEnt=entradas.reduce((s,r)=>s+Math.abs(r.valor),0);
+  const totSai=saidas.reduce((s,r)=>s+Math.abs(r.valor),0);
+  const totDsc=descontos.reduce((s,r)=>s+Math.abs(r.valor),0);
   const totEntLiq=totEnt-totDsc;
   const saldo=totEntLiq-totSai;
   set('dash-entradas',fmt(totEntLiq));set('dash-entradas-n',entradas.length+' lançamentos | Desc: '+fmt(totDsc));
@@ -579,20 +610,15 @@ function renderDash(){
   set('dash-saldo-sub',saldo>=0?'▲ Superávit':'▼ Déficit');
   const keys=new Set();data.forEach(r=>{if(r.data)keys.add(r.data.getFullYear()*100+r.data.getMonth());});
   const sortedKeys=[...keys].sort();const labels=sortedKeys.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
-  const agora=new Date();const mesHojeKey=agora.getFullYear()*100+agora.getMonth();
-  const isFuturo=k=>k>mesHojeKey;
-  const mEnt=sortedKeys.map(k=>{const f=entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+r.valor,0);const d=descontos.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+r.valor,0);return f-d;});
-  const mSai=sortedKeys.map(k=>saidas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+r.valor,0));
+  const mEnt=sortedKeys.map(k=>{const f=entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0);const d=descontos.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0);return f-d;});
+  const mSai=sortedKeys.map(k=>saidas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0));
   const mRes=mEnt.map((v,i)=>v-mSai[i]);
-  const clrEnt=sortedKeys.map(k=>isFuturo(k)?'#82C99A':'#1A7A3C');
-  const clrSai=sortedKeys.map(k=>isFuturo(k)?'#E8937F':'#C0392B');
-  const clrRes=sortedKeys.map((k,i)=>mRes[i]>=0?(isFuturo(k)?'#82C99A':'#1A7A3C'):(isFuturo(k)?'#E8937F':'#C0392B'));
   const yFmt={ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}};const tip={callbacks:{label:ctx=>' '+fmt(ctx.raw)}};
   const mkBar=(id,datasets)=>{destroyChart(id);if(document.getElementById(id))CHARTS[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets},options:{responsive:true,plugins:{legend:{display:datasets.length>1,position:'top',labels:{font:{size:11}}},tooltip:tip},scales:{y:yFmt}}});};
-  mkBar('dash-ch-entradas',[{label:'Entradas',data:mEnt,backgroundColor:clrEnt,borderRadius:3}]);
-  mkBar('dash-ch-saidas',[{label:'Saídas',data:mSai,backgroundColor:clrSai,borderRadius:3}]);
-  destroyChart('dash-ch-resultado');if(document.getElementById('dash-ch-resultado'))CHARTS['dash-ch-resultado']=new Chart(document.getElementById('dash-ch-resultado'),{type:'bar',data:{labels,datasets:[{label:'Resultado',data:mRes,backgroundColor:clrRes,borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:tip},scales:{y:yFmt}}});
-  const ccs=[...new Set(data.map(r=>r.cc).filter(Boolean))];const ccVals=ccs.map(c=>data.filter(r=>r.cc===c).reduce((s,r)=>s+r.valor,0));
+  mkBar('dash-ch-entradas',[{label:'Entradas',data:mEnt,backgroundColor:'#1A7A3C',borderRadius:3}]);
+  mkBar('dash-ch-saidas',[{label:'Saídas',data:mSai,backgroundColor:'#C0392B',borderRadius:3}]);
+  destroyChart('dash-ch-resultado');if(document.getElementById('dash-ch-resultado'))CHARTS['dash-ch-resultado']=new Chart(document.getElementById('dash-ch-resultado'),{type:'bar',data:{labels,datasets:[{label:'Resultado',data:mRes,backgroundColor:mRes.map(v=>v>=0?'#1A7A3C':'#C0392B'),borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:tip},scales:{y:yFmt}}});
+  const ccs=[...new Set(data.map(r=>r.cc).filter(Boolean))];const ccVals=ccs.map(c=>data.filter(r=>r.cc===c).reduce((s,r)=>s+Math.abs(r.valor),0));
   destroyChart('dash-ch-cc');if(ccs.length&&document.getElementById('dash-ch-cc'))CHARTS['dash-ch-cc']=new Chart(document.getElementById('dash-ch-cc'),{type:'doughnut',data:{labels:ccs,datasets:[{data:ccVals,backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:11}}},tooltip:tip}}});
 }
 
@@ -628,19 +654,16 @@ document.addEventListener('click',()=>{const d=document.getElementById('mes-pick
 // ── FLUXO DE CAIXA ────────────────────────────────────────────────────────────
 function updateFluxoFilters(){
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
-  const obrasComEstoque=[...new Set(DATA.estoque.map(u=>u.obra).filter(Boolean))].sort();
   fillSelect('fc-obra',obras,v=>v,v=>v);
   fillSelect('fc-ano',[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
   fillSelect('est-obra',obras,v=>v,v=>v,'Selecione a obra');
-  fillSelect('dt-obra',obrasComEstoque,v=>v,v=>v);
+  fillSelect('dt-obra',obras,v=>v,v=>v);
   fillSelect('proj-obra',obras,v=>v,v=>v);
 }
 function renderFluxo(){
-  updateFluxoFilters();
-  const fcAno=document.getElementById('fc-ano');
-  if(fcAno&&!fcAno.value){const anoAtual=String(new Date().getFullYear());if([...fcAno.options].some(o=>o.value===anoAtual))fcAno.value=anoAtual;}
   const obraSel=document.getElementById('fc-obra')?.value||'';
   const anoSel=document.getElementById('fc-ano')?.value||'';
+  updateFluxoFilters();
   const thead=document.getElementById('thead-fluxo'),tbody=document.getElementById('tbody-fluxo'),tfoot=document.getElementById('tfoot-fluxo');
   if(!thead||!tbody||!tfoot)return;
   const dados=DATA.csv.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel));
@@ -1013,22 +1036,19 @@ function buildObrasPanel(ccs){
       +'<div style="display:flex;align-items:center;gap:6px">'
         +'<span style="font-size:11px;color:var(--text3);min-width:85px">Saldo Orç.</span>'
         +'<input type="number" value="'+saldo+'" min="0" step="1000" placeholder="R$ 0"'
-        +' data-key="obra_saldo_'+safeKey+'"'
-        +' onchange="setPremissa(this.dataset.key,parseFloat(this.value)||0)"'
+        +' onchange="setPremissa(\'obra_saldo_\'+safeKey,parseFloat(this.value)||0)"'
         +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:140px;text-align:right">'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:6px">'
         +'<span style="font-size:11px;color:var(--text3);min-width:85px">Início da Obra</span>'
         +'<input type="month" value="'+inicioMonth+'"'
-        +' data-key="obra_inicio_'+safeKey+'"'
-        +' onchange="setPremissa(this.dataset.key,this.value+\'-01\')"'
+        +' onchange="setPremissa(\'obra_inicio_\'+safeKey,this.value+\'-01\')"'
         +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:140px">'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:6px">'
         +'<span style="font-size:11px;color:var(--text3);min-width:85px">Tempo (meses)</span>'
         +'<input type="number" value="'+tempo+'" min="1" step="1"'
-        +' data-key="obra_tempo_'+safeKey+'"'
-        +' onchange="setPremissa(this.dataset.key,parseInt(this.value)||24)"'
+        +' onchange="setPremissa(\'obra_tempo_\'+safeKey,parseInt(this.value)||24)"'
         +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:70px;text-align:center">'
       +'</div>'
       +'</div>';
@@ -1240,13 +1260,13 @@ async function jbinLoad(){
     DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};
     fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
-    renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderCaixaInicialCampos();setJbinStatus('ok');
+    renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();setJbinStatus('ok');
   }catch(e){console.error(e);setJbinStatus('error');}
 }
 function setJbinStatus(s){const el=document.getElementById('jbin-status');if(!el)return;const map={loading:['⟳ Carregando...','#888'],saving:['⟳ Salvando...','#888'],ok:['✓ Sincronizado','#1B6B35'],error:['✕ Erro','#C0392B'],empty:['— Sem dados','#888']};const[txt,col]=map[s]||['','#888'];el.textContent=txt;el.style.color=col;}
 function autoSave(){ghubSave();}
 function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto,prev:DATA.prev.map(r=>({...r,data:r.data?r.data.toISOString():null})),dtlhUnidades:DATA.dtlhUnidades||{}}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
-function restoreJSON(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const p=JSON.parse(e.target.result);const d=p.data||p;DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderCaixaInicialCampos();autoSave();alert('Restaurado! '+DATA.csv.length+' registros CSV.');}catch(err){alert('Erro: '+err.message);}};reader.readAsText(file);input.value='';}
+function restoreJSON(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const p=JSON.parse(e.target.result);const d=p.data||p;DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();autoSave();alert('Restaurado! '+DATA.csv.length+' registros CSV.');}catch(err){alert('Erro: '+err.message);}};reader.readAsText(file);input.value='';}
 </script>
 </body>
 </html>
