@@ -197,7 +197,7 @@ tbody td.c{text-align:center}
   <div class="nav-tabs">
     <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Dashboard</button>
     <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Fluxo de Obra</button>
-    <button class="nav-tab" data-tab="csv" onclick="goTab(this)">CSV Analítico</button>
+    <button class="nav-tab" data-tab="csv" onclick="goTab(this)">Contas Pagas</button>
     <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
     <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
     <button class="nav-tab" data-tab="prev" onclick="goTab(this)">Previsão por Período</button>
@@ -244,7 +244,7 @@ tbody td.c{text-align:center}
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-green"><div class="kpi-label">Faturamento Líquido</div><div class="kpi-val pos" id="dash-entradas">—</div><div class="kpi-sub" id="dash-entradas-n">0 lançamentos</div></div>
-    <div class="kpi-card c-red"><div class="kpi-label">Total de Saídas</div><div class="kpi-val neg" id="dash-saidas">—</div><div class="kpi-sub" id="dash-saidas-n">0 lançamentos</div></div>
+    <div class="kpi-card c-red"><div class="kpi-label">Total de Saídas</div><div class="kpi-val neg" id="dash-saidas">—</div><div class="kpi-sub" id="dash-saidas-n">0 lançamentos</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-saidas-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-saidas-outro">—</strong></span></div></div>
     <div class="kpi-card c-blue"><div class="kpi-label">Saldo do Período</div><div class="kpi-val" id="dash-saldo">—</div><div class="kpi-sub" id="dash-saldo-sub">Entradas − Saídas</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -306,7 +306,7 @@ tbody td.c{text-align:center}
     <div style="overflow-x:auto;overflow-y:auto;max-height:60vh">
       <table id="tbl-dtlh" style="min-width:1200px">
         <thead id="thead-dtlh"></thead>
-        <tbody id="tbody-dtlh"><tr><td colspan="12"><div class="empty-state"><p>Carregue dados no CSV Analítico</p></div></td></tr></tbody>
+        <tbody id="tbody-dtlh"><tr><td colspan="12"><div class="empty-state"><p>Carregue dados na aba Contas Pagas</p></div></td></tr></tbody>
       </table>
     </div>
   </div>
@@ -314,7 +314,7 @@ tbody td.c{text-align:center}
 
 <!-- ===================== CSV ANALÍTICO ===================== -->
 <div class="page" id="page-csv">
-  <div class="sec-title">CSV Analítico de Apropriações</div>
+  <div class="sec-title">Contas Pagas</div>
   <div class="sec-sub">Cole aqui os dados do relatório analítico exportado do ERP</div>
   <div class="paste-section">
     <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de <strong>Contas Pagas</strong> no ERP, selecione a tabela com cabeçalho, copie Ctrl+C, cole abaixo Ctrl+V.<br>Colunas utilizadas: <strong>Nome credor · Data pagamento · Desc centro custo · Desc plano fin · Valor aprop fin</strong></div>
@@ -368,7 +368,7 @@ tbody td.c{text-align:center}
     <div style="overflow-x:auto;overflow-y:auto;max-height:65vh;font-size:12px">
       <table id="tbl-fluxo" style="width:100%;border-collapse:collapse;min-width:900px">
         <thead id="thead-fluxo"></thead>
-        <tbody id="tbody-fluxo"><tr><td colspan="14"><div class="empty-state"><p>Carregue dados no CSV Analítico para visualizar</p></div></td></tr></tbody>
+        <tbody id="tbody-fluxo"><tr><td colspan="14"><div class="empty-state"><p>Carregue dados na aba Contas Pagas para visualizar</p></div></td></tr></tbody>
         <tfoot id="tfoot-fluxo"></tfoot>
       </table>
     </div>
@@ -475,7 +475,7 @@ tbody td.c{text-align:center}
     <div style="overflow-x:auto;overflow-y:auto;max-height:70vh">
       <table style="width:100%;border-collapse:collapse;min-width:600px">
         <thead id="thead-proj"></thead>
-        <tbody id="tbody-proj"><tr><td colspan="3"><div class="empty-state"><p>Carregue dados no CSV Analítico</p></div></td></tr></tbody>
+        <tbody id="tbody-proj"><tr><td colspan="3"><div class="empty-state"><p>Carregue dados na aba Contas Pagas</p></div></td></tr></tbody>
         <tfoot id="tfoot-proj"></tfoot>
       </table>
     </div>
@@ -557,7 +557,9 @@ function processCSVText(txt){
     const cc=normCC(fixEncoding(findColKey(r,['Desc centro custo','Desc Centro Custo','centro custo']).value));
     const conta=fixEncoding(findColKey(r,['Desc plano fin','Desc Plano Fin','plano fin']).value);
     const valor=-Math.abs(parseBRNum(findColKey(r,['Valor aprop fin','Valor Aprop Fin','aprop fin']).value));
-    return{data,complemento:credor,valor,cc,conta,tipo:'PAGAMENTO',mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
+    const contaCorrente=fixEncoding(findColKey(r,['Conta corrente','Conta Corrente','conta corrente']).value);
+    const movCaixa=!contaCorrente.toUpperCase().includes('REAPROPFIN');
+    return{data,complemento:credor,valor,cc,conta,tipo:'PAGAMENTO',movCaixa,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(r=>r.valor!==0||r.cc);
   DATA.csv=[...DATA.csv,...novos];
   setStatus('status-csv','+'+novos.length+' registros — total: '+DATA.csv.length+'.',true);
@@ -601,11 +603,14 @@ function renderDash(){
   const descontos=data.filter(r=>r.tipo==='DESCONTO');
   const totEnt=entradas.reduce((s,r)=>s+Math.abs(r.valor),0);
   const totSai=saidas.reduce((s,r)=>s+Math.abs(r.valor),0);
+  const totSaiCaixa=saidas.filter(r=>r.movCaixa!==false).reduce((s,r)=>s+Math.abs(r.valor),0);
+  const totSaiOutro=saidas.filter(r=>r.movCaixa===false).reduce((s,r)=>s+Math.abs(r.valor),0);
   const totDsc=descontos.reduce((s,r)=>s+Math.abs(r.valor),0);
   const totEntLiq=totEnt-totDsc;
   const saldo=totEntLiq-totSai;
   set('dash-entradas',fmt(totEntLiq));set('dash-entradas-n',entradas.length+' lançamentos | Desc: '+fmt(totDsc));
   set('dash-saidas',fmt(totSai));set('dash-saidas-n',saidas.length+' lançamentos');
+  set('dash-saidas-caixa',fmt(totSaiCaixa));set('dash-saidas-outro',fmt(totSaiOutro));
   const sEl=document.getElementById('dash-saldo');if(sEl){sEl.textContent=fmt(Math.abs(saldo));sEl.className='kpi-val '+(saldo>=0?'pos':'neg');}
   set('dash-saldo-sub',saldo>=0?'▲ Superávit':'▼ Déficit');
   const keys=new Set();data.forEach(r=>{if(r.data)keys.add(r.data.getFullYear()*100+r.data.getMonth());});
