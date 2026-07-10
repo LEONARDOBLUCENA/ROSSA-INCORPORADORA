@@ -196,12 +196,12 @@ tbody td.c{text-align:center}
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Dashboard</button>
-    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Fluxo de Obra</button>
-    <button class="nav-tab" data-tab="csv" onclick="goTab(this)">Contas Pagas</button>
+    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Simulação de Venda - Fluxo</button>
     <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
-    <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
-    <button class="nav-tab" data-tab="prev" onclick="goTab(this)">Previsão por Período</button>
     <button class="nav-tab" data-tab="proj" onclick="goTab(this)">Projeção Rossa</button>
+    <button class="nav-tab" data-tab="fat" onclick="goTab(this)">Faturamento</button>
+    <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
+    <button class="nav-tab" data-tab="csv" onclick="goTab(this)">Contas Pagas</button>
   </div>
   <div class="nav-actions">
     <span id="jbin-status">⟳ Carregando...</span>
@@ -379,6 +379,35 @@ tbody td.c{text-align:center}
   </div>
 </div>
 
+<!-- ===================== FATURAMENTO ===================== -->
+<div class="page" id="page-fat">
+  <div class="sec-title">Faturamento</div>
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div class="tbl-title">Contas Recebidas</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="filter-label">Ano</span>
+        <select class="filter-select" id="ffat-ano" onchange="renderFatTable()" style="min-width:100px"><option value="">Todos</option></select>
+        <span class="filter-label">CC</span>
+        <select class="filter-select" id="ffat-cc" onchange="renderFatTable()" style="min-width:160px"><option value="">Todos</option></select>
+        <span class="filter-label">Tipo Baixa</span>
+        <select class="filter-select" id="ffat-tipo" onchange="renderFatTable()" style="min-width:140px"><option value="">Todos</option></select>
+        <span class="tbl-badge" id="count-fat">—</span>
+        <button class="btn-ghost" onclick="limparFat()">✕ Limpar dados</button>
+      </div>
+    </div>
+    <div class="paste-section">
+      <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de <strong>Contas Recebidas</strong> no ERP, selecione a tabela com cabeçalho, copie Ctrl+C, cole abaixo Ctrl+V.<br>Colunas utilizadas: <strong>NomeDoCentroDeCusto · NomeDoCliente · NomeDoPlanoFinanceiro · NumeroDaContaCorrente · DataDaBaixa · NomeDoTipoDeBaixa · ValorLiquido</strong></div>
+      <textarea class="paste-box" id="paste-fat" placeholder="Clique aqui e cole com Ctrl+V — os dados são processados automaticamente"></textarea>
+      <div class="paste-actions">
+        <button class="btn-secondary" onclick="limparFat()">✕ Limpar</button>
+        <span class="paste-status" id="status-fat"></span>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Data Baixa</th><th>Cliente</th><th>Centro de Custo</th><th>Plano Financeiro</th><th>Conta Corrente</th><th>Tipo Baixa</th><th>Mov. Caixa</th><th class="r">Valor (R$)</th></tr></thead><tbody id="body-fat"><tr><td colspan="8"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
+  </div>
+</div>
+
 <!-- ===================== ESTOQUE ===================== -->
 <div class="page" id="page-estoque">
   <div class="sec-title">Estoque</div>
@@ -484,7 +513,7 @@ tbody td.c{text-align:center}
 
 <script>
 // ── DADOS GLOBAIS ─────────────────────────────────────────────────────────────
-const DATA={csv:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{},prev:[],projPremissas:{}};
+const DATA={csv:[],fat:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{},prev:[],projPremissas:{}};
 const GHUB={
   token:['ghp_DMtc','LFDDPZIq7QGo','GgJvmTc1TbfSMf0H9mw1'].join(''),
   repo:'LEONARDOBLUCENA/ROSSA-INCORPORADORA',
@@ -525,6 +554,7 @@ window.addEventListener('load',()=>{
   jbinLoad();
   wirePaste('paste-csv',processCSVText,'status-csv');
   wirePaste('paste-prev',processPrevText,'status-prev');
+  wirePaste('paste-fat',processFatText,'status-fat');
   validatePrem();
 });
 
@@ -567,6 +597,56 @@ function processCSVText(txt){
 }
 function limparCSV(){DATA.csv=[];renderCSVTable();renderDash();renderDtlh();renderFluxo();renderCaixaInicialCampos();setStatus('status-csv','',null);const d=document.getElementById('diag-csv');if(d){d.style.display='none';d.innerHTML='';}autoSave();}
 function clearCSVFilters(){['fcsv-ano','fcsv-mes','fcsv-cc','fcsv-conta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderCSVTable();}
+
+// ── FATURAMENTO ───────────────────────────────────────────────────────────────
+const TIPOS_IGNORAR_FAT=new Set(['ADITIVO','DISTRATO']);
+function processFatText(txt){
+  txt=fixEncoding(txt);
+  const rows=parseTSV(txt);
+  if(!rows.length){setStatus('status-fat','Nenhum dado encontrado.',false);return;}
+  const novos=rows.map(r=>{
+    const tipoBaixa=fixEncoding(findColKey(r,['NomeDoTipoDeBaixa','Tipo Baixa','tipobaixa']).value);
+    if(TIPOS_IGNORAR_FAT.has(tipoBaixa.toUpperCase()))return null;
+    const data=parseDateBR(findColKey(r,['DataDaBaixa','Dt. baixa','databaixa']).value);
+    const cliente=fixEncoding(findColKey(r,['NomeDoCliente','Cliente','nomecliente']).value);
+    const cc=normCC(fixEncoding(findColKey(r,['NomeDoCentroDeCusto','centrodecusto','centro de custo']).value));
+    const conta=fixEncoding(findColKey(r,['NomeDoPlanoFinanceiro','planofin','plano financeiro']).value);
+    const contaCorrente=fixEncoding(findColKey(r,['NumeroDaContaCorrente','Conta corrente','contacorrente']).value);
+    const valor=Math.abs(parseBRNum(findColKey(r,['ValorLiquido','Liquido','Líquido','valorliquido']).value));
+    const movCaixa=tipoBaixa.toUpperCase()==='RECEBIMENTO';
+    return{data,cliente,cc,conta,contaCorrente,tipoBaixa,valor,movCaixa,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
+  }).filter(r=>r&&(r.valor!==0||r.cc));
+  DATA.fat=[...DATA.fat,...novos];
+  setStatus('status-fat','+'+novos.length+' registros — total: '+DATA.fat.length+'.',true);
+  renderFatTable();autoSave();
+}
+function limparFat(){DATA.fat=[];renderFatTable();setStatus('status-fat','',null);autoSave();}
+function renderFatTable(){
+  const arr=DATA.fat;
+  fillSelect('ffat-ano',[...new Set(arr.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
+  fillSelect('ffat-cc',[...new Set(arr.map(r=>r.cc).filter(Boolean))].sort(),v=>v,v=>v);
+  fillSelect('ffat-tipo',[...new Set(arr.map(r=>r.tipoBaixa).filter(Boolean))].sort(),v=>v,v=>v);
+  const fA=document.getElementById('ffat-ano')?.value||'';
+  const fC=document.getElementById('ffat-cc')?.value||'';
+  const fT=document.getElementById('ffat-tipo')?.value||'';
+  const fil=arr.filter(r=>(!fA||String(r.ano)===fA)&&(!fC||ccMatch(r.cc||'',fC))&&(!fT||r.tipoBaixa===fT));
+  document.getElementById('count-fat').textContent=fil.length+' de '+arr.length+' registros';
+  const tbody=document.getElementById('body-fat');
+  if(!fil.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
+  tbody.innerHTML=fil.map(r=>{
+    const mc=r.movCaixa?'<span class="badge bg-green">Caixa</span>':'<span class="badge bg-gold">Outro</span>';
+    return'<tr>'
+      +'<td>'+(r.data?r.data.toLocaleDateString('pt-BR'):'—')+'</td>'
+      +'<td>'+(r.cliente||'—')+'</td>'
+      +'<td>'+(r.cc||'—')+'</td>'
+      +'<td>'+(r.conta||'—')+'</td>'
+      +'<td>'+(r.contaCorrente||'—')+'</td>'
+      +'<td>'+(r.tipoBaixa||'—')+'</td>'
+      +'<td>'+mc+'</td>'
+      +'<td class="r val-pos">'+fmt(r.valor)+'</td>'
+      +'</tr>';
+  }).join('');
+}
 function renderCSVTable(){
   const arr=DATA.csv;
   fillSelect('fcsv-ano',[...new Set(arr.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
@@ -1241,7 +1321,7 @@ function exportarProj(){
 }
 
 // ── GITHUB STORAGE ─────────────────────────────────────────────────────────────
-function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},prev:DATA.prev.map(r=>({...r,data:r.data?r.data.toISOString():null})),dtlhUnidades:DATA.dtlhUnidades||{},projPremissas:DATA.projPremissas||{}});}
+function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},prev:DATA.prev.map(r=>({...r,data:r.data?r.data.toISOString():null})),dtlhUnidades:DATA.dtlhUnidades||{},projPremissas:DATA.projPremissas||{}});}
 async function ghubSave(){
   if(_ghubSaving){_ghubDirty=true;return;}
   _ghubSaving=true;_ghubDirty=false;setJbinStatus('saving');
@@ -1260,18 +1340,19 @@ async function jbinLoad(){
     const r=await fetch(GHUB.raw+'?t='+Date.now());if(!r.ok)throw new Error(r.status);
     const d=await r.json();if(!d)return setJbinStatus('empty');
     DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
+    DATA.fat=(d.fat||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};
     DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};
     DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};
     fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
-    renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();setJbinStatus('ok');
+    renderCSVTable();renderFatTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();setJbinStatus('ok');
   }catch(e){console.error(e);setJbinStatus('error');}
 }
 function setJbinStatus(s){const el=document.getElementById('jbin-status');if(!el)return;const map={loading:['⟳ Carregando...','#888'],saving:['⟳ Salvando...','#888'],ok:['✓ Sincronizado','#1B6B35'],error:['✕ Erro','#C0392B'],empty:['— Sem dados','#888']};const[txt,col]=map[s]||['','#888'];el.textContent=txt;el.style.color=col;}
 function autoSave(){ghubSave();}
 function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto,prev:DATA.prev.map(r=>({...r,data:r.data?r.data.toISOString():null})),dtlhUnidades:DATA.dtlhUnidades||{}}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
-function restoreJSON(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const p=JSON.parse(e.target.result);const d=p.data||p;DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};renderCSVTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();autoSave();alert('Restaurado! '+DATA.csv.length+' registros CSV.');}catch(err){alert('Erro: '+err.message);}};reader.readAsText(file);input.value='';}
+function restoreJSON(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const p=JSON.parse(e.target.result);const d=p.data||p;DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.fat=(d.fat||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};renderCSVTable();renderFatTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();autoSave();alert('Restaurado! '+DATA.csv.length+' registros CSV.');}catch(err){alert('Erro: '+err.message);}};reader.readAsText(file);input.value='';}
 </script>
 </body>
 </html>
