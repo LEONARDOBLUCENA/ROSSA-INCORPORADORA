@@ -797,7 +797,7 @@ function renderFluxo(){
   const prevKeys=Object.keys(DATA.previsto||{}).filter(k=>!obraSel||k.startsWith(obraSel+'_')||k.startsWith('_'));
   const tPrevM=Array(NC).fill(0);
   colKeys.forEach((ck,ci)=>{const ano=Math.floor(ck/100),mes=ck%100;let bruto=0;const key=(obraSel||'_')+'_'+ano+'_'+mes;if(DATA.previsto[key]!==undefined)bruto=DATA.previsto[key];const real2010304=dados.filter(r=>r.conta&&r.conta.includes('2010304')&&r.ano===ano&&r.mes===mes).reduce((s,r)=>s+Math.abs(r.valor),0);const real2010401=dados.filter(r=>r.conta&&r.conta.includes('2010401')&&r.ano===ano&&r.mes===mes).reduce((s,r)=>s+Math.abs(r.valor),0);tPrevM[ci]=bruto-real2010304-real2010401;});
-  const rv=tFM.map((v,i)=>v-tPM[i]),rt=rv.reduce((s,v)=>s+v,0);
+  const rv=tFM.map((v,i)=>v+tPM[i]),rt=rv.reduce((s,v)=>s+v,0);
   const ci=parseFloat(DATA.caixaInicial['_total']||0)||0;
   const saldo=[];let acc=ci;rv.forEach(v=>{acc+=v;saldo.push(acc);});
   tfoot.innerHTML=
