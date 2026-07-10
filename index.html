@@ -763,13 +763,17 @@ function renderFluxo(){
   updateFluxoFilters();
   const thead=document.getElementById('thead-fluxo'),tbody=document.getElementById('tbody-fluxo'),tfoot=document.getElementById('tfoot-fluxo');
   if(!thead||!tbody||!tfoot)return;
-  const dados=DATA.csv.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel));
-  const colSet=new Set();dados.forEach(r=>{if(r.ano!=null&&r.mes!=null)colSet.add(r.ano*100+r.mes);});
+  const dados=DATA.csv.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa!==false);
+  const dadosFat=DATA.fat.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa===true);
+  const colSet=new Set();
+  dados.forEach(r=>{if(r.ano!=null&&r.mes!=null)colSet.add(r.ano*100+r.mes);});
+  dadosFat.forEach(r=>{if(r.ano!=null&&r.mes!=null)colSet.add(r.ano*100+r.mes);});
   const colKeys=[...colSet].sort();
   const colAno=colKeys.map(k=>Math.floor(k/100));const colMes=colKeys.map(k=>k%100);const NC=colKeys.length;
   const SD='position:sticky;left:0;z-index:2;background:';
   const contas={};
   dados.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;if(r.tipo==='FATURAMENTO')contas[c].FAT[ci]+=r.valor;else if(r.tipo==='DESCONTO')contas[c].DESC[ci]+=r.valor;else if(r.tipo==='PAGAMENTO')contas[c].PAG[ci]+=r.valor;});
+  dadosFat.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;contas[c].FAT[ci]+=r.valor;});
   const nomes=Object.keys(contas);
   if(!nomes.length){thead.innerHTML='';tfoot.innerHTML='';tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado para o período</p></div></td></tr>';set('fc-badge','—');return;}
   thead.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;min-width:220px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Conta</th>'+colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;min-width:78px;font-size:10px;position:sticky;top:0;background:#f5f5f5">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+'</th>').join('')+'<th class="r" style="padding:5px 9px;min-width:88px;background:#ececec;position:sticky;top:0">Total</th></tr>';
