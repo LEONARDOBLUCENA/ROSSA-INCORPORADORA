@@ -243,7 +243,7 @@ tbody td.c{text-align:center}
     <button class="btn-ghost" onclick="document.getElementById('dash-obra').value='';document.getElementById('dash-ano').value='';limparMeses();renderDash()">✕ Limpar</button>
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
-    <div class="kpi-card c-green"><div class="kpi-label">Faturamento Líquido</div><div class="kpi-val pos" id="dash-entradas">—</div><div class="kpi-sub" id="dash-entradas-n">0 lançamentos</div></div>
+    <div class="kpi-card c-green"><div class="kpi-label">Faturamento Líquido</div><div class="kpi-val pos" id="dash-entradas">—</div><div class="kpi-sub" id="dash-entradas-n">0 lançamentos</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-fat-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-fat-outro">—</strong></span></div></div>
     <div class="kpi-card c-red"><div class="kpi-label">Total de Saídas</div><div class="kpi-val neg" id="dash-saidas">—</div><div class="kpi-sub" id="dash-saidas-n">0 lançamentos</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-saidas-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-saidas-outro">—</strong></span></div></div>
     <div class="kpi-card c-blue"><div class="kpi-label">Saldo do Período</div><div class="kpi-val" id="dash-saldo">—</div><div class="kpi-sub" id="dash-saldo-sub">Entradas − Saídas</div></div>
   </div>
@@ -393,6 +393,7 @@ tbody td.c{text-align:center}
         <span class="filter-label">Tipo Baixa</span>
         <select class="filter-select" id="ffat-tipo" onchange="renderFatTable()" style="min-width:140px"><option value="">Todos</option></select>
         <span class="tbl-badge" id="count-fat">—</span>
+        <button class="btn-export" onclick="exportarFat()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
         <button class="btn-ghost" onclick="limparFat()">✕ Limpar dados</button>
       </div>
     </div>
@@ -665,7 +666,13 @@ function renderCSVTable(){
   }).join('');
 }
 function exportExcelCSV(){if(!DATA.csv.length){alert('Nenhum dado.');return;}const rows=DATA.csv.map(r=>({'Data':r.data?r.data.toLocaleDateString('pt-BR'):'','Complemento':r.complemento||'','CC':r.cc||'','Conta':r.conta||'','Tipo':r.tipo||'','Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}));const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});XLSX.utils.book_append_sheet(wb,ws,'CSV');XLSX.writeFile(wb,'Rossa_CSV_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');}
-function exportarCSV(){exportExcelCSV();}
+function exportarFat(){
+  if(!DATA.fat.length){alert('Nenhum dado.');return;}
+  const rows=DATA.fat.map(r=>({'Data Baixa':r.data?r.data.toLocaleDateString('pt-BR'):'','Cliente':r.cliente||'','Centro de Custo':r.cc||'','Plano Financeiro':r.conta||'','Conta Corrente':r.contaCorrente||'','Tipo Baixa':r.tipoBaixa||'','Mov. Caixa':r.movCaixa?'Caixa':'Outro','Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}));
+  const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});
+  XLSX.utils.book_append_sheet(wb,ws,'Faturamento');
+  XLSX.writeFile(wb,'Rossa_Faturamento_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
+}
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDash(){
@@ -678,24 +685,29 @@ function renderDash(){
   const anoF=document.getElementById('dash-ano')?.value||'';
   const mesesSel=getMesesSelecionados();
   const data=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
-  const entradas=data.filter(r=>r.tipo==='FATURAMENTO');
+  const fatData=DATA.fat.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
+  const entradas=fatData;
   const saidas=data.filter(r=>r.tipo==='PAGAMENTO');
   const descontos=data.filter(r=>r.tipo==='DESCONTO');
   const totEnt=entradas.reduce((s,r)=>s+Math.abs(r.valor),0);
+  const totEntCaixa=entradas.filter(r=>r.movCaixa===true).reduce((s,r)=>s+Math.abs(r.valor),0);
+  const totEntOutro=entradas.filter(r=>r.movCaixa===false).reduce((s,r)=>s+Math.abs(r.valor),0);
   const totSai=saidas.reduce((s,r)=>s+Math.abs(r.valor),0);
   const totSaiCaixa=saidas.filter(r=>r.movCaixa!==false).reduce((s,r)=>s+Math.abs(r.valor),0);
   const totSaiOutro=saidas.filter(r=>r.movCaixa===false).reduce((s,r)=>s+Math.abs(r.valor),0);
   const totDsc=descontos.reduce((s,r)=>s+Math.abs(r.valor),0);
   const totEntLiq=totEnt-totDsc;
   const saldo=totEntLiq-totSai;
-  set('dash-entradas',fmt(totEntLiq));set('dash-entradas-n',entradas.length+' lançamentos | Desc: '+fmt(totDsc));
+  set('dash-entradas',fmt(totEntLiq));set('dash-entradas-n',entradas.length+' lançamentos');
+  set('dash-fat-caixa',fmt(totEntCaixa));set('dash-fat-outro',fmt(totEntOutro));
   set('dash-saidas',fmt(totSai));set('dash-saidas-n',saidas.length+' lançamentos');
   set('dash-saidas-caixa',fmt(totSaiCaixa));set('dash-saidas-outro',fmt(totSaiOutro));
   const sEl=document.getElementById('dash-saldo');if(sEl){sEl.textContent=fmt(Math.abs(saldo));sEl.className='kpi-val '+(saldo>=0?'pos':'neg');}
   set('dash-saldo-sub',saldo>=0?'▲ Superávit':'▼ Déficit');
-  const keys=new Set();data.forEach(r=>{if(r.data)keys.add(r.data.getFullYear()*100+r.data.getMonth());});
+  const keys=new Set();
+  [...data,...fatData].forEach(r=>{if(r.data)keys.add(r.data.getFullYear()*100+r.data.getMonth());});
   const sortedKeys=[...keys].sort();const labels=sortedKeys.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
-  const mEnt=sortedKeys.map(k=>{const f=entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0);const d=descontos.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0);return f-d;});
+  const mEnt=sortedKeys.map(k=>entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0));
   const mSai=sortedKeys.map(k=>saidas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0));
   const mRes=mEnt.map((v,i)=>v-mSai[i]);
   const yFmt={ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}};const tip={callbacks:{label:ctx=>' '+fmt(ctx.raw)}};
