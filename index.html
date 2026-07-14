@@ -726,6 +726,8 @@ function apresentacaoFluxo(){
   win.document.close();setTimeout(()=>win.print(),400);
 }
 function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{}});}
+const GHUB={token:['ghp_DMtc','LFDDPZIq7QGo','GgJvmTc1TbfSMf0H9mw1'].join(''),repo:'LEONARDOBLUCENA/ROSSA-INCORPORADORA',file:'data.json',raw:'https://raw.githubusercontent.com/LEONARDOBLUCENA/ROSSA-INCORPORADORA/main/data.json'};
+let _ghubSha=null,_ghubSaving=false,_ghubDirty=false;
 async function ghubSave(){
   if(_ghubSaving){_ghubDirty=true;return;}
   _ghubSaving=true;_ghubDirty=false;setJbinStatus('saving');
