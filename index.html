@@ -750,7 +750,7 @@ async function jbinLoad(){
     DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};
     DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};
     
-    
+    renderCSVTable();renderFatTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderCaixaInicialCampos();setJbinStatus('ok');
     fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
   }catch(e){console.error(e);setJbinStatus('error');}
 }
