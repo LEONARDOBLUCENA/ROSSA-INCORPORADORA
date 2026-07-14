@@ -243,6 +243,7 @@ tbody td.c{text-align:center}
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-green"><div class="kpi-label">Faturamento Líquido</div><div class="kpi-val pos" id="dash-entradas">—</div><div class="kpi-sub" id="dash-entradas-n">0 lançamentos</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-fat-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-fat-outro">—</strong></span></div></div>
     <div class="kpi-card c-red"><div class="kpi-label">Total de Saídas</div><div class="kpi-val neg" id="dash-saidas">—</div><div class="kpi-sub" id="dash-saidas-n">0 lançamentos</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-saidas-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-saidas-outro">—</strong></span></div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Saldo do Período</div><div class="kpi-val" id="dash-saldo">—</div><div class="kpi-sub" id="dash-saldo-sub">Entradas − Saídas</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-saldo-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-saldo-outro">—</strong></span></div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
     <div class="chart-card"><div class="chart-title">Entradas por Mês</div><div class="chart-subtitle">Faturamento bruto − Descontos</div><canvas id="dash-ch-entradas"></canvas></div>
@@ -560,12 +561,16 @@ function renderDash(){
   const totDsc=descontos.reduce((s,r)=>s+Math.abs(r.valor),0);
   const totEntLiq=totEnt-totDsc;
   const saldo=totEntLiq-totSai;
+  const saldoCaixa=totEntCaixa-totSaiCaixa;
+  const saldoOutro=totEntOutro-totSaiOutro;
   set('dash-entradas',fmt(totEntLiq));set('dash-entradas-n',entradas.length+' lançamentos');
   set('dash-fat-caixa',fmt(totEntCaixa));set('dash-fat-outro',fmt(totEntOutro));
   set('dash-saidas',fmt(totSai));set('dash-saidas-n',saidas.length+' lançamentos');
   set('dash-saidas-caixa',fmt(totSaiCaixa));set('dash-saidas-outro',fmt(totSaiOutro));
   const sEl=document.getElementById('dash-saldo');if(sEl){sEl.textContent=fmt(Math.abs(saldo));sEl.className='kpi-val '+(saldo>=0?'pos':'neg');}
   set('dash-saldo-sub',saldo>=0?'▲ Superávit':'▼ Déficit');
+  set('dash-saldo-caixa',fmt(Math.abs(saldoCaixa)));
+  set('dash-saldo-outro',fmt(Math.abs(saldoOutro)));
   const keys=new Set();
   [...data,...fatData].forEach(r=>{if(r.data)keys.add(r.data.getFullYear()*100+r.data.getMonth());});
   const sortedKeys=[...keys].sort();const labels=sortedKeys.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
