@@ -196,12 +196,10 @@ tbody td.c{text-align:center}
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Dashboard</button>
-    <button class="nav-tab" data-tab="dtlh" onclick="goTab(this)">Simulação de Venda - Fluxo</button>
-    <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
-    <button class="nav-tab" data-tab="proj" onclick="goTab(this)">Projeção Rossa</button>
     <button class="nav-tab" data-tab="fat" onclick="goTab(this)">Faturamento</button>
-    <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
     <button class="nav-tab" data-tab="csv" onclick="goTab(this)">Contas Pagas</button>
+    <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
+    <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
   </div>
   <div class="nav-actions">
     <span id="jbin-status">⟳ Carregando...</span>
@@ -245,7 +243,6 @@ tbody td.c{text-align:center}
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-green"><div class="kpi-label">Faturamento Líquido</div><div class="kpi-val pos" id="dash-entradas">—</div><div class="kpi-sub" id="dash-entradas-n">0 lançamentos</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-fat-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-fat-outro">—</strong></span></div></div>
     <div class="kpi-card c-red"><div class="kpi-label">Total de Saídas</div><div class="kpi-val neg" id="dash-saidas">—</div><div class="kpi-sub" id="dash-saidas-n">0 lançamentos</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-saidas-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-saidas-outro">—</strong></span></div></div>
-    <div class="kpi-card c-blue"><div class="kpi-label">Saldo do Período</div><div class="kpi-val" id="dash-saldo">—</div><div class="kpi-sub" id="dash-saldo-sub">Entradas − Saídas</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
     <div class="chart-card"><div class="chart-title">Entradas por Mês</div><div class="chart-subtitle">Faturamento bruto − Descontos</div><canvas id="dash-ch-entradas"></canvas></div>
@@ -257,61 +254,8 @@ tbody td.c{text-align:center}
   </div>
 </div>
 
-<!-- ===================== RESUMO EXECUTIVO ===================== -->
-<div class="page" id="page-dtlh">
-  <div class="sec-title">Fluxo de Obra</div>
-  <div class="sec-sub">Projeção de caixa por obra com premissas comerciais</div>
   <div class="filters-bar">
     <span class="filter-label">Obra</span>
-    <select class="filter-select" id="dt-obra" onchange="renderDtlh()"><option value="">Todas as obras</option></select>
-    <span class="filter-label" style="margin-left:12px">Caixa Inicial</span>
-    <input type="number" class="filter-input" id="dt-caixa-ini" placeholder="0,00" step="0.01" style="max-width:140px" onchange="renderDtlh()">
-    <button class="btn-ghost" onclick="document.getElementById('dt-obra').value='';document.getElementById('dt-caixa-ini').value='';renderDtlh()">✕ Limpar</button>
-    <div style="margin-left:auto;display:flex;gap:8px">
-      <button class="btn-export" onclick="exportarDtlhXLS()">⬇ Excel</button>
-      <button class="btn-warn" onclick="abrirSimulador()">⚙ Simular Cenário</button>
-      <button class="btn-primary" onclick="apresentacaoDtlh()">📄 Apresentação</button>
-    </div>
-  </div>
-
-  <!-- Totalizador de estoque -->
-  <div class="dtlh-kpi-group" id="dtlh-estoque-resumo">
-    <div class="dtlh-group-header"><span class="dtlh-group-title">Estoque</span><span style="font-size:11px;color:var(--text3)">Dados da aba Estoque filtrados pela obra</span></div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0" id="dtlh-est-grid">
-      <div class="dtlh-item" style="flex-direction:column;gap:4px;align-items:flex-start"><div class="dtlh-item-label">Total Unidades</div><div class="dtlh-item-val" id="dt-est-total-un">—</div></div>
-      <div class="dtlh-item" style="flex-direction:column;gap:4px;align-items:flex-start"><div class="dtlh-item-label">Valor Total</div><div class="dtlh-item-val" id="dt-est-valor-total">—</div></div>
-      <div class="dtlh-item" style="flex-direction:column;gap:4px;align-items:flex-start"><div class="dtlh-item-label">Valor Médio/Un.</div><div class="dtlh-item-val" id="dt-est-vm">—</div></div>
-      <div class="dtlh-item" style="flex-direction:column;gap:4px;align-items:flex-start"><div class="dtlh-item-label">Unid. Vendidas</div><div class="dtlh-item-val" id="dt-est-vendidas">—</div></div>
-      <div class="dtlh-item" style="flex-direction:column;gap:4px;align-items:flex-start"><div class="dtlh-item-label">Valor Vendido</div><div class="dtlh-item-val" id="dt-est-vvend">—</div></div>
-      <div class="dtlh-item" style="flex-direction:column;gap:4px;align-items:flex-start"><div class="dtlh-item-label">Unid. Disponíveis</div><div class="dtlh-item-val" id="dt-est-disp-un">—</div></div>
-      <div class="dtlh-item" style="flex-direction:column;gap:4px;align-items:flex-start"><div class="dtlh-item-label">Valor Disponível</div><div class="dtlh-item-val pos" id="dt-est-disp-val">—</div></div>
-    </div>
-  </div>
-
-  <!-- Premissas comerciais -->
-  <div class="dtlh-kpi-group">
-    <div class="dtlh-group-header"><span class="dtlh-group-title">Premissas Comerciais</span><span id="prem-warn-sum" class="prem-warn"></span></div>
-    <div class="prem-grid">
-      <div class="prem-field"><div class="prem-label">Entrada %</div><input type="number" class="prem-input" id="prem-entrada" value="10" min="0" max="20" step="0.5" onchange="validatePrem();renderDtlh()"><div style="font-size:10px;color:var(--text3)">máx 20%</div></div>
-      <div class="prem-field"><div class="prem-label">Parcelas %</div><input type="number" class="prem-input" id="prem-parcelas" value="50" min="0" step="0.5" onchange="validatePrem();renderDtlh()"></div>
-      <div class="prem-field"><div class="prem-label">Nº de Parcelas</div><input type="number" class="prem-input" id="prem-nparcelas" value="36" min="1" step="1" onchange="validatePrem();renderDtlh()"></div>
-      <div class="prem-field"><div class="prem-label">Chaves %</div><input type="number" class="prem-input" id="prem-chaves" value="40" min="30" max="50" step="0.5" onchange="validatePrem();renderDtlh()"><div style="font-size:10px;color:var(--text3)">30-50%</div></div>
-      <div class="prem-field"><div class="prem-label">Data Entrega Chaves</div><input type="date" class="prem-input" style="text-align:left" id="prem-data-chaves" onchange="renderDtlh()"></div>
-    </div>
-  </div>
-
-  <!-- Tabela Projeção Mensal -->
-  <div class="tbl-card">
-    <div class="tbl-head"><div class="tbl-title">Projeção Mensal de Caixa</div><span class="tbl-badge" id="dtlh-badge">—</span></div>
-    <div style="overflow-x:auto;overflow-y:auto;max-height:60vh">
-      <table id="tbl-dtlh" style="min-width:1200px">
-        <thead id="thead-dtlh"></thead>
-        <tbody id="tbody-dtlh"><tr><td colspan="12"><div class="empty-state"><p>Carregue dados na aba Contas Pagas</p></div></td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
 <!-- ===================== CSV ANALÍTICO ===================== -->
 <div class="page" id="page-csv">
   <div class="sec-title">Contas Pagas</div>
@@ -440,89 +384,8 @@ tbody td.c{text-align:center}
   </div>
 </div>
 
-<!-- ===================== PREVISÃO POR PERÍODO ===================== -->
-<div class="page" id="page-prev">
-  <div class="sec-title">Previsão por Período</div>
-  <div class="sec-sub">Cole dados do ERP para visualizar recebimentos e pagamentos futuros por centro de custo</div>
-  <div class="paste-section">
-    <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de previsão no ERP, copie a tabela (Ctrl+C) e cole abaixo.<br>Colunas: <strong>Data · Valor · Nome Centro de Custo · Conta · Complemento</strong> — lógica: "a pagar" → PAGAR | "a receber" → RECEBER</div>
-    <textarea class="paste-box" id="paste-prev" placeholder="Cole aqui os dados de previsão do ERP"></textarea>
-    <div class="paste-actions">
-      <button class="btn-secondary" onclick="limparPrev()">✕ Limpar</button>
-      <span class="paste-status" id="status-prev"></span>
-    </div>
-  </div>
-  <div class="filters-bar">
-    <span class="filter-label">Período</span>
-    <span style="font-size:12px;color:var(--text3)">De</span>
-    <input type="date" class="filter-input" id="prev-de" onchange="renderPrev()" style="max-width:150px">
-    <span style="font-size:12px;color:var(--text3)">Até</span>
-    <input type="date" class="filter-input" id="prev-ate" onchange="renderPrev()" style="max-width:150px">
-    <span class="filter-label" style="margin-left:8px">Centro de Custo</span>
-    <select class="filter-select" id="prev-cc" onchange="renderPrev()"><option value="">Todos</option></select>
-    <button class="btn-ghost" onclick="limparFiltrosPrev()">✕ Limpar</button>
-    <div style="margin-left:auto;display:flex;gap:8px">
-      <button class="btn-primary" onclick="gerarWppCC()">📲 WhatsApp por CC</button>
-      <button class="btn-warn" onclick="gerarWppFornecedor()">📦 WhatsApp por Fornecedor</button>
-    </div>
-  </div>
-  <div class="prev-summary">
-    <div class="kpi-card c-green"><div class="kpi-label">Total a Receber</div><div class="kpi-val pos" id="prev-total-rec">—</div></div>
-    <div class="kpi-card c-red"><div class="kpi-label">Total a Pagar</div><div class="kpi-val neg" id="prev-total-pag">—</div></div>
-    <div class="kpi-card c-blue"><div class="kpi-label">Saldo do Período</div><div class="kpi-val" id="prev-saldo">—</div></div>
-  </div>
-  <div class="tbl-card">
-    <div class="tbl-head"><div class="tbl-title">Resumo Diário por Centro de Custo</div><span class="tbl-badge" id="prev-badge">—</span></div>
-    <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Centro de Custo</th><th class="r">A Receber</th><th class="r">A Pagar</th><th class="r">Saldo do Dia</th></tr></thead><tbody id="body-prev"><tr><td colspan="5"><div class="empty-state"><p>Nenhum dado — cole os dados acima</p></div></td></tr></tbody></table></div>
-  </div>
-</div>
-
-
-<!-- ===================== PROJEÇÃO ROSSA ===================== -->
-<div class="page" id="page-proj">
-  <div class="sec-title">Projeção Rossa</div>
-  <div class="sec-sub">Visão consolidada mensal de faturamentos e despesas — mês atual em diante</div>
-  <div class="filters-bar">
-    <span class="filter-label">Obra</span>
-    <select class="filter-select" id="proj-obra" onchange="renderProj()"><option value="">Todas as obras</option></select>
-    <button class="btn-ghost" onclick="document.getElementById('proj-obra').value='';renderProj()">✕ Limpar</button>
-    <div style="margin-left:auto"><button class="btn-export" onclick="exportarProj()">⬇ Excel</button></div>
-  </div>
-  <!-- Painel fixo: Caixa Inicial + premissas de obra -->
-  <div style="background:var(--surface);border:1px solid var(--border);box-shadow:var(--sh);margin-bottom:14px">
-    <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:24px;flex-wrap:wrap">
-      <div style="display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)">Caixa Inicial</span>
-        <input type="number" id="proj-caixa-ini" placeholder="0,00" step="0.01"
-          onchange="renderProj()"
-          style="border:1px solid var(--brand);background:#fff;padding:5px 10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:var(--text);outline:none;text-align:right;width:160px">
-      </div>
-      <div id="proj-obras-panel" style="display:flex;gap:24px;flex-wrap:wrap"></div>
-    </div>
-  </div>
-  <div class="tbl-card">
-    <div class="tbl-head"><div class="tbl-title">Projeção Mensal</div><span class="tbl-badge" id="proj-badge">—</span></div>
-    <div style="overflow-x:auto;overflow-y:auto;max-height:70vh">
-      <table style="width:100%;border-collapse:collapse;min-width:600px">
-        <thead id="thead-proj"></thead>
-        <tbody id="tbody-proj"><tr><td colspan="3"><div class="empty-state"><p>Carregue dados na aba Contas Pagas</p></div></td></tr></tbody>
-        <tfoot id="tfoot-proj"></tfoot>
-      </table>
-    </div>
-  </div>
-</div>
 
 <script>
-// ── DADOS GLOBAIS ─────────────────────────────────────────────────────────────
-const DATA={csv:[],fat:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{},prev:[],projPremissas:{}};
-const GHUB={
-  token:['ghp_DMtc','LFDDPZIq7QGo','GgJvmTc1TbfSMf0H9mw1'].join(''),
-  repo:'LEONARDOBLUCENA/ROSSA-INCORPORADORA',
-  file:'data.json',
-  raw:'https://raw.githubusercontent.com/LEONARDOBLUCENA/ROSSA-INCORPORADORA/main/data.json'
-};
-let _ghubSaving=false,_ghubDirty=false,_ghubSha=null;
-const CHARTS={};
 const MESES_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MESES_ABR=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const PAL=['#1B6B35','#1A5276','#B7950B','#7D3C98','#C0392B','#784212','#1A6161','#2E4057'];
@@ -554,9 +417,7 @@ function copyModal(){const el=document.getElementById('modal-content');navigator
 window.addEventListener('load',()=>{
   jbinLoad();
   wirePaste('paste-csv',processCSVText,'status-csv');
-  wirePaste('paste-prev',processPrevText,'status-prev');
   wirePaste('paste-fat',processFatText,'status-fat');
-  validatePrem();
 });
 
 // ── CSV ANALÍTICO ─────────────────────────────────────────────────────────────
@@ -594,9 +455,8 @@ function processCSVText(txt){
   }).filter(r=>r.valor!==0||r.cc);
   DATA.csv=[...DATA.csv,...novos];
   setStatus('status-csv','+'+novos.length+' registros — total: '+DATA.csv.length+'.',true);
-  renderCSVTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderCaixaInicialCampos();autoSave();
 }
-function limparCSV(){DATA.csv=[];renderCSVTable();renderDash();renderDtlh();renderFluxo();renderCaixaInicialCampos();setStatus('status-csv','',null);const d=document.getElementById('diag-csv');if(d){d.style.display='none';d.innerHTML='';}autoSave();}
+function limparCSV(){DATA.csv=[];renderCSVTable();renderDash();renderFluxo();renderCaixaInicialCampos();setStatus('status-csv','',null);const d=document.getElementById('diag-csv');if(d){d.style.display='none';d.innerHTML='';}autoSave();}
 function clearCSVFilters(){['fcsv-ano','fcsv-mes','fcsv-cc','fcsv-conta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderCSVTable();}
 
 // ── FATURAMENTO ───────────────────────────────────────────────────────────────
@@ -754,8 +614,8 @@ function updateFluxoFilters(){
   fillSelect('fc-obra',obras,v=>v,v=>v);
   fillSelect('fc-ano',[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
   fillSelect('est-obra',obras,v=>v,v=>v,'Selecione a obra');
-  fillSelect('dt-obra',obras,v=>v,v=>v);
-  fillSelect('proj-obra',obras,v=>v,v=>v);
+  
+  
 }
 function renderFluxo(){
   const obraSel=document.getElementById('fc-obra')?.value||'';
@@ -824,120 +684,6 @@ function exportarFluxo(){
 }
 
 // ── RESUMO EXECUTIVO ──────────────────────────────────────────────────────────
-function validatePrem(){
-  const e=parseFloat(document.getElementById('prem-entrada')?.value)||0;
-  const p=parseFloat(document.getElementById('prem-parcelas')?.value)||0;
-  const c=parseFloat(document.getElementById('prem-chaves')?.value)||0;
-  const sum=e+p+c;
-  const w=document.getElementById('prem-warn-sum');
-  if(w){w.textContent=Math.abs(sum-100)>0.01?'⚠ Soma atual: '+sum.toFixed(1)+'% (deve ser 100%)':(sum>0?'✓ 100%':'');}
-}
-function renderDtlh(){
-  const obra=document.getElementById('dt-obra')?.value||'';
-  updateFluxoFilters();
-  // Estoque resumo
-  const estObra=DATA.estoque.filter(u=>!obra||ccMatch(u.obra||'',obra));
-  const totalUn=estObra.length;
-  const valorTotal=estObra.reduce((s,u)=>s+(u.venda||0),0);
-  const vendidas=estObra.filter(u=>u.status==='Vendido').length;
-  const dispUn=estObra.filter(u=>u.status!=='Vendido').length;
-  const dispVal=estObra.filter(u=>u.status!=='Vendido').reduce((s,u)=>s+(u.venda||0),0);
-  const vm=totalUn?valorTotal/totalUn:0;
-  const vVend=vendidas*vm;
-  set('dt-est-total-un',totalUn);set('dt-est-valor-total',fmt(valorTotal));set('dt-est-vm',fmt(vm));
-  set('dt-est-vendidas',vendidas);set('dt-est-vvend',fmt(vVend));set('dt-est-disp-un',dispUn);set('dt-est-disp-val',fmt(dispVal));
-  // Premissas
-  const pEntrada=(parseFloat(document.getElementById('prem-entrada')?.value)||0)/100;
-  const pParcelas=(parseFloat(document.getElementById('prem-parcelas')?.value)||0)/100;
-  const nParcelas=parseInt(document.getElementById('prem-nparcelas')?.value)||1;
-  const pChaves=(parseFloat(document.getElementById('prem-chaves')?.value)||0)/100;
-  const dataChavesStr=document.getElementById('prem-data-chaves')?.value||'';
-  const dataChaves=dataChavesStr?new Date(dataChavesStr+'T12:00:00'):null;
-  // Meses a exibir: a partir do mês anterior ao atual
-  const hoje=new Date();const mesIni=new Date(hoje.getFullYear(),hoje.getMonth()-1,1);
-  // A Receber por mês
-  const csvF=DATA.csv.filter(r=>!obra||ccMatch(r.cc||'',obra));
-  // Calcular meses necessários (até cobrir todos recebimentos previstos)
-  // Gerar estrutura meses
-  const meses=[];for(let i=0;i<60;i++){const d=new Date(mesIni.getFullYear(),mesIni.getMonth()+i,1);meses.push({ano:d.getFullYear(),mes:d.getMonth(),label:MESES_ABR[d.getMonth()]+'/'+d.getFullYear()});}
-  // A Receber (do CSV, complemento "A RECEBER")
-  const aRecPorMes=meses.map(m=>csvF.filter(r=>r.tipo==='FATURAMENTO'&&r.complemento&&r.complemento.toUpperCase().includes('A RECEBER')&&r.ano===m.ano&&r.mes===m.mes).reduce((s,r)=>s+r.valor,0));
-  // Saldo Orçamento = previsto bruto (de DATA.previsto) por mês
-  const saldoOrcPorMes=meses.map(m=>{const key=(obra||'_')+'_'+m.ano+'_'+m.mes;return DATA.previsto[key]||0;});
-  // Prev. Vendas: unidades vendidas (campo editável), espalhadas por premissas
-  const prevVendasPorMes=Array(meses.length).fill(0);
-  const unVendidasPorMes=Array(meses.length).fill(0);// will come from editable cells — store in DATA
-  if(!DATA.dtlhUnidades)DATA.dtlhUnidades={};
-  meses.forEach((m,i)=>{
-    const key=m.ano+'_'+m.mes;
-    const un=parseInt(DATA.dtlhUnidades[obra+'|'+key]||0);
-    unVendidasPorMes[i]=un;
-    if(!un)return;
-    const vMedio=vm||0,vVendaMes=un*vMedio;
-    // Entrada: no próprio mês
-    if(pEntrada>0)prevVendasPorMes[i]+=vVendaMes*pEntrada;
-    // Parcelas: distribuir nos próximos nParcelas meses
-    if(pParcelas>0&&nParcelas>0){const parcelaMensal=vVendaMes*pParcelas/nParcelas;for(let p=1;p<=nParcelas;p++){if(i+p<meses.length)prevVendasPorMes[i+p]+=parcelaMensal;}}
-    // Chaves: no mês da entrega
-    if(pChaves>0&&dataChaves){const chMes=meses.findIndex(x=>x.ano===dataChaves.getFullYear()&&x.mes===dataChaves.getMonth());if(chMes>=0)prevVendasPorMes[chMes]+=vVendaMes*pChaves;}
-  });
-  // Afetação (4%) do A Receber — paga no mês SEGUINTE ao faturamento
-  const afetPorMes=aRecPorMes.map((v,i)=>i>0?aRecPorMes[i-1]*0.04:0);
-  // Fat. Líquido = A Receber - Afetação
-  const fatLiqPorMes=aRecPorMes.map((v,i)=>v-afetPorMes[i]);
-  // Nec. Caixa = Fat. Líquido - Saldo Orç.
-  const necCaixaPorMes=fatLiqPorMes.map((v,i)=>v-saldoOrcPorMes[i]);
-  // Comissão 6% sobre valor vendido
-  const comissaoPorMes=meses.map((m,i)=>unVendidasPorMes[i]*(vm||0)*0.06);
-  // Afetação Prevista = 4% da Prev. Vendas — paga no mês SEGUINTE
-  const afetPrevPorMes=prevVendasPorMes.map((v,i)=>i>0?prevVendasPorMes[i-1]*0.04:0);
-  // Nec. Caixa Mensal = (Nec. Caixa + Prev. Vendas) - (Comissão + Afet. Prevista)
-  const necCaixaMensal=necCaixaPorMes.map((v,i)=>(v+prevVendasPorMes[i])-(comissaoPorMes[i]+afetPrevPorMes[i]));
-  // Caixa Acumulado
-  const caixaIni=parseFloat(document.getElementById('dt-caixa-ini')?.value)||0;
-  const caixaAcum=[];let accC=caixaIni;
-  meses.forEach((m,i)=>{accC+=necCaixaMensal[i];caixaAcum.push(accC);});
-  // Encontrar último mês com algum dado
-  let lastRow=0;
-  meses.forEach((m,i)=>{if(aRecPorMes[i]||saldoOrcPorMes[i]||prevVendasPorMes[i]||unVendidasPorMes[i])lastRow=i;});
-  lastRow=Math.max(lastRow,11);// pelo menos 12 meses
-  const rowsShow=meses.slice(0,lastRow+1);
-  // Render
-  const thead=document.getElementById('thead-dtlh');const tbody=document.getElementById('tbody-dtlh');
-  if(!thead||!tbody)return;
-  thead.innerHTML='<tr style="background:#f5f5f5"><th style="min-width:90px">Mês/Ano</th><th class="r" style="min-width:100px">A Receber</th><th class="r" style="min-width:80px">Afetação 4%</th><th class="r" style="min-width:100px">Fat. Líquido</th><th class="r" style="min-width:100px">Saldo Orç.</th><th class="r" style="min-width:100px;background:#e8f5e9">Nec. Caixa</th><th class="r" style="min-width:60px">Unid.</th><th class="r" style="min-width:100px">Prev. Vendas</th><th class="r" style="min-width:80px">Comissão 6%</th><th class="r" style="min-width:80px">Afet. Prevista</th><th class="r" style="min-width:110px;background:#FEF9E7">Nec. Caixa Mensal</th><th class="r" style="min-width:110px">Caixa Acumulado</th></tr>';
-  tbody.innerHTML=rowsShow.map((m,i)=>{
-    const key=m.ano+'_'+m.mes;const dKey=obra+'|'+key;
-    const ncBg=necCaixaPorMes[i]>=0?'background:#e8f5e9':'background:#FADBD8';
-    const ncMBg=necCaixaMensal[i]>=0?'background:#fffde7':'background:#FEF3CD';
-    const caColor=caixaAcum[i]>=0?'color:#1B6B35':'color:#C0392B';
-    return'<tr>'
-      +'<td style="font-size:11px;font-weight:600">'+m.label+'</td>'
-      +'<td class="r val-pos" style="font-size:11px">'+(aRecPorMes[i]?fmt(aRecPorMes[i]):'—')+'</td>'
-      +'<td class="r val-neg" style="font-size:11px">'+(afetPorMes[i]?'('+fmt(afetPorMes[i])+'  )':'—')+'</td>'
-      +'<td class="r" style="font-size:11px">'+(fatLiqPorMes[i]?fmt(fatLiqPorMes[i]):'—')+'</td>'
-      +'<td class="r" style="font-size:11px">'+(saldoOrcPorMes[i]?fmt(saldoOrcPorMes[i]):'—')+'</td>'
-      +'<td class="r" style="font-size:11px;font-weight:600;'+ncBg+'">'+(necCaixaPorMes[i]?fmtSgn(necCaixaPorMes[i]):'—')+'</td>'
-      +'<td class="r" style="font-size:11px"><input type="number" value="'+(unVendidasPorMes[i]||'')+'" min="0" step="1" onchange="DATA.dtlhUnidades[\''+dKey+'\']=parseInt(this.value)||0;renderDtlh()" style="width:50px;border:1px solid var(--border);background:var(--bg);padding:2px 6px;font-size:11px;text-align:right;outline:none"></td>'
-      +'<td class="r" style="font-size:11px">'+(prevVendasPorMes[i]?fmt(prevVendasPorMes[i]):'—')+'</td>'
-      +'<td class="r val-neg" style="font-size:11px">'+(comissaoPorMes[i]?'('+fmt(comissaoPorMes[i])+'  )':'—')+'</td>'
-      +'<td class="r val-neg" style="font-size:11px">'+(afetPrevPorMes[i]?'('+fmt(afetPrevPorMes[i])+'  )':'—')+'</td>'
-      +'<td class="r" style="font-size:11px;font-weight:600;'+ncMBg+'">'+(necCaixaMensal[i]?fmtSgn(necCaixaMensal[i]):'—')+'</td>'
-      +'<td class="r" style="font-size:11px;font-weight:700;'+caColor+'">'+(caixaAcum[i]?fmtSgn(caixaAcum[i]):'—')+'</td>'
-      +'</tr>';
-  }).join('');
-  set('dtlh-badge',rowsShow.length+' meses');
-}
-function abrirSimulador(){alert('Simulador: teste 100 combinações de vendas por mês (prioriza meses com Necessidade de Caixa negativa, máx 10 unidades/mês). Em desenvolvimento.');}
-function exportarDtlhXLS(){
-  const thead=document.getElementById('thead-dtlh');const tbody=document.getElementById('tbody-dtlh');
-  if(!tbody){alert('Nenhum dado.');return;}
-  const rows=[];
-  [thead,tbody].forEach(t=>{if(!t)return;Array.from(t.querySelectorAll('tr')).forEach(tr=>{const cells=Array.from(tr.querySelectorAll('th,td')).map(c=>c.innerText||c.textContent||'');if(cells.some(c=>c.trim()))rows.push(cells);});});
-  const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'Resumo Executivo');XLSX.writeFile(wb,'Rossa_ResumoExec_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
-}
-
-// ── ESTOQUE ───────────────────────────────────────────────────────────────────
 function adicionarEstoque(){
   const obra=document.getElementById('est-obra').value.trim();
   const unidade=document.getElementById('est-unidade').value.trim();
@@ -947,7 +693,7 @@ function adicionarEstoque(){
   if(!obra||!unidade){alert('Preencha Obra e Unidade.');return;}
   DATA.estoque.push({obra,unidade,status,area,venda});
   ['est-unidade','est-area','est-venda'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  renderEstoqueTable();renderDtlh();autoSave();
+  renderEstoqueTable();autoSave();
 }
 function renderEstoqueTable(){
   // Filtro de obra baseado nas obras do próprio estoque (não do CSV)
@@ -961,7 +707,7 @@ function renderEstoqueTable(){
   if(!filtered.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhuma unidade</p></div></td></tr>';return;}
   tbody.innerHTML=filtered.map(r=>{const idx=DATA.estoque.indexOf(r);return'<tr><td>'+r.obra+'</td><td>'+r.unidade+'</td><td><span class="badge '+(r.status==='Disponível'?'bg-green':r.status==='Vendido'?'bg-red':'bg-gold')+'">'+r.status+'</span></td><td class="r">'+(r.area?r.area.toLocaleString('pt-BR',{minimumFractionDigits:2})+'m²':'—')+'</td><td class="r">'+(r.venda?fmt(r.venda):'—')+'</td><td class="c"><button onclick="removerEstoque('+idx+')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px">✕</button></td></tr>';}).join('');
 }
-function removerEstoque(i){DATA.estoque.splice(i,1);renderEstoqueTable();renderDtlh();autoSave();}
+function removerEstoque(i){DATA.estoque.splice(i,1);renderEstoqueTable();autoSave();}
 function exportarEstoque(){
   const fObra=document.getElementById('fe-obra')?.value||'';
   const rows=DATA.estoque.filter(u=>!fObra||ccMatch(u.obra||'',fObra)).map(r=>({'Obra':r.obra,'Unidade':r.unidade,'Status':r.status||'','Área (m²)':r.area||'','Valor (R$)':(r.venda||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}));
@@ -971,67 +717,6 @@ function exportarEstoque(){
 
 
 // ── PREVISÃO POR PERÍODO ──────────────────────────────────────────────────────
-function processPrevText(txt){
-  const rows=parseTSV(txt);
-  if(!rows.length){setStatus('status-prev','Nenhum dado encontrado.',false);return;}
-  const first=rows[0];
-  const mData={data:findColKey(first,['Data','data']),valor:findColExact(first,['Valor'],['Valor']),cc:findColExact(first,['Nome centro de custo','Nome Centro de Custo'],['centro de custo','cc']),complemento:findColKey(first,['Complemento','complemento','Historico'])};
-  const novos=rows.map(r=>{
-    const data=parseDateBR(findColKey(r,['Data','data']).value);
-    const valor=Math.abs(parseBRNum(findColExact(r,['Valor'],['Valor']).value));
-    const cc=normCC(findColExact(r,['Nome centro de custo','Nome Centro de Custo'],['centro de custo','cc']).value);
-    const complemento=findColKey(r,['Complemento','complemento','Historico']).value;
-    const cu=complemento.toUpperCase();
-    let tipo=cu.includes('A PAGAR')||cu.includes('PAGAR')?'PAGAR':cu.includes('A RECEBER')||cu.includes('RECEBER')?'RECEBER':'PAGAR';
-    return{data,valor,cc,complemento,tipo};
-  }).filter(r=>r.data&&r.valor>0);
-  DATA.prev=[...DATA.prev,...novos];
-  setStatus('status-prev','+'+novos.length+' registros — total: '+DATA.prev.length+'.',true);
-  renderPrev();autoSave();
-}
-function limparPrev(){DATA.prev=[];renderPrev();setStatus('status-prev','',null);autoSave();}
-function limparFiltrosPrev(){['prev-de','prev-ate','prev-cc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderPrev();}
-function renderPrev(){
-  const ccs=[...new Set(DATA.prev.map(r=>r.cc).filter(Boolean))].sort();
-  fillSelect('prev-cc',ccs,v=>v,v=>v);
-  const de=document.getElementById('prev-de')?.value;const ate=document.getElementById('prev-ate')?.value;const ccF=document.getElementById('prev-cc')?.value||'';
-  const deDate=de?new Date(de+'T00:00:00'):null;const ateDate=ate?new Date(ate+'T23:59:59'):null;
-  const fil=DATA.prev.filter(r=>(!deDate||r.data>=deDate)&&(!ateDate||r.data<=ateDate)&&(!ccF||ccMatch(r.cc||'',ccF)));
-  const totalRec=fil.filter(r=>r.tipo==='RECEBER').reduce((s,r)=>s+r.valor,0);
-  const totalPag=fil.filter(r=>r.tipo==='PAGAR').reduce((s,r)=>s+r.valor,0);
-  const saldo=totalRec-totalPag;
-  set('prev-total-rec',fmt(totalRec));set('prev-total-pag',fmt(totalPag));
-  const sEl=document.getElementById('prev-saldo');if(sEl){sEl.textContent=fmtSgn(saldo);sEl.className='kpi-val '+(saldo>=0?'pos':'neg');}
-  set('prev-badge',fil.length+' lançamentos');
-  // Agrupar por data e CC
-  const grupos={};
-  fil.forEach(r=>{const dk=r.data.toLocaleDateString('pt-BR');const gk=dk+'|'+r.cc;if(!grupos[gk])grupos[gk]={data:r.data,dk,cc:r.cc,rec:0,pag:0};if(r.tipo==='RECEBER')grupos[gk].rec+=r.valor;else grupos[gk].pag+=r.valor;});
-  const linhas=Object.values(grupos).sort((a,b)=>a.data-b.data||a.cc.localeCompare(b.cc));
-  const tbody=document.getElementById('body-prev');if(!tbody)return;
-  if(!linhas.length){tbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado</p></div></td></tr>';return;}
-  tbody.innerHTML=linhas.map(g=>{const sld=g.rec-g.pag;return'<tr><td>'+g.dk+'</td><td>'+g.cc+'</td><td class="r val-pos">'+(g.rec?fmt(g.rec):'—')+'</td><td class="r val-neg">'+(g.pag?fmt(g.pag):'—')+'</td><td class="r '+(sld>=0?'val-pos':'val-neg')+'">'+fmtSgn(sld)+'</td></tr>';}).join('');
-}
-function gerarWppCC(){
-  const de=document.getElementById('prev-de')?.value;const ate=document.getElementById('prev-ate')?.value;const ccF=document.getElementById('prev-cc')?.value||'';
-  const deDate=de?new Date(de+'T00:00:00'):null;const ateDate=ate?new Date(ate+'T23:59:59'):null;
-  const fil=DATA.prev.filter(r=>(!deDate||r.data>=deDate)&&(!ateDate||r.data<=ateDate)&&(!ccF||ccMatch(r.cc||'',ccF)));
-  const byCc={};fil.forEach(r=>{if(!byCc[r.cc])byCc[r.cc]={rec:0,pag:0};if(r.tipo==='RECEBER')byCc[r.cc].rec+=r.valor;else byCc[r.cc].pag+=r.valor;});
-  let msg='*Previsão por Centro de Custo*\n'+(de||'')+(ate?' a '+ate:'')+'\n\n';
-  Object.entries(byCc).sort(([a],[b])=>a.localeCompare(b)).forEach(([cc,v])=>{msg+='*'+cc+'*\n';if(v.rec)msg+='  ✅ A Receber: '+fmt(v.rec)+'\n';if(v.pag)msg+='  ❌ A Pagar: '+fmt(v.pag)+'\n';msg+='  💰 Saldo: '+fmtSgn(v.rec-v.pag)+'\n\n';});
-  openModal('WhatsApp por CC',msg);
-}
-function gerarWppFornecedor(){
-  const de=document.getElementById('prev-de')?.value;const ate=document.getElementById('prev-ate')?.value;const ccF=document.getElementById('prev-cc')?.value||'';
-  const deDate=de?new Date(de+'T00:00:00'):null;const ateDate=ate?new Date(ate+'T23:59:59'):null;
-  const fil=DATA.prev.filter(r=>(!deDate||r.data>=deDate)&&(!ateDate||r.data<=ateDate)&&(!ccF||ccMatch(r.cc||'',ccF)));
-  const byCcForn={};fil.forEach(r=>{const k=r.cc+'|||'+r.complemento;if(!byCcForn[k])byCcForn[k]={cc:r.cc,forn:r.complemento,rec:0,pag:0};if(r.tipo==='RECEBER')byCcForn[k].rec+=r.valor;else byCcForn[k].pag+=r.valor;});
-  let msg='*Previsão por Fornecedor*\n'+(de||'')+(ate?' a '+ate:'')+'\n\n';
-  const ccGrp={};Object.values(byCcForn).forEach(v=>{if(!ccGrp[v.cc])ccGrp[v.cc]=[];ccGrp[v.cc].push(v);});
-  Object.entries(ccGrp).sort(([a],[b])=>a.localeCompare(b)).forEach(([cc,items])=>{msg+='*'+cc+'*\n';items.sort((a,b)=>a.forn.localeCompare(b.forn)).forEach(v=>{msg+='  '+v.forn+': '+(v.pag?'❌ '+fmt(v.pag):'✅ '+fmt(v.rec))+'\n';});msg+='\n';});
-  openModal('WhatsApp por Fornecedor',msg);
-}
-
-// ── APRESENTAÇÕES PDF ──────────────────────────────────────────────────────────
 function apresentacaoFluxo(){
   const win=window.open('','_blank');
   const thead=document.getElementById('thead-fluxo')?.innerHTML||'';
@@ -1040,304 +725,7 @@ function apresentacaoFluxo(){
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fluxo de Caixa — Rossa</title><style>body{font-family:sans-serif;padding:32px;font-size:11px}h1{font-size:18px;margin-bottom:8px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:4px 8px}thead th{background:#f5f5f5}tfoot tr{font-weight:700}@media print{body{padding:0}}</style></head><body><h1>Fluxo de Caixa — Rossa Incorporadora</h1><p style="color:#888;font-size:11px;margin-bottom:16px">'+new Date().toLocaleDateString('pt-BR')+'</p><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></body></html>');
   win.document.close();setTimeout(()=>win.print(),400);
 }
-function apresentacaoDtlh(){
-  const thead=document.getElementById('thead-dtlh')?.innerHTML||'';
-  const tbody=document.getElementById('tbody-dtlh')?.innerHTML||'';
-  const obra=document.getElementById('dt-obra')?.value||'Todas as obras';
-  const win=window.open('','_blank');
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Resumo Executivo — Rossa</title><style>body{font-family:sans-serif;padding:32px;font-size:11px}h1{font-size:18px;margin-bottom:4px}h2{font-size:14px;margin-bottom:8px;color:#1B6B35}table{border-collapse:collapse;width:100%;margin-bottom:24px}th,td{border:1px solid #ddd;padding:4px 8px}thead th{background:#f5f5f5}input{display:none}@media print{body{padding:0}}</style></head><body><h1>Resumo Executivo — Rossa Incorporadora</h1><p style="color:#888;font-size:11px;margin-bottom:16px">'+obra+' · '+new Date().toLocaleDateString('pt-BR')+'</p><h2>Projeção Mensal de Caixa</h2><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></body></html>');
-  win.document.close();setTimeout(()=>win.print(),400);
-}
-
-// ── PROJEÇÃO ROSSA ────────────────────────────────────────────────────────────
-// CCs que usam dados de despesa direto do CSV (sem premissa de média)
-// CCs com premissas de obra (Saldo Orçamento, Início Obra, Tempo Obra)
-const PROJ_CC_OBRA=['PALAZZO DELL ROSSA','PALAZZO DEL ROSSA','GRAND PLACE','DIAMOND PRIME'];
-// CCs que têm coluna extra de Afetação = 4% do faturamento
-const PROJ_CC_AFETACAO=['PALAZZO DELL ROSSA','PALAZZO DEL ROSSA','GRAND PLACE','DIAMOND PRIME','ELEGACEN TOWER','ELEGANCE TOWER'];
-function projTemAfetacao(cc){const n=normCC(cc);return PROJ_CC_AFETACAO.some(x=>n.includes(x));}
-// Colspan de cada CC: 3 normal, 4 com afetação
-function projColspan(cc){return projTemAfetacao(cc)?4:3;}
-
-function projTipo(cc){
-  const n=normCC(cc);
-  if(PROJ_CC_OBRA.some(x=>n.includes(x)))return'obra';
-  return'media';// premissa de média
-}
-
-function calcMediaDesp(cc, nMeses){
-  const hoje=new Date();const mesAtualKey=hoje.getFullYear()*100+hoje.getMonth();
-  const mesesComDados=[...new Set(
-    DATA.csv.filter(r=>ccMatch(r.cc||'',cc)&&r.tipo==='PAGAMENTO'&&r.ano!=null&&r.mes!=null&&(r.ano*100+r.mes)<mesAtualKey)
-    .map(r=>r.ano*100+r.mes)
-  )].sort().slice(-nMeses);
-  if(!mesesComDados.length)return 0;
-  const total=mesesComDados.reduce((s,k)=>{
-    const ano=Math.floor(k/100),mes=k%100;
-    return s+DATA.csv.filter(r=>ccMatch(r.cc||'',cc)&&r.tipo==='PAGAMENTO'&&r.ano===ano&&r.mes===mes).reduce((ss,r)=>ss+Math.abs(r.valor),0);
-  },0);
-  return total/mesesComDados.length;
-}
-
-function getPremissa(key,def){if(!DATA.projPremissas)DATA.projPremissas={};return DATA.projPremissas[key]!==undefined?DATA.projPremissas[key]:def;}
-function setPremissa(key,val){if(!DATA.projPremissas)DATA.projPremissas={};DATA.projPremissas[key]=val;renderProj();autoSave();}
-
-// Gera o HTML do bloco de premissas para um CC — aparece dentro do <thead>
-function premissaHeaderHTML(cc){
-  const tipo=projTipo(cc);
-  const safeKey=cc.replace(/[^a-zA-Z0-9]/g,'_');
-  const inp=(label,key,def,tipo,extra)=>{
-    const v=getPremissa(key,def);
-    return'<div style="display:flex;align-items:center;gap:4px;white-space:nowrap;margin-bottom:3px">'
-      +'<span style="font-size:10px;color:var(--text3)">'+label+'</span>'
-      +'<input type="'+(tipo||'number')+'" value="'+v+'" '+(extra||'')+' '
-      +'onchange="setPremissa(\''+key+'\',this.type===\'number\'?parseFloat(this.value)||0:this.value)" '
-      +'style="border:1px solid var(--brand);background:#fff;padding:2px 5px;font-size:11px;font-weight:600;outline:none;'+(tipo==='date'?'width:120px':'width:58px;text-align:center')+'">'
-      +'</div>';
-  };
-  if(tipo==='media'){
-    const nM=getPremissa('media_n_'+safeKey,6);
-    const media=calcMediaDesp(cc,nM);
-    return'<div style="padding:6px 8px;background:#FEF9E7;border-bottom:1px solid #f0e0a0;font-size:10px">'
-      +inp('Média últimos','media_n_'+safeKey,6,'number','min="1" max="24" step="1"')
-      +'<span style="font-size:10px;color:var(--text3)"> meses</span>'
-      +'<div style="font-size:10px;color:#B7950B;margin-top:2px">⌀ '+fmt(media)+'/mês</div>'
-      +'</div>';
-  }
-  if(tipo==='obra'){
-    const saldo=getPremissa('obra_saldo_'+safeKey,0);
-    const tempo=getPremissa('obra_tempo_'+safeKey,24);
-    const inicio=getPremissa('obra_inicio_'+safeKey,'');
-    const inicioFmt=inicio?inicio.substring(0,7):'—';
-    return'<div style="padding:5px 7px;background:#EAF4FB;border-bottom:1px solid #aad4f0;font-size:9px;color:var(--text2)">'
-      +'<div>Orç: <b>'+fmt(saldo)+'</b></div>'
-      +'<div>Início: <b>'+inicioFmt+'</b></div>'
-      +'<div>'+tempo+' meses</div>'
-      +'<div style="font-size:9px;color:#1a5276;margin-top:1px">▸ editar acima ↑</div>'
-      +'</div>';
-  }
-  // csv puro — sem premissa
-  return'<div style="padding:5px 7px;background:#f9fefb;border-bottom:1px solid #c8e6c9;font-size:9px;color:var(--text3)">CSV</div>';
-}
-
-// Painel fixo acima da tabela com campos completos das obras
-function buildObrasPanel(ccs){
-  const panel=document.getElementById('proj-obras-panel');if(!panel)return;
-  const allCcs=ccs||window._projLastCCs||[];
-  const obraCCs=allCcs.filter(cc=>projTipo(cc)==='obra');
-  if(!obraCCs.length){panel.innerHTML='';return;}
-  panel.innerHTML=obraCCs.map(cc=>{
-    const safeKey=cc.replace(/[^a-zA-Z0-9]/g,'_');
-    const saldo=getPremissa('obra_saldo_'+safeKey,0);
-    const inicio=getPremissa('obra_inicio_'+safeKey,'');
-    const tempo=getPremissa('obra_tempo_'+safeKey,24);
-    const inicioMonth=inicio?inicio.substring(0,7):'';
-    return'<div style="display:flex;flex-direction:column;gap:5px;padding:8px 14px;background:var(--blue-light);border:1px solid #aad4f0;min-width:200px">'
-      +'<div style="font-size:11px;font-weight:700;color:var(--blue)">'+cc+'</div>'
-      +'<div style="display:flex;align-items:center;gap:6px">'
-        +'<span style="font-size:11px;color:var(--text3);min-width:85px">Saldo Orç.</span>'
-        +'<input type="number" value="'+saldo+'" min="0" step="1000" placeholder="R$ 0"'
-        +' onchange="setPremissa(\'obra_saldo_\'+safeKey,parseFloat(this.value)||0)"'
-        +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:140px;text-align:right">'
-      +'</div>'
-      +'<div style="display:flex;align-items:center;gap:6px">'
-        +'<span style="font-size:11px;color:var(--text3);min-width:85px">Início da Obra</span>'
-        +'<input type="month" value="'+inicioMonth+'"'
-        +' onchange="setPremissa(\'obra_inicio_\'+safeKey,this.value+\'-01\')"'
-        +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:140px">'
-      +'</div>'
-      +'<div style="display:flex;align-items:center;gap:6px">'
-        +'<span style="font-size:11px;color:var(--text3);min-width:85px">Tempo (meses)</span>'
-        +'<input type="number" value="'+tempo+'" min="1" step="1"'
-        +' onchange="setPremissa(\'obra_tempo_\'+safeKey,parseInt(this.value)||24)"'
-        +' style="border:1px solid var(--blue);background:#fff;padding:4px 8px;font-size:13px;font-weight:600;outline:none;width:70px;text-align:center">'
-      +'</div>'
-      +'</div>';
-  }).join('');
-}
-
-// Calcula despesa para um CC em um mês (rowKey = ano*100+mes)
-function calcDesp(cc, rowKeys, mat_csv){
-  const tipo=projTipo(cc);
-  const safeKey=cc.replace(/[^a-zA-Z0-9]/g,'_');
-  if(tipo==='csv'){
-    return rowKeys.map((_,ri)=>mat_csv[cc]?mat_csv[cc][ri]:0);
-  }
-  if(tipo==='media'){
-    const nM=parseInt(getPremissa('media_n_'+safeKey,6))||6;
-    const media=calcMediaDesp(cc,nM);
-    return rowKeys.map(()=>media);
-  }
-  if(tipo==='obra'){
-    // Distribuição linear do saldo orçamento ao longo do tempo de obra
-    const saldo=parseFloat(getPremissa('obra_saldo_'+safeKey,0))||0;
-    const tempo=parseInt(getPremissa('obra_tempo_'+safeKey,24))||1;
-    const inicioStr=getPremissa('obra_inicio_'+safeKey,'');
-    const mensalObra=saldo/tempo;
-    if(!inicioStr)return rowKeys.map(()=>mensalObra>0?mensalObra:0);
-    const inicio=new Date(inicioStr+'T12:00:00');
-    return rowKeys.map(k=>{
-      const ano=Math.floor(k/100),mes=k%100;
-      const d=new Date(ano,mes,1);
-      const mesesDesdeInicio=Math.round((d-inicio)/(30.44*24*3600*1000));
-      return(mesesDesdeInicio>=0&&mesesDesdeInicio<tempo)?mensalObra:0;
-    });
-  }
-  return rowKeys.map(()=>0);
-}
-
-function renderProj(){
-  updateFluxoFilters();
-  const obraF=document.getElementById('proj-obra')?.value||'';
-  const thead=document.getElementById('thead-proj');
-  const tbody=document.getElementById('tbody-proj');
-  const tfoot=document.getElementById('tfoot-proj');
-  if(!thead||!tbody||!tfoot)return;
-  const hoje=new Date();
-  const mesAtualKey=hoje.getFullYear()*100+hoje.getMonth();
-  const dados=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF)));
-  const rowSet=new Set();
-  dados.forEach(r=>{if(r.ano!=null&&r.mes!=null){const k=r.ano*100+r.mes;if(k>=mesAtualKey)rowSet.add(k);}});
-  const rowKeys=[...rowSet].sort();
-  if(!rowKeys.length){
-    thead.innerHTML='';tfoot.innerHTML='';
-    tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado a partir do mês atual</p></div></td></tr>';
-    set('proj-badge','—');return;
-  }
-  const ccsSet=new Set();
-  dados.forEach(r=>{if(r.ano!=null&&r.mes!=null&&(r.ano*100+r.mes)>=mesAtualKey)ccsSet.add(r.cc||'(Sem CC)');});
-  const ccs=[...ccsSet].sort();
-
-  // mat_csv[cc][ri] = pag do CSV (usado para tipo=csv)
-  const mat_csv={};
-  ccs.forEach(cc=>{mat_csv[cc]=rowKeys.map(()=>0);});
-  dados.forEach(r=>{
-    const k=r.ano!=null&&r.mes!=null?r.ano*100+r.mes:0;
-    if(k<mesAtualKey)return;
-    const ri=rowKeys.indexOf(k);if(ri<0)return;
-    const cc=r.cc||'(Sem CC)';
-    if(r.tipo==='PAGAMENTO'&&mat_csv[cc])mat_csv[cc][ri]+=Math.abs(r.valor);
-  });
-
-  // FAT por CC por mês (sempre CSV)
-  const mat_fat={};
-  ccs.forEach(cc=>{mat_fat[cc]=rowKeys.map(()=>0);});
-  dados.forEach(r=>{
-    const k=r.ano!=null&&r.mes!=null?r.ano*100+r.mes:0;
-    if(k<mesAtualKey)return;
-    const ri=rowKeys.indexOf(k);if(ri<0)return;
-    const cc=r.cc||'(Sem CC)';
-    if(r.tipo==='FATURAMENTO'&&mat_fat[cc])mat_fat[cc][ri]+=r.valor;
-  });
-
-  // Despesa final por CC por mês
-  const mat_pag={};
-  ccs.forEach(cc=>{mat_pag[cc]=calcDesp(cc,rowKeys,mat_csv);});
-
-  const SD='position:sticky;left:0;z-index:3;';
-
-  // ── THEAD: 3 linhas — premissa | nome CC | fat/desp/saldo ──
-  let thPrem='<th style="'+SD+'background:#f5f5f5;padding:8px 12px;border-bottom:0"></th>';
-  let th1='<th style="'+SD+'background:#f5f5f5;padding:5px 12px;font-size:10px;font-weight:400;color:var(--text3)">Mês/Ano</th>';
-  let th2='<th style="'+SD+'background:#f5f5f5;padding:6px 12px;font-size:10px"></th>';
-  ccs.forEach(cc=>{
-    const cs=projColspan(cc);
-    const af=projTemAfetacao(cc);
-    thPrem+='<th colspan="'+cs+'" style="padding:0;border-left:2px solid #bbb;vertical-align:top">'+premissaHeaderHTML(cc)+'</th>';
-    th1+='<th colspan="'+cs+'" style="text-align:center;padding:5px 10px;font-size:11px;font-weight:700;border-left:2px solid #bbb;background:#EEF7EE">'+cc+'</th>';
-    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;color:#1B6B35;border-left:2px solid #bbb">Faturamento</th>';
-    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;color:#C0392B">Despesa</th>';
-    if(af)th2+='<th class="r" style="min-width:90px;padding:5px 8px;font-size:10px;color:#B7950B">Afetação 4%</th>';
-    th2+='<th class="r" style="min-width:100px;padding:5px 8px;font-size:10px;color:#1a5276">Saldo</th>';
-  });
-  thPrem+='<th style="background:#1B6B35;border-left:2px solid #155228"></th><th style="background:#C0392B;border-left:2px solid #922B21"></th><th style="background:#1a5276;border-left:2px solid #154360"></th><th style="background:#154360;border-left:2px solid #0d3250"></th>';
-  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#1B6B35;color:#fff;border-left:2px solid #155228;min-width:110px">Total Fat.</th>';
-  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#C0392B;color:#fff;border-left:2px solid #922B21;min-width:110px">Total Desp.</th>';
-  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#1a5276;color:#fff;border-left:2px solid #154360;min-width:110px">Saldo Total</th>';
-  th1+='<th style="text-align:right;padding:5px 12px;font-size:11px;font-weight:700;background:#154360;color:#fff;border-left:2px solid #0d3250;min-width:120px">Caixa Acumulado</th>';
-  th2+='<th style="background:#1B6B35;border-left:2px solid #155228"></th><th style="background:#C0392B;border-left:2px solid #922B21"></th><th style="background:#1a5276;border-left:2px solid #154360"></th><th style="background:#154360;border-left:2px solid #0d3250"></th>';
-  thead.innerHTML='<tr>'+thPrem+'</tr><tr style="background:#f5f5f5">'+th1+'</tr><tr style="background:#f5f5f5">'+th2+'</tr>';
-  window._projLastCCs=ccs;buildObrasPanel(ccs);
-
-  // ── TBODY ──
-  // Pré-calcular saldoTotal por linha para o caixa acumulado
-  const saldosPorLinha=rowKeys.map((k,ri)=>{
-    let st=0;
-    ccs.forEach(cc=>{
-      const fat=mat_fat[cc][ri];const pag=mat_pag[cc][ri];
-      const af=projTemAfetacao(cc)?(ri>0?mat_fat[cc][ri-1]*0.04:0):0;
-      st+=fat-pag-af;
-    });
-    return st;
-  });
-  const caixaIniProj=parseFloat(document.getElementById('proj-caixa-ini')?.value)||0;
-  const caixaAcumProj=[];let accProj=caixaIniProj;
-  saldosPorLinha.forEach(s=>{accProj+=s;caixaAcumProj.push(accProj);});
-  let rows='';
-  rowKeys.forEach((k,ri)=>{
-    const ano=Math.floor(k/100),mes=k%100;
-    const label=MESES_ABR[mes]+'/'+ano;
-    const isAtual=k===mesAtualKey;
-    const rowBg=isAtual?'background:#fffde7':'';
-    let tds='';let saldoTotal=0;
-    ccs.forEach(cc=>{
-      const fat=mat_fat[cc][ri];
-      const pag=mat_pag[cc][ri];
-      // Afetação = 4% do faturamento do mês ANTERIOR
-      const af=projTemAfetacao(cc)?(ri>0?mat_fat[cc][ri-1]*0.04:0):0;
-      const sl=fat-pag-af;saldoTotal+=sl;
-      tds+='<td class="r" style="padding:5px 8px;font-size:11px;border-left:2px solid #bbb;color:#1B6B35">'+(fat?fmt(fat):'<span style="color:#ccc">—</span>')+'</td>';
-      tds+='<td class="r" style="padding:5px 8px;font-size:11px;color:#C0392B">'+(pag?fmt(pag):'<span style="color:#ccc">—</span>')+'</td>';
-      if(projTemAfetacao(cc))tds+='<td class="r" style="padding:5px 8px;font-size:11px;color:#B7950B">'+(af?fmt(af):'<span style="color:#ccc">—</span>')+'</td>';
-      tds+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:500;color:'+(sl>=0?'#1B6B35':'#C0392B')+'">'+(fat||pag||af?fmtSgn(sl):'<span style="color:#ccc">—</span>')+'</td>';
-    });
-    // Totais de faturamento e despesa do mês (todos os CCs)
-    const totFatRow=ccs.reduce((s,cc)=>s+mat_fat[cc][ri],0);
-    const totDespRow=ccs.reduce((s,cc)=>{const pag=mat_pag[cc][ri];const af=projTemAfetacao(cc)?(ri>0?mat_fat[cc][ri-1]*0.04:0):0;return s+pag+af;},0);
-    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1B6B35;color:#fff;border-left:2px solid #155228">'+fmt(totFatRow)+'</td>';
-    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#C0392B;color:#fff;border-left:2px solid #922B21">'+fmt(totDespRow)+'</td>';
-    const slColor=saldoTotal>=0?'#A9DFBF':'#F1948A';
-    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+slColor+';border-left:2px solid #154360">'+fmtSgn(saldoTotal)+'</td>';
-    const ca=caixaAcumProj[ri];const caColor=ca>=0?'#A9DFBF':'#F1948A';
-    tds+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#154360;color:'+caColor+';border-left:2px solid #0d3250">'+fmtSgn(ca)+'</td>';
-    rows+='<tr style="border-bottom:1px solid var(--border);'+rowBg+'"><td style="'+SD+'background:'+(isAtual?'#fffde7':'#fff')+';padding:5px 12px;font-size:11px;font-weight:600">'+label+(isAtual?' ◀':'')+'</td>'+tds+'</tr>';
-  });
-  tbody.innerHTML=rows;
-
-  // ── TFOOT ──
-  let tfCols='';let grandSaldo=0;
-  ccs.forEach(cc=>{
-    const totFat=mat_fat[cc].reduce((s,v)=>s+v,0);
-    const totPag=mat_pag[cc].reduce((s,v)=>s+v,0);
-    // Afetação total = soma de fat[i-1]*0.04 para cada mês — equivale ao total deslocado
-    const totAf=projTemAfetacao(cc)?rowKeys.reduce((s,k,ri)=>s+(ri>0?mat_fat[cc][ri-1]*0.04:0),0):0;
-    const totSl=totFat-totPag-totAf;grandSaldo+=totSl;
-    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;color:#1B6B35;border-left:2px solid #bbb">'+fmt(totFat)+'</td>';
-    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;color:#C0392B">'+fmt(totPag)+'</td>';
-    if(projTemAfetacao(cc))tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;color:#B7950B">'+fmt(totAf)+'</td>';
-    tfCols+='<td class="r" style="padding:5px 8px;font-size:11px;font-weight:700;color:'+(totSl>=0?'#1B6B35':'#C0392B')+'">'+fmtSgn(totSl)+'</td>';
-  });
-  const grandFat=ccs.reduce((s,cc)=>s+mat_fat[cc].reduce((ss,v)=>ss+v,0),0);
-  const grandDesp=ccs.reduce((s,cc)=>{const tp=mat_pag[cc].reduce((ss,v)=>ss+v,0);const ta=projTemAfetacao(cc)?rowKeys.reduce((ss,k,ri)=>ss+(ri>0?mat_fat[cc][ri-1]*0.04:0),0):0;return s+tp+ta;},0);
-  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1B6B35;color:#fff;border-left:2px solid #155228">'+fmt(grandFat)+'</td>';
-  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#C0392B;color:#fff;border-left:2px solid #922B21">'+fmt(grandDesp)+'</td>';
-  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#1a5276;color:'+(grandSaldo>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #154360">'+fmtSgn(grandSaldo)+'</td>';
-  const caFinal=caixaAcumProj.length?caixaAcumProj[caixaAcumProj.length-1]:caixaIniProj;
-  tfCols+='<td class="r" style="padding:5px 10px;font-size:11px;font-weight:700;background:#154360;color:'+(caFinal>=0?'#A9DFBF':'#F1948A')+';border-left:2px solid #0d3250">'+fmtSgn(caFinal)+'</td>';
-  tfoot.innerHTML='<tr style="border-top:2px solid #bbb"><td style="'+SD+'padding:6px 12px;font-size:11px;font-weight:700;background:#f0f0f0">Total</td>'+tfCols+'</tr>';
-  set('proj-badge',rowKeys.length+' meses · '+ccs.length+' centros de custo');
-}
-
-function exportarProj(){
-  const thead=document.getElementById('thead-proj');const tbody=document.getElementById('tbody-proj');const tfoot=document.getElementById('tfoot-proj');
-  if(!tbody){alert('Nenhum dado.');return;}
-  const rows=[];
-  [thead,tbody,tfoot].forEach(t=>{if(!t)return;Array.from(t.querySelectorAll('tr')).forEach(tr=>{const cells=Array.from(tr.querySelectorAll('th,td')).map(c=>(c.innerText||c.textContent||'').trim());if(cells.some(c=>c))rows.push(cells);});});
-  const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'Projeção Rossa');XLSX.writeFile(wb,'Rossa_Projecao_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
-}
-
-// ── GITHUB STORAGE ─────────────────────────────────────────────────────────────
-function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},prev:DATA.prev.map(r=>({...r,data:r.data?r.data.toISOString():null})),dtlhUnidades:DATA.dtlhUnidades||{},projPremissas:DATA.projPremissas||{}});}
+function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{}});}
 async function ghubSave(){
   if(_ghubSaving){_ghubDirty=true;return;}
   _ghubSaving=true;_ghubDirty=false;setJbinStatus('saving');
@@ -1359,16 +747,14 @@ async function jbinLoad(){
     DATA.fat=(d.fat||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};
     DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};
-    DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
-    DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};
+    
+    
     fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
-    renderCSVTable();renderFatTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();setJbinStatus('ok');
   }catch(e){console.error(e);setJbinStatus('error');}
 }
 function setJbinStatus(s){const el=document.getElementById('jbin-status');if(!el)return;const map={loading:['⟳ Carregando...','#888'],saving:['⟳ Salvando...','#888'],ok:['✓ Sincronizado','#1B6B35'],error:['✕ Erro','#C0392B'],empty:['— Sem dados','#888']};const[txt,col]=map[s]||['','#888'];el.textContent=txt;el.style.color=col;}
 function autoSave(){ghubSave();}
-function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto,prev:DATA.prev.map(r=>({...r,data:r.data?r.data.toISOString():null})),dtlhUnidades:DATA.dtlhUnidades||{}}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
-function restoreJSON(input){const file=input.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const p=JSON.parse(e.target.result);const d=p.data||p;DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.fat=(d.fat||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};DATA.prev=(d.prev||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));DATA.dtlhUnidades=d.dtlhUnidades||{};DATA.projPremissas=d.projPremissas||{};renderCSVTable();renderFatTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderDtlh();renderProj();renderPrev();renderCaixaInicialCampos();autoSave();alert('Restaurado! '+DATA.csv.length+' registros CSV.');}catch(err){alert('Erro: '+err.message);}};reader.readAsText(file);input.value='';}
+function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
 </script>
 </body>
 </html>
