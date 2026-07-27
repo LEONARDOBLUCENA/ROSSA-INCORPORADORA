@@ -249,14 +249,20 @@ tbody td.c{text-align:center}
     <div class="chart-card"><div class="chart-title">Entradas por Mês</div><div class="chart-subtitle">Faturamento bruto − Descontos</div><canvas id="dash-ch-entradas"></canvas></div>
     <div class="chart-card"><div class="chart-title">Saídas por Mês</div><div class="chart-subtitle">Pagamentos mensais</div><canvas id="dash-ch-saidas"></canvas></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
     <div class="chart-card"><div class="chart-title">Resultado Mensal</div><div class="chart-subtitle">Entradas − Saídas por mês</div><canvas id="dash-ch-resultado"></canvas></div>
     <div class="chart-card"><div class="chart-title">Distribuição por Centro de Custo</div><div class="chart-subtitle">Total movimentado por obra</div><canvas id="dash-ch-cc"></canvas></div>
   </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div class="chart-card"><div class="chart-title">Faturamento por Centro de Custo</div><div class="chart-subtitle">Total faturado por obra</div><canvas id="dash-ch-fat-cc"></canvas></div>
+    <div class="chart-card"><div class="chart-title">Faturamento por Mês e Centro de Custo</div><div class="chart-subtitle">Composição mensal por obra</div><canvas id="dash-ch-fat-mes-cc"></canvas></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="chart-card"><div class="chart-title">Pago por Centro de Custo</div><div class="chart-subtitle">Total pago por obra</div><canvas id="dash-ch-pago-cc"></canvas></div>
+    <div class="chart-card"><div class="chart-title">Pago por Mês e Centro de Custo</div><div class="chart-subtitle">Composição mensal por obra</div><canvas id="dash-ch-pago-mes-cc"></canvas></div>
+  </div>
 </div>
 
-  <div class="filters-bar">
-    <span class="filter-label">Obra</span>
 <!-- ===================== CSV ANALÍTICO ===================== -->
 <div class="page" id="page-csv">
   <div class="sec-title">Contas Pagas</div>
@@ -584,6 +590,24 @@ function renderDash(){
   destroyChart('dash-ch-resultado');if(document.getElementById('dash-ch-resultado'))CHARTS['dash-ch-resultado']=new Chart(document.getElementById('dash-ch-resultado'),{type:'bar',data:{labels,datasets:[{label:'Resultado',data:mRes,backgroundColor:mRes.map(v=>v>=0?'#1A7A3C':'#C0392B'),borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:tip},scales:{y:yFmt}}});
   const ccs=[...new Set(data.map(r=>r.cc).filter(Boolean))];const ccVals=ccs.map(c=>data.filter(r=>r.cc===c).reduce((s,r)=>s+Math.abs(r.valor),0));
   destroyChart('dash-ch-cc');if(ccs.length&&document.getElementById('dash-ch-cc'))CHARTS['dash-ch-cc']=new Chart(document.getElementById('dash-ch-cc'),{type:'doughnut',data:{labels:ccs,datasets:[{data:ccVals,backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:11}}},tooltip:tip}}});
+
+  // Faturamento / Pago por Centro de Custo (total) e por Mês+CC (empilhado)
+  const ccFat=[...new Set(entradas.map(r=>r.cc).filter(Boolean))].sort();
+  const ccFatVals=ccFat.map(c=>entradas.filter(r=>r.cc===c).reduce((s,r)=>s+Math.abs(r.valor),0));
+  destroyChart('dash-ch-fat-cc');if(ccFat.length&&document.getElementById('dash-ch-fat-cc'))CHARTS['dash-ch-fat-cc']=new Chart(document.getElementById('dash-ch-fat-cc'),{type:'bar',data:{labels:ccFat,datasets:[{label:'Faturamento',data:ccFatVals,backgroundColor:ccFat.map((_,i)=>PAL[i%PAL.length]),borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:tip},scales:{y:yFmt}}});
+
+  const ccPago=[...new Set(saidas.map(r=>r.cc).filter(Boolean))].sort();
+  const ccPagoVals=ccPago.map(c=>saidas.filter(r=>r.cc===c).reduce((s,r)=>s+Math.abs(r.valor),0));
+  destroyChart('dash-ch-pago-cc');if(ccPago.length&&document.getElementById('dash-ch-pago-cc'))CHARTS['dash-ch-pago-cc']=new Chart(document.getElementById('dash-ch-pago-cc'),{type:'bar',data:{labels:ccPago,datasets:[{label:'Pago',data:ccPagoVals,backgroundColor:ccPago.map((_,i)=>PAL[i%PAL.length]),borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:tip},scales:{y:yFmt}}});
+
+  const mkStackedCC=(id,rows,ccList)=>{
+    destroyChart(id);
+    const el=document.getElementById(id);if(!el||!ccList.length)return;
+    const datasets=ccList.map((c,i)=>({label:c,data:sortedKeys.map(k=>rows.filter(r=>r.cc===c&&r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0)),backgroundColor:PAL[i%PAL.length],borderRadius:2}));
+    CHARTS[id]=new Chart(el,{type:'bar',data:{labels,datasets},options:{responsive:true,plugins:{legend:{display:ccList.length>1,position:'top',labels:{font:{size:10}}},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmt(ctx.raw)}}},scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}});
+  };
+  mkStackedCC('dash-ch-fat-mes-cc',entradas,ccFat);
+  mkStackedCC('dash-ch-pago-mes-cc',saidas,ccPago);
 }
 
 // ── MULTISELECT MESES ─────────────────────────────────────────────────────────
@@ -650,14 +674,14 @@ function renderFluxo(){
   const fatN=nomes.filter(c=>contas[c].FAT.some(v=>v)||contas[c].DESC.some(v=>v)).sort();
   const pagN=nomes.filter(c=>contas[c].PAG.some(v=>v)).sort();
   if(fatN.length){
-    rows+='<tr style="background:#D5F5E3"><td colspan="'+(NC+2)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#1B6B35;'+SD+'#D5F5E3">▶ FATURAMENTOS</td></tr>';
+    rows+='<tr style="background:#D5F5E3"><td colspan="'+(NC+2)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#1B6B35;'+SD+'#D5F5E3">▶ ENTRADAS</td></tr>';
     fatN.forEach(c=>{const vals=contas[c].FAT.map((v,i)=>v-contas[c].DESC[i]);const tot=vals.reduce((s,v)=>s+v,0);vals.forEach((v,i)=>tFM[i]+=v);rows+='<tr><td '+tdS('#fff')+'>'+c+'</td>'+vals.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(tot)+'</td></tr>';});
-    rows+='<tr style="background:#c8e6c9;font-weight:700"><td '+tdSB('#c8e6c9')+'>Total Faturamento</td>'+tFM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tFM.reduce((s,v)=>s+v,0))+'</td></tr>';
+    rows+='<tr style="background:#c8e6c9;font-weight:700"><td '+tdSB('#c8e6c9')+'>Total Entradas</td>'+tFM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tFM.reduce((s,v)=>s+v,0))+'</td></tr>';
   }
   if(pagN.length){
-    rows+='<tr style="background:#FADBD8"><td colspan="'+(NC+2)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#C0392B;'+SD+'#FADBD8">▶ PAGAMENTOS</td></tr>';
+    rows+='<tr style="background:#FADBD8"><td colspan="'+(NC+2)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#C0392B;'+SD+'#FADBD8">▶ SAÍDAS</td></tr>';
     pagN.forEach(c=>{const vals=contas[c].PAG;const tot=vals.reduce((s,v)=>s+v,0);vals.forEach((v,i)=>tPM[i]+=v);rows+='<tr><td '+tdS('#fff')+'>'+c+'</td>'+vals.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(tot)+'</td></tr>';});
-    rows+='<tr style="background:#ffcdd2;font-weight:700"><td '+tdSB('#ffcdd2')+'>Total Pagamentos</td>'+tPM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tPM.reduce((s,v)=>s+v,0))+'</td></tr>';
+    rows+='<tr style="background:#ffcdd2;font-weight:700"><td '+tdSB('#ffcdd2')+'>Total Saídas</td>'+tPM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tPM.reduce((s,v)=>s+v,0))+'</td></tr>';
   }
   tbody.innerHTML=rows;
   // Previsto líquido (de DATA.previsto): previsto bruto - realizado contas 2010304 e 2010401
