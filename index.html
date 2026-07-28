@@ -449,6 +449,20 @@ tbody td.c{text-align:center}
     </div>
     <div class="tbl-wrap"><table><thead><tr><th>Vencimento</th><th>Cliente</th><th>Nº Título</th><th>Centro de Custo</th><th>Status</th><th class="r">Valor (R$)</th></tr></thead><tbody id="body-arec"><tr><td colspan="6"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
   </div>
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div class="tbl-title">Classificação Manual de Títulos</div>
+      <span class="tbl-badge" id="count-titcc">—</span>
+    </div>
+    <div class="paste-section">
+      <div class="paste-instructions"><strong>Como usar:</strong> cole pares <strong>Nº Título</strong> e <strong>Centro de Custo (obra)</strong>, um por linha, separados por tab (Excel) — use para classificar títulos que não têm lançamento correspondente na aba Entradas.</div>
+      <textarea class="paste-box" id="paste-titcc" placeholder="Clique aqui e cole com Ctrl+V — ex: 143	Rossa Boulevard" style="min-height:80px"></textarea>
+      <div class="paste-actions">
+        <span class="paste-status" id="status-titcc"></span>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Nº Título</th><th>Centro de Custo</th><th class="c">Ação</th></tr></thead><tbody id="body-titcc"><tr><td colspan="3"><div class="empty-state"><p>Nenhuma classificação manual cadastrada</p></div></td></tr></tbody></table></div>
+  </div>
 </div>
 
 <!-- ===================== ESTOQUE ===================== -->
@@ -489,7 +503,16 @@ tbody td.c{text-align:center}
 </div>
 
 <script>
-const DATA={csv:[],fat:[],arec:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{}};
+const DATA={csv:[],fat:[],arec:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{},titCC:{}};
+// Classificação manual de títulos sem centro de custo vinculado (semeada uma vez; entradas do usuário via UI têm prioridade)
+const SEED_TITCC={
+  '143':'Rossa Boulevard','182':'Palazzo Dell Rossa','96':'Palazzo Dell Rossa','92':'Palazzo Dell Rossa',
+  '197':'Palazzo Dell Rossa','165':'Palazzo Dell Rossa','85':'Palazzo Dell Rossa','83':'Palazzo Dell Rossa',
+  '86':'Palazzo Dell Rossa','173':'Rossa Grand Place','94':'Casa Residencial - Nivio José Tonial',
+  '72':'Rossa Grand Place','157':'Rossa Grand Place','114':'Rossa Diamond Prime','171':'Palazzo Dell Rossa',
+  '69':'Rossa Grand Place','62':'Administrativo','192':'Rossa Grand Place','77':'Palazzo Dell Rossa',
+  '161':'Rossa Commerciale'
+};
 const CHARTS={};
 const MESES_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MESES_ABR=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -531,6 +554,7 @@ window.addEventListener('load',()=>{
   wirePaste('paste-csv',processCSVText,'status-csv');
   wirePaste('paste-fat',processFatText,'status-fat');
   wirePaste('paste-arec',processArecText,'status-arec');
+  wirePaste('paste-titcc',processTitCCText,'status-titcc');
 });
 
 // ── CSV ANALÍTICO ─────────────────────────────────────────────────────────────
@@ -652,8 +676,10 @@ function exportarFat(){
 // ── ENTRADAS A RECEBER ──────────────────────────────────────────────────────
 function ccPorTitulo(nuTitulo){
   if(!nuTitulo)return'';
-  const hit=DATA.fat.find(r=>r.numeroTitulo&&String(r.numeroTitulo).trim()===String(nuTitulo).trim());
-  return hit?hit.cc||'':'';
+  const key=String(nuTitulo).trim();
+  const hit=DATA.fat.find(r=>r.numeroTitulo&&String(r.numeroTitulo).trim()===key);
+  if(hit&&hit.cc)return hit.cc;
+  return DATA.titCC[key]||'';
 }
 function processArecText(txt){
   txt=fixEncoding(txt);
@@ -699,6 +725,28 @@ function exportarArec(){
   const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});
   XLSX.utils.book_append_sheet(wb,ws,'A Receber');
   XLSX.writeFile(wb,'Rossa_AReceber_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
+}
+function processTitCCText(txt){
+  const lines=txt.trim().split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim());
+  if(!lines.length){setStatus('status-titcc','Nenhum dado encontrado.',false);return;}
+  let n=0;
+  lines.forEach(line=>{
+    const parts=line.split('\t');
+    if(parts.length<2)return;
+    const nu=parts[0].trim(),cc=fixEncoding(parts.slice(1).join(' ').trim());
+    if(!nu||!cc)return;
+    DATA.titCC[nu]=cc;n++;
+  });
+  setStatus('status-titcc','+'+n+' classificações — total: '+Object.keys(DATA.titCC).length+'.',n>0);
+  renderTitCCTable();renderArecTable();autoSave();
+}
+function removerTitCC(nu){delete DATA.titCC[nu];renderTitCCTable();renderArecTable();autoSave();}
+function renderTitCCTable(){
+  const tbody=document.getElementById('body-titcc');if(!tbody)return;
+  const entries=Object.keys(DATA.titCC).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  set('count-titcc',entries.length+' título'+(entries.length!==1?'s':'')+' classificado'+(entries.length!==1?'s':''));
+  if(!entries.length){tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhuma classificação manual cadastrada</p></div></td></tr>';return;}
+  tbody.innerHTML=entries.map(nu=>'<tr><td>'+nu+'</td><td>'+DATA.titCC[nu]+'</td><td class="c"><button onclick="removerTitCC(\''+nu.replace(/'/g,"\\'")+'\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px">✕</button></td></tr>').join('');
 }
 
 
@@ -990,7 +1038,7 @@ function apresentacaoFluxo(){
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fluxo de Caixa — Rossa</title><style>body{font-family:sans-serif;padding:32px;font-size:11px}h1{font-size:18px;margin-bottom:8px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:4px 8px}thead th{background:#f5f5f5}tfoot tr{font-weight:700}@media print{body{padding:0}}</style></head><body><h1>Fluxo de Caixa — Rossa Incorporadora</h1><p style="color:#888;font-size:11px;margin-bottom:16px">'+new Date().toLocaleDateString('pt-BR')+'</p><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></body></html>');
   win.document.close();setTimeout(()=>win.print(),400);
 }
-function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{}});}
+function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},titCC:DATA.titCC||{}});}
 const GHUB={token:['ghp_DMtc','LFDDPZIq7QGo','GgJvmTc1TbfSMf0H9mw1'].join(''),repo:'LEONARDOBLUCENA/ROSSA-INCORPORADORA',file:'data.json',raw:'https://raw.githubusercontent.com/LEONARDOBLUCENA/ROSSA-INCORPORADORA/main/data.json'};
 let _ghubSha=null,_ghubSaving=false,_ghubDirty=false;
 async function ghubSave(){
@@ -1015,14 +1063,17 @@ async function jbinLoad(){
     DATA.arec=(d.arec||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};
     DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};
-    
-    renderCSVTable();renderFatTable();renderArecTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();setJbinStatus('ok');
+    DATA.titCC=d.titCC||{};
+    let seedNovos=false;
+    Object.keys(SEED_TITCC).forEach(k=>{if(DATA.titCC[k]===undefined){DATA.titCC[k]=SEED_TITCC[k];seedNovos=true;}});
+    renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();setJbinStatus('ok');
+    if(seedNovos)autoSave();
     fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
   }catch(e){console.error(e);setJbinStatus('error');}
 }
 function setJbinStatus(s){const el=document.getElementById('jbin-status');if(!el)return;const map={loading:['⟳ Carregando...','#888'],saving:['⟳ Salvando...','#888'],ok:['✓ Sincronizado','#1B6B35'],error:['✕ Erro','#C0392B'],empty:['— Sem dados','#888']};const[txt,col]=map[s]||['','#888'];el.textContent=txt;el.style.color=col;}
 function autoSave(){ghubSave();}
-function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
+function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto,titCC:DATA.titCC}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
 </script>
 </body>
 </html>
