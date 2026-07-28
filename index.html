@@ -199,6 +199,7 @@ tbody td.c{text-align:center}
     <button class="nav-tab" data-tab="fat" onclick="goTab(this)">Faturamento</button>
     <button class="nav-tab" data-tab="csv" onclick="goTab(this)">Contas Pagas</button>
     <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
+    <button class="nav-tab" data-tab="projecao" onclick="goTab(this)">Projeção de Fluxo de Caixa</button>
     <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
   </div>
   <div class="nav-actions">
@@ -228,6 +229,7 @@ tbody td.c{text-align:center}
     <span class="filter-label">Filtrar</span>
     <select class="filter-select" id="dash-obra" onchange="renderDash()"><option value="">Todas as obras</option></select>
     <select class="filter-select" id="dash-ano" onchange="renderDash()"><option value="">Todos os anos</option></select>
+    <select class="filter-select" id="dash-conta" onchange="renderDash()"><option value="">Todas as contas</option></select>
     <div class="mes-picker" id="mes-picker-wrap">
       <button class="mes-picker-btn" id="mes-picker-btn" onclick="toggleMesPicker(event)">Todos os meses</button>
       <div class="mes-picker-dropdown" id="mes-picker-dropdown" onclick="event.stopPropagation()">
@@ -238,7 +240,7 @@ tbody td.c{text-align:center}
         </div>
       </div>
     </div>
-    <button class="btn-ghost" onclick="document.getElementById('dash-obra').value='';document.getElementById('dash-ano').value='';limparMeses();renderDash()">✕ Limpar</button>
+    <button class="btn-ghost" onclick="document.getElementById('dash-obra').value='';document.getElementById('dash-ano').value='';document.getElementById('dash-conta').value='';limparMeses();renderDash()">✕ Limpar</button>
   </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-green"><div class="kpi-label">Faturamento Líquido</div><div class="kpi-val pos" id="dash-entradas">—</div><div class="kpi-sub" id="dash-entradas-n">0 lançamentos</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-fat-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-fat-outro">—</strong></span></div></div>
@@ -246,16 +248,16 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-blue"><div class="kpi-label">Saldo do Período</div><div class="kpi-val" id="dash-saldo">—</div><div class="kpi-sub" id="dash-saldo-sub">Entradas − Saídas</div><div style="display:flex;gap:10px;margin-top:6px;font-size:11px"><span style="color:var(--text3)">Caixa: <strong id="dash-saldo-caixa">—</strong></span><span style="color:var(--text3)">Outro: <strong id="dash-saldo-outro">—</strong></span></div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-    <div class="chart-card"><div class="chart-title">Entradas por Mês</div><div class="chart-subtitle">Faturamento bruto − Descontos</div><canvas id="dash-ch-entradas"></canvas></div>
-    <div class="chart-card"><div class="chart-title">Saídas por Mês</div><div class="chart-subtitle">Pagamentos mensais</div><canvas id="dash-ch-saidas"></canvas></div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
     <div class="chart-card"><div class="chart-title">Entradas por Centro de Custo</div><div class="chart-subtitle">Total faturado por obra</div><canvas id="dash-ch-fat-cc"></canvas></div>
     <div class="chart-card"><div class="chart-title">Saídas por Centro de Custo</div><div class="chart-subtitle">Total pago por obra</div><canvas id="dash-ch-pago-cc"></canvas></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
     <div class="chart-card"><div class="chart-title">Faturamento por Mês e Centro de Custo</div><div class="chart-subtitle">Composição mensal por obra</div><canvas id="dash-ch-fat-mes-cc"></canvas></div>
     <div class="chart-card"><div class="chart-title">Pago por Mês e Centro de Custo</div><div class="chart-subtitle">Composição mensal por obra</div><canvas id="dash-ch-pago-mes-cc"></canvas></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="chart-card"><div class="chart-title">Saídas por Conta</div><div class="chart-subtitle">Para onde está indo o dinheiro (top contas)</div><canvas id="dash-ch-saidas-conta"></canvas></div>
+    <div class="chart-card"><div class="chart-title">Entradas por Conta</div><div class="chart-subtitle">Composição do faturamento por conta</div><canvas id="dash-ch-entradas-conta"></canvas></div>
   </div>
 </div>
 
@@ -299,6 +301,15 @@ tbody td.c{text-align:center}
 <div class="page" id="page-fluxo">
   <div class="sec-title">Fluxo de Caixa Geral</div>
   <div class="sec-sub">Receitas e despesas por conta, abertas mês a mês</div>
+  <div class="tbl-card" id="fc-resumo-card">
+    <div class="tbl-head"><div class="tbl-title">Resumo</div><span class="tbl-badge">Entradas, Saídas e Saldo por mês</span></div>
+    <div style="overflow-x:auto;font-size:12px">
+      <table id="tbl-fc-resumo" style="width:100%;border-collapse:collapse;min-width:900px">
+        <thead id="thead-fc-resumo"></thead>
+        <tbody id="tbody-fc-resumo"></tbody>
+      </table>
+    </div>
+  </div>
   <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">Fluxo de Caixa por Conta</div>
@@ -323,6 +334,44 @@ tbody td.c{text-align:center}
   <div class="tbl-card" id="fc-caixa-card">
     <div class="tbl-head"><div class="tbl-title">Caixa Inicial</div><span class="tbl-badge">Saldo inicial do caixa</span></div>
     <div id="fc-caixa-campos" style="padding:14px 18px"></div>
+  </div>
+</div>
+
+<!-- ===================== PROJEÇÃO DE FLUXO DE CAIXA ===================== -->
+<div class="page" id="page-projecao">
+  <div class="sec-title">Projeção de Fluxo de Caixa</div>
+  <div class="sec-sub">Estimativa de caixa futuro com base na média dos últimos meses realizados</div>
+  <div class="filters-bar">
+    <span class="filter-label">Obra</span>
+    <select class="filter-select" id="proj-obra" onchange="renderProjecao()"><option value="">Todas as obras</option></select>
+    <span class="filter-label">Projetar</span>
+    <select class="filter-select" id="proj-meses" onchange="renderProjecao()">
+      <option value="6">6 meses</option>
+      <option value="12" selected>12 meses</option>
+      <option value="24">24 meses</option>
+      <option value="36">36 meses</option>
+    </select>
+    <span class="filter-label">Base (média)</span>
+    <select class="filter-select" id="proj-base" onchange="renderProjecao()">
+      <option value="3" selected>Últimos 3 meses</option>
+      <option value="6">Últimos 6 meses</option>
+      <option value="12">Últimos 12 meses</option>
+    </select>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    <div class="kpi-card c-green"><div class="kpi-label">Média Entradas/Mês</div><div class="kpi-val pos" id="proj-media-ent">—</div><div class="kpi-sub" id="proj-base-sub">Base de cálculo</div></div>
+    <div class="kpi-card c-red"><div class="kpi-label">Média Saídas/Mês</div><div class="kpi-val neg" id="proj-media-sai">—</div><div class="kpi-sub">Base de cálculo</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Saldo Projetado (final)</div><div class="kpi-val" id="proj-saldo-final">—</div><div class="kpi-sub" id="proj-saldo-sub">Ao fim do período projetado</div></div>
+  </div>
+  <div class="chart-card" style="margin-bottom:14px"><div class="chart-title">Saldo de Caixa — Realizado + Projetado</div><div class="chart-subtitle">Linha tracejada indica os meses projetados</div><canvas id="proj-ch-saldo"></canvas></div>
+  <div class="tbl-card">
+    <div class="tbl-head"><div class="tbl-title">Detalhamento da Projeção</div><span class="tbl-badge" id="proj-badge">—</span></div>
+    <div style="overflow-x:auto;overflow-y:auto;max-height:60vh;font-size:12px">
+      <table style="width:100%;border-collapse:collapse;min-width:700px">
+        <thead id="thead-proj"></thead>
+        <tbody id="tbody-proj"><tr><td colspan="5"><div class="empty-state"><p>Carregue dados na aba Contas Pagas para visualizar</p></div></td></tr></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -360,6 +409,11 @@ tbody td.c{text-align:center}
 <div class="page" id="page-estoque">
   <div class="sec-title">Estoque</div>
   <div class="sec-sub">Cadastre as unidades disponíveis por obra</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    <div class="kpi-card c-green"><div class="kpi-label">Disponível</div><div class="kpi-val pos" id="est-vgv-disp">—</div><div class="kpi-sub" id="est-un-disp">0 unidades</div></div>
+    <div class="kpi-card c-red"><div class="kpi-label">Vendido</div><div class="kpi-val neg" id="est-vgv-vend">—</div><div class="kpi-sub" id="est-un-vend">0 unidades</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Total (VGV)</div><div class="kpi-val" id="est-vgv-total">—</div><div class="kpi-sub" id="est-un-total">0 unidades</div></div>
+  </div>
   <div class="estoque-form">
     <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:600;margin-bottom:14px">Adicionar Unidade</div>
     <div class="form-row">
@@ -543,14 +597,17 @@ function exportarFat(){
 function renderDash(){
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
   const anos=[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort();
+  const contas=[...new Set([...DATA.csv.map(r=>r.conta),...DATA.fat.map(r=>r.conta)].filter(Boolean))].sort();
   fillSelect('dash-obra',obras,v=>v,v=>v);
   fillSelect('dash-ano',anos,v=>v,v=>String(v));
+  fillSelect('dash-conta',contas,v=>v,v=>v);
   buildMesPicker();
   const obraF=document.getElementById('dash-obra')?.value||'';
   const anoF=document.getElementById('dash-ano')?.value||'';
+  const contaF=document.getElementById('dash-conta')?.value||'';
   const mesesSel=getMesesSelecionados();
-  const data=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
-  const fatData=DATA.fat.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
+  const data=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!contaF||r.conta===contaF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
+  const fatData=DATA.fat.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!contaF||r.conta===contaF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
   const entradas=fatData;
   const saidas=data.filter(r=>r.tipo==='PAGAMENTO');
   const descontos=data.filter(r=>r.tipo==='DESCONTO');
@@ -576,12 +633,7 @@ function renderDash(){
   const keys=new Set();
   [...data,...fatData].forEach(r=>{if(r.data)keys.add(r.data.getFullYear()*100+r.data.getMonth());});
   const sortedKeys=[...keys].sort();const labels=sortedKeys.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
-  const mEnt=sortedKeys.map(k=>entradas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0));
-  const mSai=sortedKeys.map(k=>saidas.filter(r=>r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0));
   const yFmt={ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}};const tip={callbacks:{label:ctx=>' '+fmt(ctx.raw)}};
-  const mkBar=(id,datasets)=>{destroyChart(id);if(document.getElementById(id))CHARTS[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets},options:{responsive:true,plugins:{legend:{display:datasets.length>1,position:'top',labels:{font:{size:11}}},tooltip:tip},scales:{y:yFmt}}});};
-  mkBar('dash-ch-entradas',[{label:'Entradas',data:mEnt,backgroundColor:'#1A7A3C',borderRadius:3}]);
-  mkBar('dash-ch-saidas',[{label:'Saídas',data:mSai,backgroundColor:'#C0392B',borderRadius:3}]);
   // Entradas / Saídas por Centro de Custo (total, barras horizontais) e por Mês+CC (empilhado)
   const ccFat=[...new Set(entradas.map(r=>r.cc).filter(Boolean))].sort();
   const ccFatVals=ccFat.map(c=>entradas.filter(r=>r.cc===c).reduce((s,r)=>s+Math.abs(r.valor),0));
@@ -599,6 +651,18 @@ function renderDash(){
   };
   mkStackedCC('dash-ch-fat-mes-cc',entradas,ccFat);
   mkStackedCC('dash-ch-pago-mes-cc',saidas,ccPago);
+
+  // Entradas / Saídas por Conta (top 10) — para onde está indo o dinheiro
+  const mkContaChart=(id,rows,label,color)=>{
+    destroyChart(id);
+    const el=document.getElementById(id);if(!el)return;
+    const contasR=[...new Set(rows.map(r=>r.conta).filter(Boolean))];
+    const vals=contasR.map(c=>({c,v:rows.filter(r=>r.conta===c).reduce((s,r)=>s+Math.abs(r.valor),0)})).sort((a,b)=>b.v-a.v).slice(0,10);
+    if(!vals.length)return;
+    CHARTS[id]=new Chart(el,{type:'bar',data:{labels:vals.map(x=>x.c),datasets:[{label,data:vals.map(x=>x.v),backgroundColor:color,borderRadius:3}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:tip},scales:{x:yFmt}}});
+  };
+  mkContaChart('dash-ch-saidas-conta',saidas,'Saídas','#C0392B');
+  mkContaChart('dash-ch-entradas-conta',entradas,'Entradas','#1A7A3C');
 }
 
 // ── MULTISELECT MESES ─────────────────────────────────────────────────────────
@@ -657,7 +721,7 @@ function renderFluxo(){
   dados.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;if(r.tipo==='FATURAMENTO')contas[c].FAT[ci]+=r.valor;else if(r.tipo==='DESCONTO')contas[c].DESC[ci]+=r.valor;else if(r.tipo==='PAGAMENTO')contas[c].PAG[ci]+=r.valor;});
   dadosFat.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;contas[c].FAT[ci]+=r.valor;});
   const nomes=Object.keys(contas);
-  if(!nomes.length){thead.innerHTML='';tfoot.innerHTML='';tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado para o período</p></div></td></tr>';set('fc-badge','—');return;}
+  if(!nomes.length){thead.innerHTML='';tfoot.innerHTML='';tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado para o período</p></div></td></tr>';set('fc-badge','—');const tR=document.getElementById('thead-fc-resumo'),bR=document.getElementById('tbody-fc-resumo');if(tR)tR.innerHTML='';if(bR)bR.innerHTML='';return;}
   thead.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;min-width:220px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Conta</th>'+colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;min-width:78px;font-size:10px;position:sticky;top:0;background:#f5f5f5">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+'</th>').join('')+'<th class="r" style="padding:5px 9px;min-width:88px;background:#ececec;position:sticky;top:0">Total</th></tr>';
   const tdS=(bg)=>'style="'+SD+bg+';padding:5px 6px 5px 12px;font-size:11px"';
   const tdSB=(bg)=>'style="'+SD+bg+';padding:5px 12px;font-size:11px;font-weight:700"';
@@ -687,6 +751,15 @@ function renderFluxo(){
     '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Caixa Inicial</td>'+colKeys.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(ci):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(ci)+'</td></tr>'+
     '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(saldo.length?saldo[saldo.length-1]>=0?'#A9DFBF':'#F1948A':'#fff')+'">'+f2(saldo.length?saldo[saldo.length-1]:ci)+'</td></tr>';
   set('fc-badge',nomes.length+(nomes.length===1?' conta':' contas'));
+  const theadR=document.getElementById('thead-fc-resumo'),tbodyR=document.getElementById('tbody-fc-resumo');
+  if(theadR&&tbodyR){
+    theadR.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;min-width:150px;position:sticky;left:0;background:#f5f5f5">Resumo</th>'+colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;min-width:78px;font-size:10px">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+'</th>').join('')+'<th class="r" style="padding:5px 9px;min-width:88px;background:#ececec">Total</th></tr>';
+    const rSai=tPM.map(v=>Math.abs(v));const totSaiR=rSai.reduce((s,v)=>s+v,0);
+    tbodyR.innerHTML=
+      '<tr style="background:#D5F5E3"><td style="'+SD+'#D5F5E3;padding:5px 12px;font-size:11px;font-weight:600;color:#1B6B35">Entradas</td>'+tFM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tFM.reduce((s,v)=>s+v,0))+'</td></tr>'+
+      '<tr style="background:#FADBD8"><td style="'+SD+'#FADBD8;padding:5px 12px;font-size:11px;font-weight:600;color:#C0392B">Saídas</td>'+rSai.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(totSaiR)+'</td></tr>'+
+      '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(saldo.length?saldo[saldo.length-1]>=0?'#A9DFBF':'#F1948A':'#fff')+'">'+f2(saldo.length?saldo[saldo.length-1]:ci)+'</td></tr>';
+  }
   renderCaixaInicialCampos();
 }
 function renderCaixaInicialCampos(){
@@ -694,9 +767,69 @@ function renderCaixaInicialCampos(){
   const val=DATA.caixaInicial['_total']||'';
   container.innerHTML='<div style="display:flex;flex-direction:column;gap:6px;padding:4px 0;max-width:280px">'
     +'<input type="number" value="'+val+'" placeholder="0,00" step="0.01"'
-    +' onchange="DATA.caixaInicial[\'_total\']=parseFloat(this.value)||0;renderFluxo();autoSave()"'
+    +' onchange="DATA.caixaInicial[\'_total\']=parseFloat(this.value)||0;renderFluxo();renderProjecao();autoSave()"'
     +' style="border:1px solid var(--brand);background:#fff;padding:7px 12px;font-family:\'DM Sans\',sans-serif;font-size:14px;font-weight:600;color:var(--text);outline:none;text-align:right;width:100%">'
     +'</div>';
+}
+// ── PROJEÇÃO DE FLUXO DE CAIXA ──────────────────────────────────────────────
+function renderProjecao(){
+  const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
+  fillSelect('proj-obra',obras,v=>v,v=>v);
+  const obraSel=document.getElementById('proj-obra')?.value||'';
+  const nMeses=parseInt(document.getElementById('proj-meses')?.value||'12');
+  const nBase=parseInt(document.getElementById('proj-base')?.value||'3');
+  const theadEl=document.getElementById('thead-proj'),tbodyEl=document.getElementById('tbody-proj');
+  if(!theadEl||!tbodyEl)return;
+  const dados=DATA.csv.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&r.movCaixa!==false);
+  const dadosFat=DATA.fat.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&r.movCaixa===true);
+  const colSet=new Set();
+  dados.forEach(r=>{if(r.ano!=null&&r.mes!=null)colSet.add(r.ano*100+r.mes);});
+  dadosFat.forEach(r=>{if(r.ano!=null&&r.mes!=null)colSet.add(r.ano*100+r.mes);});
+  const colKeys=[...colSet].sort();
+  if(!colKeys.length){tbodyEl.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado para projetar</p></div></td></tr>';theadEl.innerHTML='';set('proj-media-ent','—');set('proj-media-sai','—');set('proj-saldo-final','—');set('proj-badge','—');destroyChart('proj-ch-saldo');return;}
+  const ent=colKeys.map(k=>{const ano=Math.floor(k/100),mes=k%100;return dadosFat.filter(r=>r.ano===ano&&r.mes===mes).reduce((s,r)=>s+Math.abs(r.valor),0);});
+  const sai=colKeys.map(k=>{const ano=Math.floor(k/100),mes=k%100;return dados.filter(r=>r.ano===ano&&r.mes===mes&&r.tipo==='PAGAMENTO').reduce((s,r)=>s+Math.abs(r.valor),0);});
+  const ci=parseFloat(DATA.caixaInicial['_total']||0)||0;
+  const saldoReal=[];let accR=ci;colKeys.forEach((k,i)=>{accR+=ent[i]-sai[i];saldoReal.push(accR);});
+  const baseN=Math.min(nBase,colKeys.length);
+  const mediaEnt=ent.slice(-baseN).reduce((s,v)=>s+v,0)/baseN;
+  const mediaSai=sai.slice(-baseN).reduce((s,v)=>s+v,0)/baseN;
+  set('proj-media-ent',fmt(mediaEnt));set('proj-media-sai',fmt(mediaSai));
+  set('proj-base-sub','Média dos últimos '+baseN+' meses realizados');
+  // Meses futuros: a partir do mês seguinte ao último realizado
+  const lastKey=colKeys[colKeys.length-1];let ano=Math.floor(lastKey/100),mes=lastKey%100;
+  const futLabels=[],futEnt=[],futSai=[],futSaldo=[];let accF=saldoReal[saldoReal.length-1];
+  for(let i=0;i<nMeses;i++){mes++;if(mes>11){mes=0;ano++;}futLabels.push(MESES_ABR[mes]+'/'+ano);const saldoMes=mediaEnt-mediaSai;accF+=saldoMes;futEnt.push(mediaEnt);futSai.push(mediaSai);futSaldo.push(accF);}
+  set('proj-saldo-final',fmt(Math.abs(futSaldo[futSaldo.length-1])));
+  const sfEl=document.getElementById('proj-saldo-final');if(sfEl)sfEl.className='kpi-val '+(futSaldo[futSaldo.length-1]>=0?'pos':'neg');
+  set('proj-saldo-sub','Em '+futLabels[futLabels.length-1]+' — projeção linear pela média');
+  set('proj-badge',nMeses+' meses projetados a partir de '+MESES_ABR[lastKey%100]+'/'+Math.floor(lastKey/100));
+  // Tabela: realizado (últimos 6 meses de contexto) + projetado
+  const realLabels=colKeys.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
+  const ctxN=Math.min(6,colKeys.length);
+  theadEl.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px">Mês</th><th class="r" style="padding:8px 12px">Entradas</th><th class="r" style="padding:8px 12px">Saídas</th><th class="r" style="padding:8px 12px">Saldo do Mês</th><th class="r" style="padding:8px 12px">Saldo Acumulado</th></tr>';
+  let rowsH='';
+  for(let i=colKeys.length-ctxN;i<colKeys.length;i++){
+    const sm=ent[i]-sai[i];
+    rowsH+='<tr><td style="padding:6px 12px">'+realLabels[i]+' <span style="color:var(--text3);font-size:10px">(realizado)</span></td><td class="r" style="padding:6px 12px">'+f2(ent[i])+'</td><td class="r" style="padding:6px 12px">'+f2(-sai[i])+'</td><td class="r" style="padding:6px 12px;color:'+(sm>=0?'#1B6B35':'#C0392B')+'">'+f2(sm)+'</td><td class="r" style="padding:6px 12px;font-weight:600">'+f2(saldoReal[i])+'</td></tr>';
+  }
+  futLabels.forEach((lb,i)=>{
+    const sm=futEnt[i]-futSai[i];
+    rowsH+='<tr style="background:#FEF9E7"><td style="padding:6px 12px">'+lb+' <span style="color:var(--gold);font-size:10px">(projetado)</span></td><td class="r" style="padding:6px 12px">'+f2(futEnt[i])+'</td><td class="r" style="padding:6px 12px">'+f2(-futSai[i])+'</td><td class="r" style="padding:6px 12px;color:'+(sm>=0?'#1B6B35':'#C0392B')+'">'+f2(sm)+'</td><td class="r" style="padding:6px 12px;font-weight:600">'+f2(futSaldo[i])+'</td></tr>';
+  });
+  tbodyEl.innerHTML=rowsH;
+  // Gráfico: saldo realizado (sólido) + projetado (tracejado)
+  destroyChart('proj-ch-saldo');
+  const el=document.getElementById('proj-ch-saldo');
+  if(el){
+    const labels=[...realLabels.slice(-ctxN),...futLabels];
+    const realPart=[...saldoReal.slice(-ctxN),...Array(futLabels.length).fill(null)];
+    const projPart=[...Array(ctxN-1).fill(null),saldoReal[saldoReal.length-1],...futSaldo];
+    CHARTS['proj-ch-saldo']=new Chart(el,{type:'line',data:{labels,datasets:[
+      {label:'Realizado',data:realPart,borderColor:'#1a5276',backgroundColor:'#1a5276',tension:.2,spanGaps:false},
+      {label:'Projetado',data:projPart,borderColor:'#B7950B',backgroundColor:'#B7950B',borderDash:[6,4],tension:.2,spanGaps:false}
+    ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmt(ctx.raw)}}},scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}});
+  }
 }
 function exportarFluxo(){
   if(!DATA.csv.length){alert('Nenhum dado.');return;}
@@ -725,6 +858,10 @@ function renderEstoqueTable(){
   const totalVal=filtered.reduce((s,u)=>s+(u.venda||0),0);
   set('count-estoque',filtered.length+' unidade'+(filtered.length!==1?'s':''));
   set('total-estoque',fmt(totalVal));
+  const disp=filtered.filter(u=>u.status==='Disponível'),vend=filtered.filter(u=>u.status==='Vendido');
+  set('est-vgv-disp',fmt(disp.reduce((s,u)=>s+(u.venda||0),0)));set('est-un-disp',disp.length+' unidade'+(disp.length!==1?'s':''));
+  set('est-vgv-vend',fmt(vend.reduce((s,u)=>s+(u.venda||0),0)));set('est-un-vend',vend.length+' unidade'+(vend.length!==1?'s':''));
+  set('est-vgv-total',fmt(totalVal));set('est-un-total',filtered.length+' unidade'+(filtered.length!==1?'s':''));
   const tbody=document.getElementById('body-estoque');if(!tbody)return;
   if(!filtered.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhuma unidade</p></div></td></tr>';return;}
   tbody.innerHTML=filtered.map(r=>{const idx=DATA.estoque.indexOf(r);return'<tr><td>'+r.obra+'</td><td>'+r.unidade+'</td><td><span class="badge '+(r.status==='Disponível'?'bg-green':r.status==='Vendido'?'bg-red':'bg-gold')+'">'+r.status+'</span></td><td class="r">'+(r.area?r.area.toLocaleString('pt-BR',{minimumFractionDigits:2})+'m²':'—')+'</td><td class="r">'+(r.venda?fmt(r.venda):'—')+'</td><td class="c"><button onclick="removerEstoque('+idx+')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px">✕</button></td></tr>';}).join('');
@@ -772,7 +909,7 @@ async function jbinLoad(){
     DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};
     DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};
     
-    renderCSVTable();renderFatTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderCaixaInicialCampos();setJbinStatus('ok');
+    renderCSVTable();renderFatTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();setJbinStatus('ok');
     fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
   }catch(e){console.error(e);setJbinStatus('error');}
 }
