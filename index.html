@@ -590,8 +590,9 @@ function processCSVText(txt){
     const credor=fixEncoding(findColKey(r,['Nome credor','credor']).value);
     const data=parseDateBR(findColKey(r,['Data pagamento','Data Pagamento']).value);
     const cc=normCC(fixEncoding(findColKey(r,['Desc centro custo','Desc Centro Custo','centro custo']).value));
-    const conta=fixEncoding(findColKey(r,['Desc plano fin','Desc Plano Fin','plano fin']).value);
+    const contaDesc=fixEncoding(findColKey(r,['Desc plano fin','Desc Plano Fin','plano fin']).value);
     const contaCod=fixEncoding(findColKey(r,['Cod plano fin','Codigo plano fin','Cód plano fin','codplanofin','Cod. plano fin']).value);
+    const conta=(contaCod&&!contaDesc.startsWith(contaCod))?(contaCod+' - '+contaDesc):contaDesc;
     const valor=-Math.abs(parseBRNum(findColKey(r,['Valor aprop fin','Valor Aprop Fin','aprop fin']).value));
     const contaCorrente=fixEncoding(findColKey(r,['Conta corrente','Conta Corrente','conta corrente']).value);
     const movCaixa=!contaCorrente.toUpperCase().includes('REAPROPFIN');
@@ -615,8 +616,9 @@ function processFatText(txt){
     const data=parseDateBR(findColKey(r,['DataDaBaixa','Dt. baixa','databaixa']).value);
     const cliente=fixEncoding(findColKey(r,['NomeDoCliente','Cliente','nomecliente']).value);
     const cc=normCC(fixEncoding(findColKey(r,['NomeDoCentroDeCusto','centrodecusto','centro de custo']).value));
-    const conta=fixEncoding(findColKey(r,['NomeDoPlanoFinanceiro','planofin','plano financeiro']).value);
+    const contaDesc=fixEncoding(findColKey(r,['NomeDoPlanoFinanceiro','planofin','plano financeiro']).value);
     const contaCod=fixEncoding(findColKey(r,['CodigoDoPlanoFinanceiro','Codigo Plano Financeiro','codplanofinanceiro','codigoplanofinanceiro']).value);
+    const conta=(contaCod&&!contaDesc.startsWith(contaCod))?(contaCod+' - '+contaDesc):contaDesc;
     const contaCorrente=fixEncoding(findColKey(r,['NumeroDaContaCorrente','Conta corrente','contacorrente']).value);
     const numeroTitulo=fixEncoding(findColKey(r,['NumeroDoTitulo','Numero Titulo','numerotitulo','nuTitulo']).value);
     const valor=Math.abs(parseBRNum(findColKey(r,['ValorLiquido','Liquido','Líquido','valorliquido']).value));
@@ -883,28 +885,25 @@ function renderFluxo(){
   const colAno=colKeys.map(k=>Math.floor(k/100));const colMes=colKeys.map(k=>k%100);const NC=colKeys.length;
   const SD='position:sticky;left:0;z-index:2;background:';
   const contas={};
-  const contaCodMap={};
-  dados.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};if(!contaCodMap[c]&&r.contaCod)contaCodMap[c]=r.contaCod;const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;if(r.tipo==='FATURAMENTO')contas[c].FAT[ci]+=r.valor;else if(r.tipo==='DESCONTO')contas[c].DESC[ci]+=r.valor;else if(r.tipo==='PAGAMENTO')contas[c].PAG[ci]+=r.valor;});
-  dadosFat.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};if(!contaCodMap[c]&&r.contaCod)contaCodMap[c]=r.contaCod;const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;contas[c].FAT[ci]+=r.valor;});
+  dados.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;if(r.tipo==='FATURAMENTO')contas[c].FAT[ci]+=r.valor;else if(r.tipo==='DESCONTO')contas[c].DESC[ci]+=r.valor;else if(r.tipo==='PAGAMENTO')contas[c].PAG[ci]+=r.valor;});
+  dadosFat.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;contas[c].FAT[ci]+=r.valor;});
   const nomes=Object.keys(contas);
   if(!nomes.length){thead.innerHTML='';tfoot.innerHTML='';tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado para o período</p></div></td></tr>';set('fc-badge','—');const tR=document.getElementById('thead-fc-resumo'),bR=document.getElementById('tbody-fc-resumo');if(tR)tR.innerHTML='';if(bR)bR.innerHTML='';return;}
-  thead.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 8px;min-width:90px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Nº Conta</th><th style="text-align:left;padding:8px 12px;min-width:220px;position:sticky;left:90px;top:0;z-index:3;background:#f5f5f5">Conta</th>'+colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;min-width:78px;font-size:10px;position:sticky;top:0;background:#f5f5f5">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+'</th>').join('')+'<th class="r" style="padding:5px 9px;min-width:88px;background:#ececec;position:sticky;top:0">Total</th></tr>';
-  const SD2='position:sticky;left:90px;z-index:2;background:';
-  const tdCod=(bg)=>'style="'+SD+bg+';padding:5px 6px;font-size:10px;color:var(--text3)"';
-  const tdS=(bg)=>'style="'+SD2+bg+';padding:5px 6px 5px 12px;font-size:11px"';
-  const tdSB2=(bg)=>'style="'+SD+bg+';padding:5px 12px;font-size:11px;font-weight:700" colspan="2"';
+  thead.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;min-width:280px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Conta</th>'+colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;min-width:78px;font-size:10px;position:sticky;top:0;background:#f5f5f5">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+'</th>').join('')+'<th class="r" style="padding:5px 9px;min-width:88px;background:#ececec;position:sticky;top:0">Total</th></tr>';
+  const tdS=(bg)=>'style="'+SD+bg+';padding:5px 6px 5px 12px;font-size:11px"';
+  const tdSB=(bg)=>'style="'+SD+bg+';padding:5px 12px;font-size:11px;font-weight:700"';
   let rows='';const tFM=Array(NC).fill(0),tPM=Array(NC).fill(0);
   const fatN=nomes.filter(c=>contas[c].FAT.some(v=>v)||contas[c].DESC.some(v=>v)).sort();
   const pagN=nomes.filter(c=>contas[c].PAG.some(v=>v)).sort();
   if(fatN.length){
-    rows+='<tr style="background:#D5F5E3"><td colspan="'+(NC+3)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#1B6B35;'+SD+'#D5F5E3">▶ ENTRADAS</td></tr>';
-    fatN.forEach(c=>{const vals=contas[c].FAT.map((v,i)=>v-contas[c].DESC[i]);const tot=vals.reduce((s,v)=>s+v,0);vals.forEach((v,i)=>tFM[i]+=v);rows+='<tr><td '+tdCod('#fff')+'>'+(contaCodMap[c]||'—')+'</td><td '+tdS('#fff')+'>'+c+'</td>'+vals.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(tot)+'</td></tr>';});
-    rows+='<tr style="background:#c8e6c9;font-weight:700"><td '+tdSB2('#c8e6c9')+'>Total Entradas</td>'+tFM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tFM.reduce((s,v)=>s+v,0))+'</td></tr>';
+    rows+='<tr style="background:#D5F5E3"><td colspan="'+(NC+2)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#1B6B35;'+SD+'#D5F5E3">▶ ENTRADAS</td></tr>';
+    fatN.forEach(c=>{const vals=contas[c].FAT.map((v,i)=>v-contas[c].DESC[i]);const tot=vals.reduce((s,v)=>s+v,0);vals.forEach((v,i)=>tFM[i]+=v);rows+='<tr><td '+tdS('#fff')+'>'+c+'</td>'+vals.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(tot)+'</td></tr>';});
+    rows+='<tr style="background:#c8e6c9;font-weight:700"><td '+tdSB('#c8e6c9')+'>Total Entradas</td>'+tFM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tFM.reduce((s,v)=>s+v,0))+'</td></tr>';
   }
   if(pagN.length){
-    rows+='<tr style="background:#FADBD8"><td colspan="'+(NC+3)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#C0392B;'+SD+'#FADBD8">▶ SAÍDAS</td></tr>';
-    pagN.forEach(c=>{const vals=contas[c].PAG;const tot=vals.reduce((s,v)=>s+v,0);vals.forEach((v,i)=>tPM[i]+=v);rows+='<tr><td '+tdCod('#fff')+'>'+(contaCodMap[c]||'—')+'</td><td '+tdS('#fff')+'>'+c+'</td>'+vals.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(tot)+'</td></tr>';});
-    rows+='<tr style="background:#ffcdd2;font-weight:700"><td '+tdSB2('#ffcdd2')+'>Total Saídas</td>'+tPM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tPM.reduce((s,v)=>s+v,0))+'</td></tr>';
+    rows+='<tr style="background:#FADBD8"><td colspan="'+(NC+2)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#C0392B;'+SD+'#FADBD8">▶ SAÍDAS</td></tr>';
+    pagN.forEach(c=>{const vals=contas[c].PAG;const tot=vals.reduce((s,v)=>s+v,0);vals.forEach((v,i)=>tPM[i]+=v);rows+='<tr><td '+tdS('#fff')+'>'+c+'</td>'+vals.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(tot)+'</td></tr>';});
+    rows+='<tr style="background:#ffcdd2;font-weight:700"><td '+tdSB('#ffcdd2')+'>Total Saídas</td>'+tPM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tPM.reduce((s,v)=>s+v,0))+'</td></tr>';
   }
   tbody.innerHTML=rows;
   // Previsto líquido (de DATA.previsto): previsto bruto - realizado contas 2010304 e 2010401
@@ -915,9 +914,9 @@ function renderFluxo(){
   const ci=parseFloat(DATA.caixaInicial['_total']||0)||0;
   const saldo=[];let acc=ci;rv.forEach(v=>{acc+=v;saldo.push(acc);});
   tfoot.innerHTML=
-    '<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td colspan="2" style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Resultado do Período</td>'+rv.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#1B6B35':'#C0392B')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(rt>=0?'#1B6B35':'#C0392B')+'">'+f2(rt)+'</td></tr>'+
-    '<tr style="background:#EAF4FB;font-weight:600"><td colspan="2" style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Caixa Inicial</td>'+colKeys.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(ci):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(ci)+'</td></tr>'+
-    '<tr style="background:#1a5276;font-weight:700"><td colspan="2" style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(saldo.length?saldo[saldo.length-1]>=0?'#A9DFBF':'#F1948A':'#fff')+'">'+f2(saldo.length?saldo[saldo.length-1]:ci)+'</td></tr>';
+    '<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Resultado do Período</td>'+rv.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#1B6B35':'#C0392B')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(rt>=0?'#1B6B35':'#C0392B')+'">'+f2(rt)+'</td></tr>'+
+    '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Caixa Inicial</td>'+colKeys.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(ci):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(ci)+'</td></tr>'+
+    '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(saldo.length?saldo[saldo.length-1]>=0?'#A9DFBF':'#F1948A':'#fff')+'">'+f2(saldo.length?saldo[saldo.length-1]:ci)+'</td></tr>';
   set('fc-badge',nomes.length+(nomes.length===1?' conta':' contas'));
   const theadR=document.getElementById('thead-fc-resumo'),tbodyR=document.getElementById('tbody-fc-resumo');
   if(theadR&&tbodyR){
