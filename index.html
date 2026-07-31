@@ -368,12 +368,6 @@ tbody td.c{text-align:center}
       <option value="12">Últimos 12 meses</option>
     </select>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
-    <div class="kpi-card c-green"><div class="kpi-label">Faturamento Previsto (total)</div><div class="kpi-val pos" id="proj-fat-total">—</div><div class="kpi-sub" id="proj-fat-sub">No período projetado</div></div>
-    <div class="kpi-card c-red"><div class="kpi-label">Despesas Previstas (total)</div><div class="kpi-val neg" id="proj-sai-total">—</div><div class="kpi-sub">No período projetado</div></div>
-    <div class="kpi-card c-blue"><div class="kpi-label">Saldo Projetado (final)</div><div class="kpi-val" id="proj-saldo-final">—</div><div class="kpi-sub" id="proj-saldo-sub">Ao fim do período projetado</div></div>
-  </div>
-  <div class="chart-card" style="margin-bottom:14px"><div class="chart-title">Saldo de Caixa — Realizado + Projetado</div><div class="chart-subtitle">Linha tracejada indica os meses projetados (consolidado de todos os CCs)</div><canvas id="proj-ch-saldo"></canvas></div>
   <div class="tbl-card" style="margin-bottom:14px">
     <div class="tbl-head"><div class="tbl-title">Orçamento de Obra por Centro de Custo</div><span class="tbl-badge" id="proj-orc-badge">—</span></div>
     <div style="padding:6px 16px 4px;color:var(--text3);font-size:11px">Preenchendo Valor Orçado + Prazo + Data de Início, a despesa prevista da obra passa a ser distribuída linearmente nesses meses. Sem preenchimento, usa a média histórica (filtro "Base" acima).</div>
@@ -537,7 +531,7 @@ function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 function normCC(s){return(s||'').trim().toUpperCase().replace(/\s+/g,' ');}
 function stripAccents(s){return(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 function normLoose(s){return stripAccents(s).trim().toUpperCase().replace(/\s+/g,' ');}
-const ORC_EXCLUIR=['ADMINISTRATIVO','CASA RESIDENCIAL','GLB INCORPORADORA','POS OBRA','REFORMAS','ROSSA BOULEVARD','ROSSA COMMERCIALE','ROSSA GARDEN','TERRENO VENERAVEL'].map(normLoose);
+const ORC_EXCLUIR=['ADMINISTRATIVO','CASA RESIDENCIAL','GLB INCORPORADORA','POS OBRA','REFORMAS','ROSSA BOULEVARD','ROSSA COMMERCIALE','ROSSA GARDEN','TERRENO VENERAVEL','ROSSA RESIDENZIALE','POUSADA CANELA'].map(normLoose);
 function excluidoOrcamentoObra(cc){const n=normLoose(cc);return ORC_EXCLUIR.some(k=>n.includes(k));}
 function ccMatch(a,b){return normCC(a)===normCC(b);}
 function parseBRNum(s){if(!s)return 0;s=String(s).trim().replace(/\s/g,'').replace(/R\$\s*/,'');if(!s||s==='-')return 0;if(s.includes(','))return parseFloat(s.replace(/\./g,'').replace(',','.'))||0;const dots=(s.match(/\./g)||[]).length;if(dots===1){const p=s.split('.');if(p[1].length===3)s=s.replace('.','');}else if(dots>1)s=s.replace(/\./g,'');return parseFloat(s)||0;}
@@ -688,8 +682,8 @@ function ccPorTitulo(nuTitulo){
   if(!nuTitulo)return'';
   const key=String(nuTitulo).trim();
   const hit=DATA.fat.find(r=>r.numeroTitulo&&String(r.numeroTitulo).trim()===key);
-  if(hit&&hit.cc)return hit.cc;
-  return DATA.titCC[key]||'';
+  if(hit&&hit.cc)return normCC(hit.cc);
+  return normCC(DATA.titCC[key]||'');
 }
 function processArecText(txt){
   txt=fixEncoding(txt);
@@ -989,7 +983,7 @@ function renderProjecao(){
       }).join('');
     }
   }
-  if(!todosCC.length){tbodyEl.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr>';theadEl.innerHTML='';if(tfootEl)tfootEl.innerHTML='';set('proj-fat-total','—');set('proj-sai-total','—');set('proj-saldo-final','—');set('proj-badge','—');destroyChart('proj-ch-saldo');return;}
+  if(!todosCC.length){tbodyEl.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr>';theadEl.innerHTML='';if(tfootEl)tfootEl.innerHTML='';set('proj-badge','—');return;}
   // Faturamento previsto por CC/mês (Entradas A Receber, por vencimento)
   const fatPrevCC={};
   todosCC.forEach(cc=>{fatPrevCC[cc]=timeline.map(k=>{const ano=Math.floor(k/100),mes=k%100;return arecCC.filter(r=>r.cc===cc&&r.data.getFullYear()===ano&&r.data.getMonth()===mes).reduce((s,r)=>s+Math.abs(r.valor),0);});});
@@ -1057,23 +1051,12 @@ function renderProjecao(){
   });
   tbodyEl.innerHTML=rowsH;
   const totFat=tFatT.reduce((s,v)=>s+v,0),totSaiG=tSaiT.reduce((s,v)=>s+v,0);
-  set('proj-fat-total',fmt(totFat));set('proj-sai-total',fmt(totSaiG));
-  set('proj-saldo-final',fmt(Math.abs(saldoProj[saldoProj.length-1])));
-  const sfEl=document.getElementById('proj-saldo-final');if(sfEl)sfEl.className='kpi-val '+(saldoProj[saldoProj.length-1]>=0?'pos':'neg');
-  set('proj-saldo-sub','Em '+timelineLabels[timelineLabels.length-1]+' — saldo atual: '+fmt(saldoAtual));
   if(tfootEl){
     const totRes=resMensal.reduce((s,v)=>s+v,0);
     tfootEl.innerHTML='<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="position:sticky;left:0;background:#f0f0f0;padding:6px 12px;font-size:11px">Total</td>'
       +ccsAtivos.map(cc=>{const tf=fatPrevCC[cc].reduce((s,v)=>s+v,0),ts=saiPrevCC[cc].reduce((s,v)=>s+v,0);return'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #ddd;color:#1B6B35">'+f2(tf)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+f2(-ts)+'</td><td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;color:'+(tf-ts>=0?'#1B6B35':'#C0392B')+'">'+f2(tf-ts)+'</td>';}).join('')
       +'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #bbb;color:#1B6B35">'+f2(totFat)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+f2(-totSaiG)+'</td><td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;color:'+(totRes>=0?'#1B6B35':'#C0392B')+'">'+f2(totRes)+'</td>'
       +'<td class="r" style="padding:4px 7px;font-size:10px;font-weight:700;background:#1a5276;color:'+(saldoProj[saldoProj.length-1]>=0?'#A9DFBF':'#F1948A')+'">'+f2(saldoProj[saldoProj.length-1])+'</td></tr>';
-  }
-  destroyChart('proj-ch-saldo');
-  const el=document.getElementById('proj-ch-saldo');
-  if(el){
-    CHARTS['proj-ch-saldo']=new Chart(el,{type:'line',data:{labels:timelineLabels,datasets:[
-      {label:'Saldo Projetado',data:saldoProj,borderColor:'#B7950B',backgroundColor:'#B7950B',borderDash:[6,4],tension:.2}
-    ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmt(ctx.raw)}}},scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}});
   }
 }
 function exportarFluxo(){
