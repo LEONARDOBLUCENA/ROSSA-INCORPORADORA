@@ -535,6 +535,10 @@ function fmt(v){if(v==null||isNaN(v))return'—';return'R$ '+Math.abs(v).toLocal
 function fmtSgn(v){if(v==null||isNaN(v))return'—';const s=v<0?'- ':'';return s+'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 function normCC(s){return(s||'').trim().toUpperCase().replace(/\s+/g,' ');}
+function stripAccents(s){return(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+function normLoose(s){return stripAccents(s).trim().toUpperCase().replace(/\s+/g,' ');}
+const ORC_EXCLUIR=['ADMINISTRATIVO','CASA RESIDENCIAL','GLB INCORPORADORA','POS OBRA','REFORMAS','ROSSA BOULEVARD','ROSSA COMMERCIALE','ROSSA GARDEN','TERRENO VENERAVEL'].map(normLoose);
+function excluidoOrcamentoObra(cc){const n=normLoose(cc);return ORC_EXCLUIR.some(k=>n.includes(k));}
 function ccMatch(a,b){return normCC(a)===normCC(b);}
 function parseBRNum(s){if(!s)return 0;s=String(s).trim().replace(/\s/g,'').replace(/R\$\s*/,'');if(!s||s==='-')return 0;if(s.includes(','))return parseFloat(s.replace(/\./g,'').replace(',','.'))||0;const dots=(s.match(/\./g)||[]).length;if(dots===1){const p=s.split('.');if(p[1].length===3)s=s.replace('.','');}else if(dots>1)s=s.replace(/\./g,'');return parseFloat(s)||0;}
 function parseDateBR(s){if(!s)return null;s=String(s).trim();const m=s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);if(m){let y=parseInt(m[3]);if(y<100)y+=2000;const d=new Date(y,parseInt(m[2])-1,parseInt(m[1]));return isNaN(d.getTime())?null:d;}const m2=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m2){const d=new Date(parseInt(m2[1]),parseInt(m2[2])-1,parseInt(m2[3]));return isNaN(d.getTime())?null:d;}return null;}
@@ -966,12 +970,13 @@ function renderProjecao(){
   arecCC.forEach(r=>ccSet.add(r.cc));
   Object.keys(DATA.orcamentoObra).forEach(cc=>ccSet.add(cc));
   const todosCC=[...ccSet].sort();
-  // Card de Orçamento de Obra (editável) — lista todos os CCs conhecidos
+  const ccOrcamento=todosCC.filter(cc=>!excluidoOrcamentoObra(cc));
+  // Card de Orçamento de Obra (editável) — lista os CCs conhecidos, exceto os excluídos
   if(orcTbody){
-    set('proj-orc-badge',todosCC.length+' centro'+(todosCC.length!==1?'s':'')+' de custo');
-    if(!todosCC.length){orcTbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr>';}
+    set('proj-orc-badge',ccOrcamento.length+' centro'+(ccOrcamento.length!==1?'s':'')+' de custo');
+    if(!ccOrcamento.length){orcTbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr>';}
     else{
-      orcTbody.innerHTML=todosCC.map(cc=>{
+      orcTbody.innerHTML=ccOrcamento.map(cc=>{
         const o=DATA.orcamentoObra[cc]||{valor:0,prazo:0,inicio:''};
         const temOrcamento=o.valor>0&&o.prazo>0&&o.inicio;
         const fonte=temOrcamento?'<span class="badge bg-blue">Orçamento da obra</span>':'<span class="badge bg-gold">Média histórica</span>';
@@ -1017,41 +1022,51 @@ function renderProjecao(){
     const temDespesa=saiPrevCC[cc].some(v=>v>0)||DATA.csv.some(r=>r.cc===cc&&r.tipo==='PAGAMENTO');
     return temFatRecente||temFatPrevisto||temDespesa;
   });
+  // Tabela transposta: meses em linhas, Centro de Custo em colunas (Faturamento | Despesas | Resultado)
   set('proj-badge',ccsAtivos.length+' centro'+(ccsAtivos.length!==1?'s':'')+' de custo · '+nMeses+' meses a partir de '+timelineLabels[0]);
-  // Tabela por CC (mesmo padrão visual do Fluxo de Caixa Geral)
-  const SD='position:sticky;left:0;z-index:2;background:';
-  theadEl.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;min-width:220px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Centro de Custo</th>'+timelineLabels.map(l=>'<th class="r" style="padding:5px 7px;min-width:78px;font-size:10px;position:sticky;top:0;background:#f5f5f5">'+l+'</th>').join('')+'<th class="r" style="padding:5px 9px;min-width:88px;background:#ececec;position:sticky;top:0">Total</th></tr>';
   const tFatT=Array(NC).fill(0),tSaiT=Array(NC).fill(0);
-  let rowsH='';
-  ccsAtivos.forEach(cc=>{
-    const fat=fatPrevCC[cc],sai=saiPrevCC[cc];
-    const temFat=fat.some(v=>v>0);
-    rowsH+='<tr style="background:#f0f0f0"><td colspan="'+(NC+2)+'" style="padding:4px 12px;font-weight:700;font-size:11px;color:var(--text2);'+SD+'#f0f0f0">'+cc+'</td></tr>';
-    if(temFat){
-      const tot=fat.reduce((s,v)=>s+v,0);fat.forEach((v,i)=>tFatT[i]+=v);
-      rowsH+='<tr><td style="'+SD+'#fff;padding:4px 6px 4px 22px;font-size:11px;color:#1B6B35">Faturamento Previsto</td>'+fat.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+(v?f2(v):'<span style=\"color:#ccc\">—</span>')+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(tot)+'</td></tr>';
-    }
-    const totSai=sai.reduce((s,v)=>s+v,0);sai.forEach((v,i)=>tSaiT[i]+=v);
-    rowsH+='<tr><td style="'+SD+'#fff;padding:4px 6px 4px 22px;font-size:11px;color:#C0392B">Despesas Previstas</td>'+sai.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+(v?f2(-v):'<span style=\"color:#ccc\">—</span>')+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(-totSai)+'</td></tr>';
-    const res=fat.map((v,i)=>v-sai[i]);const totRes=res.reduce((s,v)=>s+v,0);
-    rowsH+='<tr style="background:#fafafa"><td style="'+SD+'#fafafa;padding:4px 6px 4px 22px;font-size:11px;font-weight:600">Resultado do CC</td>'+res.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#1B6B35':'#C0392B')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:700;background:#f4f4f4;font-size:10px;color:'+(totRes>=0?'#1B6B35':'#C0392B')+'">'+f2(totRes)+'</td></tr>';
-  });
-  tbodyEl.innerHTML=rowsH;
-  // Consolidado: saldo realizado até hoje + resultado projetado por mês
+  ccsAtivos.forEach(cc=>{fatPrevCC[cc].forEach((v,i)=>tFatT[i]+=v);saiPrevCC[cc].forEach((v,i)=>tSaiT[i]+=v);});
+  theadEl.innerHTML=
+    '<tr style="background:#f5f5f5"><th rowspan="2" style="text-align:left;padding:8px 12px;min-width:110px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Mês</th>'
+      +ccsAtivos.map(cc=>'<th colspan="3" class="c" style="padding:6px 8px;font-size:10px;border-left:2px solid #ddd;background:#eef2f5">'+cc+'</th>').join('')
+      +'<th colspan="3" class="c" style="padding:6px 8px;font-size:10px;border-left:2px solid #bbb;background:#ececec">Consolidado</th>'
+      +'<th rowspan="2" class="r" style="padding:6px 8px;min-width:90px;background:#1a5276;color:#fff;font-size:10px">Saldo Acum.</th></tr>'
+    +'<tr style="background:#f5f5f5">'
+      +ccsAtivos.map(()=>'<th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;border-left:2px solid #ddd;color:#1B6B35">Fat.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;color:#C0392B">Desp.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;font-weight:700">Result.</th>').join('')
+      +'<th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;border-left:2px solid #bbb;color:#1B6B35">Fat.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;color:#C0392B">Desp.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;font-weight:700">Result.</th>'
+    +'</tr>';
   const ciTotal=parseFloat(DATA.caixaInicial['_total']||0)||0;
   let saldoAtual=ciTotal;
   DATA.fat.filter(r=>r.movCaixa===true).forEach(r=>{saldoAtual+=Math.abs(r.valor);});
   DATA.csv.filter(r=>r.movCaixa!==false&&r.tipo==='PAGAMENTO').forEach(r=>{saldoAtual+=r.valor;});
   const resMensal=tFatT.map((v,i)=>v-tSaiT[i]);
   const saldoProj=[];let acc=saldoAtual;resMensal.forEach(v=>{acc+=v;saldoProj.push(acc);});
+  let rowsH='';
+  timeline.forEach((k,i)=>{
+    rowsH+='<tr><td style="position:sticky;left:0;z-index:1;background:#fff;padding:5px 12px;font-size:11px;font-weight:600">'+timelineLabels[i]+'</td>';
+    ccsAtivos.forEach(cc=>{
+      const fv=fatPrevCC[cc][i],sv=saiPrevCC[cc][i],rv=fv-sv;
+      rowsH+='<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #ddd;color:#1B6B35">'+(fv?f2(fv):'<span style="color:#ccc">—</span>')+'</td>'
+        +'<td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+(sv?f2(-sv):'<span style="color:#ccc">—</span>')+'</td>'
+        +'<td class="r" style="padding:4px 5px;font-size:10px;font-weight:600;color:'+(rv>=0?'#1B6B35':'#C0392B')+'">'+f2(rv)+'</td>';
+    });
+    rowsH+='<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #bbb;background:#f4f4f4;color:#1B6B35">'+f2(tFatT[i])+'</td>'
+      +'<td class="r" style="padding:4px 5px;font-size:10px;background:#f4f4f4;color:#C0392B">'+f2(-tSaiT[i])+'</td>'
+      +'<td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;background:#f4f4f4;color:'+(resMensal[i]>=0?'#1B6B35':'#C0392B')+'">'+f2(resMensal[i])+'</td>'
+      +'<td class="r" style="padding:4px 7px;font-size:10px;font-weight:700;background:#1a5276;color:'+(saldoProj[i]>=0?'#A9DFBF':'#F1948A')+'">'+f2(saldoProj[i])+'</td></tr>';
+  });
+  tbodyEl.innerHTML=rowsH;
   const totFat=tFatT.reduce((s,v)=>s+v,0),totSaiG=tSaiT.reduce((s,v)=>s+v,0);
   set('proj-fat-total',fmt(totFat));set('proj-sai-total',fmt(totSaiG));
   set('proj-saldo-final',fmt(Math.abs(saldoProj[saldoProj.length-1])));
   const sfEl=document.getElementById('proj-saldo-final');if(sfEl)sfEl.className='kpi-val '+(saldoProj[saldoProj.length-1]>=0?'pos':'neg');
   set('proj-saldo-sub','Em '+timelineLabels[timelineLabels.length-1]+' — saldo atual: '+fmt(saldoAtual));
   if(tfootEl){
-    tfootEl.innerHTML='<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Resultado Consolidado</td>'+resMensal.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#1B6B35':'#C0392B')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(resMensal.reduce((s,v)=>s+v,0)>=0?'#1B6B35':'#C0392B')+'">'+f2(resMensal.reduce((s,v)=>s+v,0))+'</td></tr>'
-      +'<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo Projetado</td>'+saldoProj.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(saldoProj[saldoProj.length-1]>=0?'#A9DFBF':'#F1948A')+'">'+f2(saldoProj[saldoProj.length-1])+'</td></tr>';
+    const totRes=resMensal.reduce((s,v)=>s+v,0);
+    tfootEl.innerHTML='<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="position:sticky;left:0;background:#f0f0f0;padding:6px 12px;font-size:11px">Total</td>'
+      +ccsAtivos.map(cc=>{const tf=fatPrevCC[cc].reduce((s,v)=>s+v,0),ts=saiPrevCC[cc].reduce((s,v)=>s+v,0);return'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #ddd;color:#1B6B35">'+f2(tf)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+f2(-ts)+'</td><td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;color:'+(tf-ts>=0?'#1B6B35':'#C0392B')+'">'+f2(tf-ts)+'</td>';}).join('')
+      +'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #bbb;color:#1B6B35">'+f2(totFat)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+f2(-totSaiG)+'</td><td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;color:'+(totRes>=0?'#1B6B35':'#C0392B')+'">'+f2(totRes)+'</td>'
+      +'<td class="r" style="padding:4px 7px;font-size:10px;font-weight:700;background:#1a5276;color:'+(saldoProj[saldoProj.length-1]>=0?'#A9DFBF':'#F1948A')+'">'+f2(saldoProj[saldoProj.length-1])+'</td></tr>';
   }
   destroyChart('proj-ch-saldo');
   const el=document.getElementById('proj-ch-saldo');
