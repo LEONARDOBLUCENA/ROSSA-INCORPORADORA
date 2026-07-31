@@ -360,6 +360,10 @@ tbody td.c{text-align:center}
       <option value="12" selected>12 meses</option>
       <option value="24">24 meses</option>
       <option value="36">36 meses</option>
+      <option value="48">48 meses</option>
+      <option value="60">60 meses</option>
+      <option value="72">72 meses</option>
+      <option value="100">100 meses</option>
     </select>
     <span class="filter-label">Base (média) p/ obras sem orçamento</span>
     <select class="filter-select" id="proj-base" onchange="renderProjecao()">
@@ -371,7 +375,7 @@ tbody td.c{text-align:center}
   <div class="tbl-card" style="margin-bottom:14px">
     <div class="tbl-head"><div class="tbl-title">Orçamento de Obra por Centro de Custo</div><span class="tbl-badge" id="proj-orc-badge">—</span></div>
     <div style="padding:6px 16px 4px;color:var(--text3);font-size:11px">Preenchendo Valor Orçado + Prazo + Data de Início, a despesa prevista da obra passa a ser distribuída linearmente nesses meses. Sem preenchimento, usa a média histórica (filtro "Base" acima).</div>
-    <div class="tbl-wrap"><table><thead><tr><th>Centro de Custo</th><th class="r">Valor Orçado (R$)</th><th class="r">Prazo (meses)</th><th>Início</th><th>Fonte da Despesa</th></tr></thead><tbody id="body-proj-orcamento"><tr><td colspan="5"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr></tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Centro de Custo</th><th class="r">Valor Orçado (R$)</th><th class="r">Valor Permutas (R$)</th><th class="r">Prazo (meses)</th><th>Início</th><th>Fonte da Despesa</th></tr></thead><tbody id="body-proj-orcamento"><tr><td colspan="6"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr></tbody></table></div>
   </div>
   <div class="tbl-card">
     <div class="tbl-head"><div class="tbl-title">Projeção por Centro de Custo</div><span class="tbl-badge" id="proj-badge">—</span></div>
@@ -939,10 +943,11 @@ function renderCaixaInicialCampos(){
 function addMonthsKey(key,n){let ano=Math.floor(key/100),mes=(key%100)+n;while(mes>11){mes-=12;ano++;}while(mes<0){mes+=12;ano--;}return ano*100+mes;}
 function parseInicioObra(str){if(!str)return null;const p=String(str).split('-');if(p.length<2)return null;const ano=parseInt(p[0]),mes=parseInt(p[1])-1;if(isNaN(ano)||isNaN(mes))return null;return ano*100+mes;}
 function salvarOrcamentoObra(cc,campo,valor){
-  if(!DATA.orcamentoObra[cc])DATA.orcamentoObra[cc]={valor:0,prazo:0,inicio:''};
+  if(!DATA.orcamentoObra[cc])DATA.orcamentoObra[cc]={valor:0,prazo:0,inicio:'',permutas:0};
   if(campo==='valor')DATA.orcamentoObra[cc].valor=parseBRNum(valor)||0;
   else if(campo==='prazo')DATA.orcamentoObra[cc].prazo=parseInt(valor)||0;
   else if(campo==='inicio')DATA.orcamentoObra[cc].inicio=valor||'';
+  else if(campo==='permutas')DATA.orcamentoObra[cc].permutas=parseBRNum(valor)||0;
   renderProjecao();autoSave();
 }
 function renderProjecao(){
@@ -971,12 +976,13 @@ function renderProjecao(){
     if(!ccOrcamento.length){orcTbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr>';}
     else{
       orcTbody.innerHTML=ccOrcamento.map(cc=>{
-        const o=DATA.orcamentoObra[cc]||{valor:0,prazo:0,inicio:''};
+        const o=DATA.orcamentoObra[cc]||{valor:0,prazo:0,inicio:'',permutas:0};
         const temOrcamento=o.valor>0&&o.prazo>0&&o.inicio;
         const fonte=temOrcamento?'<span class="badge bg-blue">Orçamento da obra</span>':'<span class="badge bg-gold">Média histórica</span>';
         const ccSafe=cc.replace(/'/g,"\\'");
         return'<tr><td>'+cc+'</td>'
           +'<td class="r"><input type="text" value="'+(o.valor?o.valor.toLocaleString('pt-BR',{minimumFractionDigits:2}):'')+'" placeholder="0,00" onchange="salvarOrcamentoObra(\''+ccSafe+'\',\'valor\',this.value)" style="width:120px;text-align:right;border:1px solid var(--border);padding:4px 8px;font-family:\'DM Sans\',sans-serif;font-size:12px"></td>'
+          +'<td class="r"><input type="text" value="'+(o.permutas?o.permutas.toLocaleString('pt-BR',{minimumFractionDigits:2}):'')+'" placeholder="0,00" onchange="salvarOrcamentoObra(\''+ccSafe+'\',\'permutas\',this.value)" style="width:120px;text-align:right;border:1px solid var(--border);padding:4px 8px;font-family:\'DM Sans\',sans-serif;font-size:12px"></td>'
           +'<td class="r"><input type="number" value="'+(o.prazo||'')+'" placeholder="0" min="0" onchange="salvarOrcamentoObra(\''+ccSafe+'\',\'prazo\',this.value)" style="width:70px;text-align:right;border:1px solid var(--border);padding:4px 8px;font-family:\'DM Sans\',sans-serif;font-size:12px"></td>'
           +'<td><input type="month" value="'+(o.inicio||'')+'" onchange="salvarOrcamentoObra(\''+ccSafe+'\',\'inicio\',this.value)" style="border:1px solid var(--border);padding:4px 8px;font-family:\'DM Sans\',sans-serif;font-size:12px"></td>'
           +'<td>'+fonte+'</td></tr>';
@@ -1002,7 +1008,8 @@ function renderProjecao(){
     const o=DATA.orcamentoObra[cc];
     const temOrcamento=o&&o.valor>0&&o.prazo>0&&o.inicio;
     if(temOrcamento){
-      const inicioKey=parseInicioObra(o.inicio);const fimKey=addMonthsKey(inicioKey,o.prazo-1);const mensal=o.valor/o.prazo;
+      const inicioKey=parseInicioObra(o.inicio);const fimKey=addMonthsKey(inicioKey,o.prazo-1);
+      const valorLiquido=Math.max(0,o.valor-(o.permutas||0));const mensal=valorLiquido/o.prazo;
       saiPrevCC[cc]=timeline.map(k=>(inicioKey!=null&&k>=inicioKey&&k<=fimKey)?mensal:0);
     }else{
       saiPrevCC[cc]=timeline.map(()=>mediaDespesaCC[cc]||0);
