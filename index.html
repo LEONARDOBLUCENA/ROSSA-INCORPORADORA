@@ -281,8 +281,6 @@ tbody td.c{text-align:center}
     <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de <strong>Contas Pagas</strong> no ERP, selecione a tabela com cabeçalho, copie Ctrl+C, cole abaixo Ctrl+V.<br>Colunas utilizadas: <strong>Nome credor · Data pagamento · Desc centro custo · Cod plano fin · Desc plano fin · Valor aprop fin</strong></div>
     <textarea class="paste-box" id="paste-csv" placeholder="Clique aqui e cole com Ctrl+V — os dados são processados automaticamente"></textarea>
     <div class="paste-actions">
-      <button class="btn-secondary" onclick="limparCSV()">✕ Limpar</button>
-      <button class="btn-export" onclick="exportExcelCSV()">⬇ Excel</button>
       <span class="paste-status" id="status-csv"></span>
     </div>
   </div>
@@ -292,7 +290,9 @@ tbody td.c{text-align:center}
       <div class="tbl-title">Lançamentos Processados</div>
       <div style="display:flex;align-items:center;gap:8px">
         <span class="tbl-badge" id="count-csv">0 registros</span>
-        <button class="btn-export" onclick="exportarCSV()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
+        <span class="tbl-badge" id="soma-csv" style="background:var(--brand-light);color:var(--brand)">R$ 0,00</span>
+        <button class="btn-ghost" onclick="limparCSV()">✕ Limpar</button>
+        <button class="btn-export" onclick="exportExcelCSV()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
       </div>
     </div>
     <div style="padding:8px 16px 0;border-bottom:1px solid var(--border)">
@@ -532,6 +532,7 @@ function goTab(btn){document.querySelectorAll('.page').forEach(p=>p.classList.re
 function fmt(v){if(v==null||isNaN(v))return'—';return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtSgn(v){if(v==null||isNaN(v))return'—';const s=v<0?'- ':'';return s+'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+function setSigned(id,v){const el=document.getElementById(id);if(!el)return;el.textContent=(v<0?'-':'')+fmt(Math.abs(v));el.style.color=v>=0?'#1B6B35':'#C0392B';el.style.fontWeight='700';}
 function normCC(s){return(s||'').trim().toUpperCase().replace(/\s+/g,' ');}
 function stripAccents(s){return(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 function normLoose(s){return stripAccents(s).trim().toUpperCase().replace(/\s+/g,' ');}
@@ -667,6 +668,7 @@ function renderCSVTable(){
   const fA=document.getElementById('fcsv-ano')?.value||'',fM=document.getElementById('fcsv-mes')?.value||'',fC=document.getElementById('fcsv-cc')?.value||'',fK=document.getElementById('fcsv-conta')?.value||'';
   const fil=arr.filter(r=>(!fA||String(r.ano)===fA)&&(!fM||String(r.mes)===fM)&&(!fC||ccMatch(r.cc||'',fC))&&(!fK||r.conta===fK));
   document.getElementById('count-csv').textContent=fil.length+' de '+arr.length+' registros';
+  const somaEl=document.getElementById('soma-csv');if(somaEl)somaEl.textContent=fmt(fil.reduce((s,r)=>s+Math.abs(r.valor),0));
   const tbody=document.getElementById('body-csv');
   if(!fil.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
   tbody.innerHTML=fil.map(r=>{
@@ -796,8 +798,8 @@ function renderDash(){
   set('dash-saidas-caixa',fmt(totSaiCaixa));set('dash-saidas-outro',fmt(totSaiOutro));
   const sEl=document.getElementById('dash-saldo');if(sEl){sEl.textContent=fmt(Math.abs(saldo));sEl.className='kpi-val '+(saldo>=0?'pos':'neg');}
   set('dash-saldo-sub',saldo>=0?'▲ Superávit':'▼ Déficit');
-  set('dash-saldo-caixa',fmt(Math.abs(saldoCaixa)));
-  set('dash-saldo-outro',fmt(Math.abs(saldoOutro)));
+  setSigned('dash-saldo-caixa',saldoCaixa);
+  setSigned('dash-saldo-outro',saldoOutro);
   const keys=new Set();
   [...data,...fatData].forEach(r=>{if(r.data)keys.add(r.data.getFullYear()*100+r.data.getMonth());});
   const sortedKeys=[...keys].sort();const labels=sortedKeys.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
@@ -921,7 +923,7 @@ function renderFluxo(){
   set('fc-badge',nomes.length+(nomes.length===1?' conta':' contas'));
   const theadR=document.getElementById('thead-fc-resumo'),tbodyR=document.getElementById('tbody-fc-resumo');
   if(theadR&&tbodyR){
-    theadR.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;min-width:220px;position:sticky;left:0;background:#f5f5f5">Resumo</th>'+colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;min-width:78px;font-size:10px">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+'</th>').join('')+'<th class="r" style="padding:5px 9px;min-width:88px;background:#ececec">Total</th></tr>';
+    theadR.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;min-width:280px;position:sticky;left:0;background:#f5f5f5">Resumo</th>'+colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;min-width:78px;font-size:10px">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+'</th>').join('')+'<th class="r" style="padding:5px 9px;min-width:88px;background:#ececec">Total</th></tr>';
     const rSai=tPM.map(v=>Math.abs(v));const totSaiR=rSai.reduce((s,v)=>s+v,0);
     tbodyR.innerHTML=
       '<tr style="background:#D5F5E3"><td style="'+SD+'#D5F5E3;padding:5px 12px;font-size:11px;font-weight:600;color:#1B6B35">Entradas</td>'+tFM.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tFM.reduce((s,v)=>s+v,0))+'</td></tr>'+
