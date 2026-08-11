@@ -600,6 +600,7 @@ function processCSVText(txt){
   }).filter(r=>r.valor!==0||r.cc);
   DATA.csv=[...DATA.csv,...novos];
   setStatus('status-csv','+'+novos.length+' registros — total: '+DATA.csv.length+'.',true);
+  renderCSVTable();renderDash();renderFluxo();renderProjecao();autoSave();
 }
 function limparCSV(){DATA.csv=[];renderCSVTable();renderDash();renderFluxo();renderCaixaInicialCampos();setStatus('status-csv','',null);const d=document.getElementById('diag-csv');if(d){d.style.display='none';d.innerHTML='';}autoSave();}
 function clearCSVFilters(){['fcsv-ano','fcsv-mes','fcsv-cc','fcsv-conta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderCSVTable();}
