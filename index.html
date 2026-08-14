@@ -224,18 +224,6 @@ tbody td.c{text-align:center}
         <button class="btn-primary" onclick="sienceSyncAll()" style="width:100%">🔄 Sync Sienge</button>
         <span class="tbl-badge" id="dash-sienge-badge" style="display:inline-block;margin-top:8px">Nunca sincronizado</span>
         <pre id="dash-sienge-result" style="display:none;margin-top:10px;white-space:pre-wrap;background:#f7f7f7;padding:10px;font-size:11px;border:1px solid var(--border)"></pre>
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-          <div style="color:var(--text3);font-size:11px;margin-bottom:6px">Se um período já tinha sido colado manualmente e agora também veio pela API, use isto pra remover só os lançamentos manuais desse intervalo (mantém os sincronizados):</div>
-          <button class="btn-ghost" onclick="limparManuaisPeriodo()" style="color:var(--danger);border-color:var(--danger);width:100%">🧹 Remover manuais duplicados no período acima</button>
-        </div>
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-          <div style="color:var(--text3);font-size:11px;margin-bottom:6px">🔧 Debug: procurar um lançamento nos dados brutos da <strong>última</strong> sincronização (grátis, não consulta o Sienge de novo).</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <input type="text" id="sienge-debug-termo" class="filter-select" placeholder="ex: Tarifa, AV.Sn..." style="flex:1;min-width:140px">
-            <button class="btn-ghost" onclick="siengeDebugBuscar()">🔎 Buscar</button>
-          </div>
-          <pre id="sienge-debug-result" style="display:none;margin-top:10px;max-height:220px;overflow:auto;background:#f7f7f7;padding:10px;font-size:11px;border:1px solid var(--border)"></pre>
-        </div>
       </div>
     </div>
   </div>
@@ -878,43 +866,6 @@ async function sienceSyncAll(){
   const arecS=document.getElementById('sienge-arec-start'),arecE=document.getElementById('sienge-arec-end');
   if(arecS)arecS.value=start;if(arecE)arecE.value=end;
   renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();renderDash();renderFluxo();renderProjecao();autoSave();
-}
-
-// ── Remove lançamentos manuais (colados) duplicados de um período já sincronizado via API ──
-function limparManuaisPeriodo(){
-  const startEl=document.getElementById('dash-sienge-start'),endEl=document.getElementById('dash-sienge-end');
-  const start=startEl?.value,end=endEl?.value;
-  if(!start||!end){alert('Preencha as datas De/Até acima primeiro.');return;}
-  const startD=new Date(start+'T00:00:00'),endD=new Date(end+'T23:59:59');
-  const inRange=r=>r.data&&r.data>=startD&&r.data<=endD;
-  const csvManuais=DATA.csv.filter(r=>!r.siengeId&&inRange(r));
-  const arecManuais=DATA.arec.filter(r=>!r.siengeId&&inRange(r));
-  const total=csvManuais.length+arecManuais.length;
-  if(!total){alert('Nenhum lançamento manual encontrado nesse período — nada para remover.');return;}
-  const ok=confirm('Isso vai remover PERMANENTEMENTE:\n'
-    +'• '+csvManuais.length+' lançamento(s) manual(is) em Contas Pagas\n'
-    +'• '+arecManuais.length+' lançamento(s) manual(is) em Entradas A Receber\n'
-    +'no período de '+start+' até '+end+'.\n\n'
-    +'Os lançamentos importados via API (Sync Sienge) NÃO serão afetados.\n\n'
-    +'Confirma a remoção?');
-  if(!ok)return;
-  DATA.csv=DATA.csv.filter(r=>r.siengeId||!inRange(r));
-  DATA.arec=DATA.arec.filter(r=>r.siengeId||!inRange(r));
-  const box=document.getElementById('dash-sienge-result');
-  if(box){box.style.display='block';box.textContent='🧹 Removidos '+csvManuais.length+' lançamento(s) manual(is) de Contas Pagas e '+arecManuais.length+' de Entradas A Receber, no período de '+start+' a '+end+'.';}
-  renderCSVTable();renderArecTable();renderTitCCTable();renderDash();renderFluxo();renderProjecao();autoSave();
-}
-
-function siengeDebugBuscar(){
-  const pre=document.getElementById('sienge-debug-result');
-  const termo=(document.getElementById('sienge-debug-termo')?.value||'').trim().toLowerCase();
-  const bills=window._siengeRawOutcome;
-  if(!bills){pre.style.display='block';pre.textContent='Nenhum dado em memória ainda — rode o "Sync Sienge" pelo menos uma vez primeiro (nesta mesma sessão do navegador).';return;}
-  if(!termo){pre.style.display='block';pre.textContent='Digite um termo para buscar (ex: nome do credor, número do documento, "Tarifa").';return;}
-  const achados=bills.filter(b=>JSON.stringify(b).toLowerCase().includes(termo));
-  pre.style.display='block';
-  if(!achados.length){pre.textContent='Nenhum título encontrado com "'+termo+'" nos '+bills.length+' títulos da última sincronização.';return;}
-  pre.textContent='Encontrados '+achados.length+' título(s) de '+bills.length+' no total.\n\n'+JSON.stringify(achados.slice(0,3),null,2);
 }
 
 function processCSVText(txt){
