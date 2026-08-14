@@ -190,6 +190,10 @@ tbody td.c{text-align:center}
 .mes-picker-item input[type=checkbox]{accent-color:var(--brand);cursor:pointer}
 .mes-picker-actions{display:flex;gap:6px;padding:6px 10px;border-top:1px solid var(--border);background:var(--surface2)}
 .mes-picker-actions button{flex:1;font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 0;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text2)}
+.sienge-nav-wrap{position:relative;display:inline-block}
+.sienge-dropdown{display:none;position:absolute;top:100%;right:0;z-index:300;background:#fff;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.18);width:420px;max-height:80vh;overflow-y:auto;padding:16px;color:var(--text)}
+.sienge-dropdown.open{display:block}
+.sienge-dropdown label.filter-label{color:var(--text3)}
 .mes-picker-actions button:hover{border-color:var(--brand);color:var(--brand)}
 </style>
 </head>
@@ -206,6 +210,34 @@ tbody td.c{text-align:center}
     <button class="nav-btn" onclick="backupJSON()" title="Backup">⬇ Backup</button>
     <button class="nav-btn" onclick="document.getElementById('restore-input').click()" title="Restaurar">⬆ Restaurar</button>
     <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreJSON(this)">
+    <div class="sienge-nav-wrap">
+      <button class="nav-btn" onclick="toggleSiengePanel(event)" title="Sync Sienge">🔌 Sync Sienge</button>
+      <div class="sienge-dropdown" id="sienge-dropdown" onclick="event.stopPropagation()">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:var(--text)">🔌 Sync Sienge</div>
+        <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Sincroniza tudo que já está integrado com o Sienge de uma vez só, pra não esquecer nenhuma aba.</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <span class="filter-label">De</span>
+          <input type="date" id="dash-sienge-start" class="filter-select" style="width:140px">
+          <span class="filter-label">Até</span>
+          <input type="date" id="dash-sienge-end" class="filter-select" style="width:140px">
+        </div>
+        <button class="btn-primary" onclick="sienceSyncAll()" style="width:100%">🔄 Sync Sienge</button>
+        <span class="tbl-badge" id="dash-sienge-badge" style="display:inline-block;margin-top:8px">Nunca sincronizado</span>
+        <pre id="dash-sienge-result" style="display:none;margin-top:10px;white-space:pre-wrap;background:#f7f7f7;padding:10px;font-size:11px;border:1px solid var(--border)"></pre>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="color:var(--text3);font-size:11px;margin-bottom:6px">Se um período já tinha sido colado manualmente e agora também veio pela API, use isto pra remover só os lançamentos manuais desse intervalo (mantém os sincronizados):</div>
+          <button class="btn-ghost" onclick="limparManuaisPeriodo()" style="color:var(--danger);border-color:var(--danger);width:100%">🧹 Remover manuais duplicados no período acima</button>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="color:var(--text3);font-size:11px;margin-bottom:6px">🔧 Debug: procurar um lançamento nos dados brutos da <strong>última</strong> sincronização (grátis, não consulta o Sienge de novo).</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <input type="text" id="sienge-debug-termo" class="filter-select" placeholder="ex: Tarifa, AV.Sn..." style="flex:1;min-width:140px">
+            <button class="btn-ghost" onclick="siengeDebugBuscar()">🔎 Buscar</button>
+          </div>
+          <pre id="sienge-debug-result" style="display:none;margin-top:10px;max-height:220px;overflow:auto;background:#f7f7f7;padding:10px;font-size:11px;border:1px solid var(--border)"></pre>
+        </div>
+      </div>
+    </div>
   </div>
 </nav>
 
@@ -237,32 +269,6 @@ tbody td.c{text-align:center}
 <div class="page active" id="page-dash">
   <div class="sec-title">Dashboard</div>
   <div class="sec-sub">Visão geral financeira — Rossa Incorporadora</div>
-  <div class="tbl-card" style="margin-bottom:20px">
-    <div class="tbl-head"><div class="tbl-title">🔌 Sync Sienge</div><span class="tbl-badge" id="dash-sienge-badge">Nunca sincronizado</span></div>
-    <div style="padding:14px 18px">
-      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Sincroniza tudo que já está integrado com o Sienge de uma vez só, pra não esquecer nenhuma aba.</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span class="filter-label">De</span>
-        <input type="date" id="dash-sienge-start" class="filter-select" style="width:150px">
-        <span class="filter-label">Até</span>
-        <input type="date" id="dash-sienge-end" class="filter-select" style="width:150px">
-        <button class="btn-primary" onclick="sienceSyncAll()">🔄 Sync Sienge</button>
-      </div>
-      <pre id="dash-sienge-result" style="display:none;margin-top:12px;white-space:pre-wrap;background:#f7f7f7;padding:12px;font-size:12px;border:1px solid var(--border)"></pre>
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-        <div style="color:var(--text3);font-size:12px;margin-bottom:8px">Se um período já tinha sido colado manualmente e agora também veio pela API, use isto pra remover só os lançamentos manuais desse intervalo (mantém os sincronizados):</div>
-        <button class="btn-ghost" onclick="limparManuaisPeriodo()" style="color:var(--danger);border-color:var(--danger)">🧹 Remover manuais duplicados no período acima</button>
-      </div>
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-        <div style="color:var(--text3);font-size:12px;margin-bottom:8px">🔧 Debug: procurar um lançamento específico nos dados brutos da <strong>última</strong> sincronização (não consulta o Sienge de novo, é grátis).</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="text" id="sienge-debug-termo" class="filter-select" placeholder="ex: Tarifa, AV.Sn, nome do credor..." style="flex:1;min-width:220px">
-          <button class="btn-ghost" onclick="siengeDebugBuscar()">🔎 Buscar no último resultado</button>
-        </div>
-        <pre id="sienge-debug-result" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
-      </div>
-    </div>
-  </div>
   <div class="filters-bar">
     <span class="filter-label">Filtrar</span>
     <select class="filter-select" id="dash-obra" onchange="renderDash()"><option value="">Todas as obras</option></select>
@@ -1241,6 +1247,8 @@ function toggleMesPicker(e){e.stopPropagation();const d=document.getElementById(
 function selecionarTodosMeses(){_mesesSel=new Set();document.querySelectorAll('#mes-picker-items input').forEach(cb=>{if(!cb.disabled){cb.checked=false;}});atualizarBtnMes();renderDash();}
 function limparMeses(){_mesesSel=new Set();document.querySelectorAll('#mes-picker-items input').forEach(cb=>{cb.checked=false;});atualizarBtnMes();renderDash();}
 document.addEventListener('click',()=>{const d=document.getElementById('mes-picker-dropdown');if(d)d.classList.remove('open');});
+function toggleSiengePanel(e){e.stopPropagation();const d=document.getElementById('sienge-dropdown');if(d)d.classList.toggle('open');}
+document.addEventListener('click',()=>{const d=document.getElementById('sienge-dropdown');if(d)d.classList.remove('open');});
 
 
 // ── FLUXO DE CAIXA ────────────────────────────────────────────────────────────
