@@ -310,20 +310,6 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-red"><div class="kpi-label">Caixa</div><div class="kpi-val neg" id="csv-caixa">—</div><div class="kpi-sub" id="csv-caixa-n">0 registros</div></div>
     <div class="kpi-card c-gold"><div class="kpi-label">Outro</div><div class="kpi-val" id="csv-outro">—</div><div class="kpi-sub" id="csv-outro-n">0 registros</div></div>
   </div>
-  <div class="tbl-card" style="margin-bottom:20px">
-    <div class="tbl-head"><div class="tbl-title">🔌 API Sienge (só conferência)</div><span class="tbl-badge" id="sienge-csv-badge">—</span></div>
-    <div style="padding:14px 18px">
-      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">A sincronização real acontece pelo botão "Sync Sienge" no Dashboard. Aqui você só pode conferir os dados brutos que a API retorna, sem importar nada.</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span class="filter-label">De</span>
-        <input type="date" id="sienge-csv-start" class="filter-select" style="width:150px">
-        <span class="filter-label">Até</span>
-        <input type="date" id="sienge-csv-end" class="filter-select" style="width:150px">
-        <button class="btn-ghost" onclick="siengePreviewOutcome()">🔎 Prévia (bruto)</button>
-      </div>
-      <pre id="sienge-csv-preview" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
-    </div>
-  </div>
   <div class="paste-section">
     <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de <strong>Contas Pagas</strong> no ERP, selecione a tabela com cabeçalho, copie Ctrl+C, cole abaixo Ctrl+V.<br>Colunas utilizadas: <strong>Nome credor · Data pagamento · Desc centro custo · Cod plano fin · Desc plano fin · Valor aprop fin</strong></div>
     <textarea class="paste-box" id="paste-csv" placeholder="Clique aqui e cole com Ctrl+V — os dados são processados automaticamente"></textarea>
@@ -481,20 +467,6 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-blue"><div class="kpi-label">Total A Receber</div><div class="kpi-val" id="arec-total">—</div><div class="kpi-sub" id="arec-total-n">0 títulos</div></div>
     <div class="kpi-card c-red"><div class="kpi-label">Inadimplente</div><div class="kpi-val neg" id="arec-inad">—</div><div class="kpi-sub" id="arec-inad-n">0 títulos</div></div>
     <div class="kpi-card c-green"><div class="kpi-label">Em Dia</div><div class="kpi-val pos" id="arec-emdia">—</div><div class="kpi-sub" id="arec-emdia-n">0 títulos</div></div>
-  </div>
-  <div class="tbl-card" style="margin-bottom:20px">
-    <div class="tbl-head"><div class="tbl-title">🔌 API Sienge (só conferência)</div><span class="tbl-badge" id="sienge-arec-badge">—</span></div>
-    <div style="padding:14px 18px">
-      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">A sincronização real acontece pelo botão "Sync Sienge" no Dashboard. Aqui você só pode conferir os dados brutos que a API retorna, sem importar nada.</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span class="filter-label">De</span>
-        <input type="date" id="sienge-arec-start" class="filter-select" style="width:150px">
-        <span class="filter-label">Até</span>
-        <input type="date" id="sienge-arec-end" class="filter-select" style="width:150px">
-        <button class="btn-ghost" onclick="siengePreviewIncome()">🔎 Prévia (bruto)</button>
-      </div>
-      <pre id="sienge-arec-preview" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
-    </div>
   </div>
   <div class="tbl-card">
     <div class="tbl-head">
@@ -675,30 +647,47 @@ async function siengeSyncOutcomeCore(start,end){
   bills.forEach(bill=>{
     const credor=bill.creditorName||'';
     (bill.payments||[]).forEach(pay=>{
-      (pay.bankMovements||[]).forEach(bm=>{
-        if(bm.accountType==='M')return; // ignora Mútuo
-        const cats=bm.paymentCategories||[];
-        if(!cats.length)return; // ignora movimentos sem categoria (transferência interna)
-        cats.forEach((pc,idx)=>{
-          const siengeId=bm.id+'-'+idx;
-          const valorCat=(bm.amount||0)*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
-          const dataMov=bm.bankMovementDate?new Date(bm.bankMovementDate+'T12:00:00'):null;
-          novos.push({
-            data:dataMov,
-            complemento:credor,
-            valor:-Math.abs(valorCat),
-            cc:normCC(pc.costCenterName||''),
-            conta:(pc.financialCategoryId?pc.financialCategoryId+' - ':'')+(pc.financialCategoryName||''),
-            contaCod:pc.financialCategoryId||'',
-            tipo:'PAGAMENTO',
-            movCaixa:true,
-            contaCorrente:bm.accountNumber||'',
-            siengeId,
-            mes:dataMov?dataMov.getMonth():null,
-            ano:dataMov?dataMov.getFullYear():null
+      const bms=pay.bankMovements||[];
+      // Movimentos com categoria = a despesa "de verdade" (não importa se caiu numa conta
+      // intermediária tipo Mútuo antes de chegar no banco — a categorização é o que conta).
+      // Movimentos sem categoria são só o repasse/transferência final e são ignorados.
+      const categorizados=bms.filter(bm=>(bm.paymentCategories||[]).length>0);
+      if(categorizados.length){
+        categorizados.forEach(bm=>{
+          bm.paymentCategories.forEach((pc,idx)=>{
+            const siengeId=bm.id+'-'+idx;
+            const valorCat=(bm.amount||0)*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
+            const dataMov=bm.bankMovementDate?new Date(bm.bankMovementDate+'T12:00:00'):null;
+            novos.push({
+              data:dataMov,complemento:credor,valor:-Math.abs(valorCat),
+              cc:normCC(pc.costCenterName||''),
+              conta:(pc.financialCategoryId?pc.financialCategoryId+' - ':'')+(pc.financialCategoryName||''),
+              contaCod:pc.financialCategoryId||'',tipo:'PAGAMENTO',movCaixa:true,
+              contaCorrente:bm.accountNumber||'',siengeId,
+              mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
+            });
           });
         });
-      });
+      }else{
+        // Sem nenhum movimento bancário categorizado (ex.: baixa "Por Bens" ou "Outros" —
+        // compensação sem passar pelo banco). Usa a categoria do título e marca como não-caixa.
+        const catsBill=bill.paymentsCategories||[];
+        if(!catsBill.length)return;
+        const base=pay.netAmount!=null?pay.netAmount:(pay.grossAmount!=null?pay.grossAmount:(bill.originalAmount||0));
+        const dataMov=pay.paymentDate?new Date(pay.paymentDate+'T12:00:00'):null;
+        catsBill.forEach((pc,idx)=>{
+          const siengeId=bill.billId+'-'+bill.installmentId+'-'+pay.sequencialNumber+'-'+idx;
+          const valorCat=base*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
+          novos.push({
+            data:dataMov,complemento:credor,valor:-Math.abs(valorCat),
+            cc:normCC(pc.costCenterName||''),
+            conta:(pc.financialCategoryId?pc.financialCategoryId+' - ':'')+(pc.financialCategoryName||''),
+            contaCod:pc.financialCategoryId||'',tipo:'PAGAMENTO',movCaixa:false,
+            contaCorrente:'',siengeId,
+            mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
+          });
+        });
+      }
     });
   });
   // Substitui: remove os registros da API já existentes dentro do período sincronizado, e insere os atuais
