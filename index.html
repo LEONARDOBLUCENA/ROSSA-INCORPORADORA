@@ -648,51 +648,47 @@ async function siengeSyncOutcomeCore(start,end){
   const url=SIENGE.proxy+'/sienge/outcome?start='+start+'&end='+end;
   const resp=await fetch(url);
   const data=await resp.json();
-  if(data.error)return{error:data.error};
+  if(data.error)return{error:true,hint:data.hint,upstreamStatus:data.upstreamStatus};
   const bills=Array.isArray(data)?data:(data.data||[]);
   window._siengeRawOutcome=bills;
   const startD=new Date(start+'T00:00:00'),endD=new Date(end+'T23:59:59');
+  const OP_ACEITA=[1,2,10,11]; // Pagamento, Outros, Adiantamento, Por Bens
   const novos=[];
   bills.forEach(bill=>{
     const credor=bill.creditorName||'';
+    const cats=bill.paymentsCategories||[];
+    const contaLabel=cats.length?((cats[0].financialCategoryId?cats[0].financialCategoryId+' - ':'')+(cats[0].financialCategoryName||'')):'';
+    const contaCod=cats.length?(cats[0].financialCategoryId||''):'';
     (bill.payments||[]).forEach(pay=>{
-      const bms=pay.bankMovements||[];
-      // Movimentos com categoria = a despesa "de verdade" (não importa se caiu numa conta
-      // intermediária tipo Mútuo antes de chegar no banco — a categorização é o que conta).
-      // Movimentos sem categoria são só o repasse/transferência final e são ignorados.
-      const categorizados=bms.filter(bm=>(bm.paymentCategories||[]).length>0);
-      if(categorizados.length){
-        categorizados.forEach(bm=>{
-          bm.paymentCategories.forEach((pc,idx)=>{
-            const siengeId=bm.id+'-'+idx;
-            const valorCat=(bm.amount||0)*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
-            const dataMov=bm.bankMovementDate?new Date(bm.bankMovementDate+'T12:00:00'):null;
-            novos.push({
-              data:dataMov,complemento:credor,valor:-Math.abs(valorCat),
-              cc:normCC(pc.costCenterName||''),
-              conta:(pc.financialCategoryId?pc.financialCategoryId+' - ':'')+(pc.financialCategoryName||''),
-              contaCod:pc.financialCategoryId||'',tipo:'PAGAMENTO',movCaixa:true,
-              contaCorrente:bm.accountNumber||'',siengeId,
-              mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
-            });
+      if(!OP_ACEITA.includes(pay.operationTypeId))return; // exclui Cancelamento(3), Substituição(5), Abatimento(8)
+      const movCaixa=(pay.operationTypeId===1||pay.operationTypeId===10); // Pagamento/Adiantamento=caixa; Outros(2)/Por Bens(11)=não-caixa
+      const dataMov=pay.paymentDate?new Date(pay.paymentDate+'T12:00:00'):null;
+      const contaCorrente=(pay.bankMovements&&pay.bankMovements[0]&&pay.bankMovements[0].accountNumber)||'';
+      const buildings=bill.buildingsCosts||[];
+      if(buildings.length){
+        // Regra crítica: uma linha por item de buildingsCosts (não por paymentsCategories), senão duplica
+        buildings.forEach((b,idx)=>{
+          const siengeId=bill.billId+'-'+bill.installmentId+'-'+pay.sequencialNumber+'-bc'+idx;
+          const valor=(pay.netAmount||0)*((b.rate!=null?b.rate:100)/100);
+          novos.push({
+            data:dataMov,complemento:credor,valor:-Math.abs(valor),
+            cc:normCC(b.buildingName||''),
+            conta:contaLabel,contaCod,tipo:'PAGAMENTO',movCaixa,
+            contaCorrente,siengeId,
+            mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
           });
         });
-      }else{
-        // Sem nenhum movimento bancário categorizado (ex.: baixa "Por Bens" ou "Outros" —
-        // compensação sem passar pelo banco). Usa a categoria do título e marca como não-caixa.
-        const catsBill=bill.paymentsCategories||[];
-        if(!catsBill.length)return;
-        const base=pay.netAmount!=null?pay.netAmount:(pay.grossAmount!=null?pay.grossAmount:(bill.originalAmount||0));
-        const dataMov=pay.paymentDate?new Date(pay.paymentDate+'T12:00:00'):null;
-        catsBill.forEach((pc,idx)=>{
-          const siengeId=bill.billId+'-'+bill.installmentId+'-'+pay.sequencialNumber+'-'+idx;
-          const valorCat=base*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
+      }else if(cats.length){
+        // Sem alocação por obra (ex: administrativo) — usa a categoria do título direto
+        cats.forEach((pc,idx)=>{
+          const siengeId=bill.billId+'-'+bill.installmentId+'-'+pay.sequencialNumber+'-pc'+idx;
+          const valor=(pay.netAmount||0)*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
           novos.push({
-            data:dataMov,complemento:credor,valor:-Math.abs(valorCat),
+            data:dataMov,complemento:credor,valor:-Math.abs(valor),
             cc:normCC(pc.costCenterName||''),
             conta:(pc.financialCategoryId?pc.financialCategoryId+' - ':'')+(pc.financialCategoryName||''),
-            contaCod:pc.financialCategoryId||'',tipo:'PAGAMENTO',movCaixa:false,
-            contaCorrente:'',siengeId,
+            contaCod:pc.financialCategoryId||'',tipo:'PAGAMENTO',movCaixa,
+            contaCorrente,siengeId,
             mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
           });
         });
@@ -723,7 +719,6 @@ async function sienceSyncOutcome(){
   }
 }
 
-// ── SIENGE — botão único (Dashboard): sincroniza tudo que já está pronto ───
 // ── SIENGE — importação real de Entradas A Receber (/income) ───────────────
 // Parcelas em aberto (sem baixa); CC já vem direto em receiptsCategories, sem
 // precisar cruzar com Nº Título; dedup por siengeId (bill+parcela+categoria).
@@ -731,15 +726,21 @@ async function siengeSyncIncomeCore(start,end){
   const url=SIENGE.proxy+'/sienge/income?start='+start+'&end='+end;
   const resp=await fetch(url);
   const data=await resp.json();
-  if(data.error)return{error:data.error};
+  if(data.error)return{error:true,hint:data.hint,upstreamStatus:data.upstreamStatus};
   const bills=Array.isArray(data)?data:(data.data||[]);
+  window._siengeRawIncome=bills;
   const startD=new Date(start+'T00:00:00'),endD=new Date(end+'T23:59:59');
+  const OP_ACEITA=[1,2,11];
   const novos=[];
   bills.forEach(bill=>{
-    const cliente=bill.clientName||'';
+    const pays=bill.payments||[];
+    // Se o título tem histórico de pagamentos, mas nenhum deles é de um tipo aceito
+    // (ex: só cancelamento), descarta. Título sem nenhum pagamento (em aberto) passa direto.
+    if(pays.length&&!pays.some(p=>OP_ACEITA.includes(p.operationTypeId)))return;
+    const cliente=bill.clientName||bill.customerName||bill.creditorName||'';
     const dataVc=bill.dueDate?new Date(bill.dueDate+'T12:00:00'):null;
     const saldo=bill.balanceAmount!=null?bill.balanceAmount:(bill.correctedBalanceAmount||0);
-    const cats=bill.receiptsCategories||[];
+    const cats=bill.receiptsCategories||bill.paymentsCategories||[];
     const base=cats.length?cats:[{costCenterName:'',financialCategoryRate:100}];
     base.forEach((pc,idx)=>{
       const siengeId=bill.billId+'-'+bill.installmentId+'-'+idx;
@@ -780,6 +781,66 @@ async function siengeSyncIncome(){
   }
 }
 
+// ── SIENGE — Movimentos Bancários Avulsos (/bank-movement) ─────────────────
+// Movimentos sem título vinculado (tarifas, transferências, aplicações/resgates).
+// Só considera saídas ('S'); linha por item de buldingCosts (grafia real do Sienge),
+// senão cai para financialCategories direto.
+async function siengeSyncBankMovementCore(start,end){
+  const url=SIENGE.proxy+'/sienge/bank-movement?start='+start+'&end='+end;
+  const resp=await fetch(url);
+  const data=await resp.json();
+  if(data.error)return{error:true,hint:data.hint,upstreamStatus:data.upstreamStatus};
+  const movs=Array.isArray(data)?data:(data.data||[]);
+  window._siengeRawBankMovement=movs;
+  const startD=new Date(start+'T00:00:00'),endD=new Date(end+'T23:59:59');
+  const novos=[];
+  movs.forEach((m,mi)=>{
+    if(m.bankMovementOperationType!=='S')return; // só saídas
+    const credor=m.creditorName||m.clientName||m.bankMovementHistoricName||'';
+    const dataMov=m.bankMovementDate?new Date(m.bankMovementDate+'T12:00:00'):null;
+    const buildings=m.buldingCosts||[]; // grafia real do Sienge (sem "i")
+    const cats=m.financialCategories||[];
+    if(buildings.length){
+      buildings.forEach((b,idx)=>{
+        const siengeId='bm-'+mi+'-'+(m.accountNumber||'')+'-'+(m.bankMovementDate||'')+'-bc'+idx;
+        const valor=(m.bankMovementAmount||0)*((b.rate!=null?b.rate:100)/100);
+        novos.push({
+          data:dataMov,complemento:credor,valor:-Math.abs(valor),
+          cc:normCC(b.buildingName||''),
+          conta:m.bankMovementHistoricName||'',contaCod:'',tipo:'PAGAMENTO',movCaixa:true,
+          contaCorrente:m.accountNumber||'',siengeId,
+          mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
+        });
+      });
+    }else if(cats.length){
+      cats.forEach((pc,idx)=>{
+        const siengeId='bm-'+mi+'-'+(m.accountNumber||'')+'-'+(m.bankMovementDate||'')+'-fc'+idx;
+        const valor=(m.bankMovementAmount||0)*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
+        novos.push({
+          data:dataMov,complemento:credor,valor:-Math.abs(valor),
+          cc:normCC(pc.costCenterName||''),
+          conta:(pc.financialCategoryId?pc.financialCategoryId+' - ':'')+(pc.financialCategoryName||''),
+          contaCod:pc.financialCategoryId||'',tipo:'PAGAMENTO',movCaixa:true,
+          contaCorrente:m.accountNumber||'',siengeId,
+          mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
+        });
+      });
+    }else{
+      // Sem nenhuma categoria (tarifa avulsa sem classificação) — entra sem CC/conta definidos
+      const siengeId='bm-'+mi+'-'+(m.accountNumber||'')+'-'+(m.bankMovementDate||'')+'-sc';
+      novos.push({
+        data:dataMov,complemento:credor,valor:-Math.abs(m.bankMovementAmount||0),
+        cc:'',conta:m.bankMovementHistoricName||'(Sem categoria)',contaCod:'',tipo:'PAGAMENTO',movCaixa:true,
+        contaCorrente:m.accountNumber||'',siengeId,
+        mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
+      });
+    }
+  });
+  DATA.csv=DATA.csv.filter(r=>!(r.siengeId&&String(r.siengeId).startsWith('bm-')&&r.data&&r.data>=startD&&r.data<=endD));
+  DATA.csv=[...DATA.csv,...novos];
+  return{movsCount:movs.length,novosCount:novos.length};
+}
+
 async function sienceSyncAll(){
   const startEl=document.getElementById('dash-sienge-start'),endEl=document.getElementById('dash-sienge-end');
   const start=startEl?.value,end=endEl?.value;
@@ -790,14 +851,19 @@ async function sienceSyncAll(){
   let linhas=[];
   try{
     const r=await siengeSyncOutcomeCore(start,end);
-    if(r.error){linhas.push('❌ Contas Pagas: erro — '+JSON.stringify(r.error));}
+    if(r.error){linhas.push('❌ Contas Pagas: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
     else{linhas.push('✅ Contas Pagas: '+r.billsCount+' títulos recebidos, '+r.novosCount+' movimentos novos importados.');}
   }catch(e){linhas.push('❌ Contas Pagas: falha — '+e.message);}
   try{
     const r=await siengeSyncIncomeCore(start,end);
-    if(r.error){linhas.push('❌ Entradas A Receber: erro — '+JSON.stringify(r.error));}
+    if(r.error){linhas.push('❌ Entradas A Receber: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
     else{linhas.push('✅ Entradas A Receber: '+r.billsCount+' parcelas em aberto recebidas, '+r.novosCount+' registros novos importados.');}
   }catch(e){linhas.push('❌ Entradas A Receber: falha — '+e.message);}
+  try{
+    const r=await siengeSyncBankMovementCore(start,end);
+    if(r.error){linhas.push('❌ Movimentos Bancários Avulsos: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
+    else{linhas.push('✅ Movimentos Bancários Avulsos (tarifas, etc): '+r.movsCount+' movimentos recebidos, '+r.novosCount+' registros novos importados.');}
+  }catch(e){linhas.push('❌ Movimentos Bancários Avulsos: falha — '+e.message);}
   box.textContent=linhas.join('\n');
   if(badge)badge.textContent='Última sync: '+new Date().toLocaleString('pt-BR');
   // Atualiza também os campos de data nas abas individuais, pra ficar tudo consistente
