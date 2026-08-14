@@ -311,16 +311,15 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-gold"><div class="kpi-label">Outro</div><div class="kpi-val" id="csv-outro">—</div><div class="kpi-sub" id="csv-outro-n">0 registros</div></div>
   </div>
   <div class="tbl-card" style="margin-bottom:20px">
-    <div class="tbl-head"><div class="tbl-title">🔌 Sincronização via API (Sienge)</div><span class="tbl-badge" id="sienge-csv-badge">—</span></div>
+    <div class="tbl-head"><div class="tbl-title">🔌 API Sienge (só conferência)</div><span class="tbl-badge" id="sienge-csv-badge">—</span></div>
     <div style="padding:14px 18px">
-      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Prévia mostra os dados brutos sem importar nada. "Sincronizar" importa de verdade para a tabela abaixo, ignorando movimentos em Mútuo e transferências internas sem categoria.</div>
+      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">A sincronização real acontece pelo botão "Sync Sienge" no Dashboard. Aqui você só pode conferir os dados brutos que a API retorna, sem importar nada.</div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span class="filter-label">De</span>
         <input type="date" id="sienge-csv-start" class="filter-select" style="width:150px">
         <span class="filter-label">Até</span>
         <input type="date" id="sienge-csv-end" class="filter-select" style="width:150px">
         <button class="btn-ghost" onclick="siengePreviewOutcome()">🔎 Prévia (bruto)</button>
-        <button class="btn-primary" onclick="sienceSyncOutcome()">⬇ Sincronizar Contas Pagas</button>
       </div>
       <pre id="sienge-csv-preview" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
     </div>
@@ -484,16 +483,15 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-green"><div class="kpi-label">Em Dia</div><div class="kpi-val pos" id="arec-emdia">—</div><div class="kpi-sub" id="arec-emdia-n">0 títulos</div></div>
   </div>
   <div class="tbl-card" style="margin-bottom:20px">
-    <div class="tbl-head"><div class="tbl-title">🔌 Sincronização via API (Sienge)</div><span class="tbl-badge" id="sienge-arec-badge">—</span></div>
+    <div class="tbl-head"><div class="tbl-title">🔌 API Sienge (só conferência)</div><span class="tbl-badge" id="sienge-arec-badge">—</span></div>
     <div style="padding:14px 18px">
-      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Prévia mostra os dados brutos sem importar nada. "Sincronizar" importa de verdade para a tabela abaixo, já com o Centro de Custo (vem direto do Sienge, sem precisar cruzar Nº Título).</div>
+      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">A sincronização real acontece pelo botão "Sync Sienge" no Dashboard. Aqui você só pode conferir os dados brutos que a API retorna, sem importar nada.</div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span class="filter-label">De</span>
         <input type="date" id="sienge-arec-start" class="filter-select" style="width:150px">
         <span class="filter-label">Até</span>
         <input type="date" id="sienge-arec-end" class="filter-select" style="width:150px">
         <button class="btn-ghost" onclick="siengePreviewIncome()">🔎 Prévia (bruto)</button>
-        <button class="btn-primary" onclick="siengeSyncIncome()">⬇ Sincronizar A Receber</button>
       </div>
       <pre id="sienge-arec-preview" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
     </div>
@@ -672,7 +670,7 @@ async function siengeSyncOutcomeCore(start,end){
   const data=await resp.json();
   if(data.error)return{error:data.error};
   const bills=Array.isArray(data)?data:(data.data||[]);
-  const existentes=new Set(DATA.csv.map(r=>r.siengeId).filter(Boolean));
+  const startD=new Date(start+'T00:00:00'),endD=new Date(end+'T23:59:59');
   const novos=[];
   bills.forEach(bill=>{
     const credor=bill.creditorName||'';
@@ -683,7 +681,6 @@ async function siengeSyncOutcomeCore(start,end){
         if(!cats.length)return; // ignora movimentos sem categoria (transferência interna)
         cats.forEach((pc,idx)=>{
           const siengeId=bm.id+'-'+idx;
-          if(existentes.has(siengeId))return;
           const valorCat=(bm.amount||0)*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
           const dataMov=bm.bankMovementDate?new Date(bm.bankMovementDate+'T12:00:00'):null;
           novos.push({
@@ -700,11 +697,12 @@ async function siengeSyncOutcomeCore(start,end){
             mes:dataMov?dataMov.getMonth():null,
             ano:dataMov?dataMov.getFullYear():null
           });
-          existentes.add(siengeId);
         });
       });
     });
   });
+  // Substitui: remove os registros da API já existentes dentro do período sincronizado, e insere os atuais
+  DATA.csv=DATA.csv.filter(r=>!(r.siengeId&&r.data&&r.data>=startD&&r.data<=endD));
   DATA.csv=[...DATA.csv,...novos];
   return{billsCount:bills.length,novosCount:novos.length};
 }
@@ -737,7 +735,7 @@ async function siengeSyncIncomeCore(start,end){
   const data=await resp.json();
   if(data.error)return{error:data.error};
   const bills=Array.isArray(data)?data:(data.data||[]);
-  const existentes=new Set(DATA.arec.map(r=>r.siengeId).filter(Boolean));
+  const startD=new Date(start+'T00:00:00'),endD=new Date(end+'T23:59:59');
   const novos=[];
   bills.forEach(bill=>{
     const cliente=bill.clientName||'';
@@ -747,7 +745,6 @@ async function siengeSyncIncomeCore(start,end){
     const base=cats.length?cats:[{costCenterName:'',financialCategoryRate:100}];
     base.forEach((pc,idx)=>{
       const siengeId=bill.billId+'-'+bill.installmentId+'-'+idx;
-      if(existentes.has(siengeId))return;
       const valorCat=saldo*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
       novos.push({
         data:dataVc,
@@ -759,9 +756,10 @@ async function siengeSyncIncomeCore(start,end){
         mes:dataVc?dataVc.getMonth():null,
         ano:dataVc?dataVc.getFullYear():null
       });
-      existentes.add(siengeId);
     });
   });
+  // Substitui: remove os registros da API já existentes dentro do período sincronizado, e insere os atuais
+  DATA.arec=DATA.arec.filter(r=>!(r.siengeId&&r.data&&r.data>=startD&&r.data<=endD));
   DATA.arec=[...DATA.arec,...novos];
   return{billsCount:bills.length,novosCount:novos.length};
 }
