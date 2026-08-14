@@ -292,6 +292,20 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-red"><div class="kpi-label">Caixa</div><div class="kpi-val neg" id="csv-caixa">—</div><div class="kpi-sub" id="csv-caixa-n">0 registros</div></div>
     <div class="kpi-card c-gold"><div class="kpi-label">Outro</div><div class="kpi-val" id="csv-outro">—</div><div class="kpi-sub" id="csv-outro-n">0 registros</div></div>
   </div>
+  <div class="tbl-card" style="margin-bottom:20px">
+    <div class="tbl-head"><div class="tbl-title">🔌 Sincronização via API (Sienge) — em teste</div><span class="tbl-badge" id="sienge-csv-badge">Prévia</span></div>
+    <div style="padding:14px 18px">
+      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Busca os dados brutos do Sienge (endpoint /outcome) só para conferência — ainda não importa nada para a tabela abaixo.</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="filter-label">De</span>
+        <input type="date" id="sienge-csv-start" class="filter-select" style="width:150px">
+        <span class="filter-label">Até</span>
+        <input type="date" id="sienge-csv-end" class="filter-select" style="width:150px">
+        <button class="btn-primary" onclick="siengePreviewOutcome()">🔎 Buscar prévia do Sienge</button>
+      </div>
+      <pre id="sienge-csv-preview" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
+    </div>
+  </div>
   <div class="paste-section">
     <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de <strong>Contas Pagas</strong> no ERP, selecione a tabela com cabeçalho, copie Ctrl+C, cole abaixo Ctrl+V.<br>Colunas utilizadas: <strong>Nome credor · Data pagamento · Desc centro custo · Cod plano fin · Desc plano fin · Valor aprop fin</strong></div>
     <textarea class="paste-box" id="paste-csv" placeholder="Clique aqui e cole com Ctrl+V — os dados são processados automaticamente"></textarea>
@@ -450,6 +464,20 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-red"><div class="kpi-label">Inadimplente</div><div class="kpi-val neg" id="arec-inad">—</div><div class="kpi-sub" id="arec-inad-n">0 títulos</div></div>
     <div class="kpi-card c-green"><div class="kpi-label">Em Dia</div><div class="kpi-val pos" id="arec-emdia">—</div><div class="kpi-sub" id="arec-emdia-n">0 títulos</div></div>
   </div>
+  <div class="tbl-card" style="margin-bottom:20px">
+    <div class="tbl-head"><div class="tbl-title">🔌 Sincronização via API (Sienge) — em teste</div><span class="tbl-badge" id="sienge-arec-badge">Prévia</span></div>
+    <div style="padding:14px 18px">
+      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Busca os dados brutos do Sienge (endpoint /income) só para conferência — ainda não importa nada para a tabela abaixo.</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="filter-label">De</span>
+        <input type="date" id="sienge-arec-start" class="filter-select" style="width:150px">
+        <span class="filter-label">Até</span>
+        <input type="date" id="sienge-arec-end" class="filter-select" style="width:150px">
+        <button class="btn-primary" onclick="siengePreviewIncome()">🔎 Buscar prévia do Sienge</button>
+      </div>
+      <pre id="sienge-arec-preview" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
+    </div>
+  </div>
   <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">Títulos A Receber</div>
@@ -588,6 +616,32 @@ window.addEventListener('load',()=>{
 
 // ── CSV ANALÍTICO ─────────────────────────────────────────────────────────────
 function fixEncoding(s){try{return decodeURIComponent(escape(s));}catch(e){return s;}}
+// ── SIENGE API — prévia bruta (não processa/importa nada ainda) ────────────
+async function siengePreviewFetch(path,startId,endId,previewId,badgeId){
+  const startEl=document.getElementById(startId),endEl=document.getElementById(endId);
+  const start=startEl?.value,end=endEl?.value;
+  if(!start||!end){alert('Preencha as datas de início e fim.');return;}
+  const pre=document.getElementById(previewId),badge=document.getElementById(badgeId);
+  pre.style.display='block';pre.textContent='Buscando no Sienge...';
+  if(badge)badge.textContent='Buscando...';
+  try{
+    const url=SIENGE.proxy+path+'?start='+start+'&end='+end;
+    const resp=await fetch(url);
+    const data=await resp.json();
+    if(data.error){pre.textContent='Erro retornado pelo proxy:\n'+JSON.stringify(data,null,2);if(badge)badge.textContent='Erro';return;}
+    const arr=Array.isArray(data)?data:(data.data||[]);
+    const n=arr.length;
+    const amostra=arr.slice(0,2);
+    pre.textContent='Total de registros retornados: '+n+'\n\nAmostra (até 2 registros):\n'+JSON.stringify(amostra,null,2);
+    if(badge)badge.textContent=n+' registros (prévia)';
+  }catch(e){
+    pre.textContent='Falha ao buscar: '+e.message+'\n\n(Confira se a URL do proxy está correta e se o serviço está Online no Railway)';
+    if(badge)badge.textContent='Falha';
+  }
+}
+function siengePreviewOutcome(){siengePreviewFetch('/sienge/outcome','sienge-csv-start','sienge-csv-end','sienge-csv-preview','sienge-csv-badge');}
+function siengePreviewIncome(){siengePreviewFetch('/sienge/income','sienge-arec-start','sienge-arec-end','sienge-arec-preview','sienge-arec-badge');}
+
 function processCSVText(txt){
   // Corrigir double-encoding Latin-1 → UTF-8
   txt=fixEncoding(txt);
@@ -1181,6 +1235,7 @@ function apresentacaoFluxo(){
 }
 function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},titCC:DATA.titCC||{},orcamentoObra:DATA.orcamentoObra||{}});}
 const GHUB={token:['ghp_DMtc','LFDDPZIq7QGo','GgJvmTc1TbfSMf0H9mw1'].join(''),repo:'LEONARDOBLUCENA/ROSSA-INCORPORADORA',file:'data.json',raw:'https://raw.githubusercontent.com/LEONARDOBLUCENA/ROSSA-INCORPORADORA/main/data.json'};
+const SIENGE={proxy:'https://sienge-proxy-rossa-production.up.railway.app'};
 let _ghubSha=null,_ghubSaving=false,_ghubDirty=false;
 async function ghubSave(){
   if(_ghubSaving){_ghubDirty=true;return;}
