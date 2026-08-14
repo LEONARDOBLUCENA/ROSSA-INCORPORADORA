@@ -253,6 +253,14 @@ tbody td.c{text-align:center}
         <div style="color:var(--text3);font-size:12px;margin-bottom:8px">Se um período já tinha sido colado manualmente e agora também veio pela API, use isto pra remover só os lançamentos manuais desse intervalo (mantém os sincronizados):</div>
         <button class="btn-ghost" onclick="limparManuaisPeriodo()" style="color:var(--danger);border-color:var(--danger)">🧹 Remover manuais duplicados no período acima</button>
       </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="color:var(--text3);font-size:12px;margin-bottom:8px">🔧 Debug: procurar um lançamento específico nos dados brutos da <strong>última</strong> sincronização (não consulta o Sienge de novo, é grátis).</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="sienge-debug-termo" class="filter-select" placeholder="ex: Tarifa, AV.Sn, nome do credor..." style="flex:1;min-width:220px">
+          <button class="btn-ghost" onclick="siengeDebugBuscar()">🔎 Buscar no último resultado</button>
+        </div>
+        <pre id="sienge-debug-result" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
+      </div>
     </div>
   </div>
   <div class="filters-bar">
@@ -642,6 +650,7 @@ async function siengeSyncOutcomeCore(start,end){
   const data=await resp.json();
   if(data.error)return{error:data.error};
   const bills=Array.isArray(data)?data:(data.data||[]);
+  window._siengeRawOutcome=bills;
   const startD=new Date(start+'T00:00:00'),endD=new Date(end+'T23:59:59');
   const novos=[];
   bills.forEach(bill=>{
@@ -822,6 +831,18 @@ function limparManuaisPeriodo(){
   const box=document.getElementById('dash-sienge-result');
   if(box){box.style.display='block';box.textContent='🧹 Removidos '+csvManuais.length+' lançamento(s) manual(is) de Contas Pagas e '+arecManuais.length+' de Entradas A Receber, no período de '+start+' a '+end+'.';}
   renderCSVTable();renderArecTable();renderTitCCTable();renderDash();renderFluxo();renderProjecao();autoSave();
+}
+
+function siengeDebugBuscar(){
+  const pre=document.getElementById('sienge-debug-result');
+  const termo=(document.getElementById('sienge-debug-termo')?.value||'').trim().toLowerCase();
+  const bills=window._siengeRawOutcome;
+  if(!bills){pre.style.display='block';pre.textContent='Nenhum dado em memória ainda — rode o "Sync Sienge" pelo menos uma vez primeiro (nesta mesma sessão do navegador).';return;}
+  if(!termo){pre.style.display='block';pre.textContent='Digite um termo para buscar (ex: nome do credor, número do documento, "Tarifa").';return;}
+  const achados=bills.filter(b=>JSON.stringify(b).toLowerCase().includes(termo));
+  pre.style.display='block';
+  if(!achados.length){pre.textContent='Nenhum título encontrado com "'+termo+'" nos '+bills.length+' títulos da última sincronização.';return;}
+  pre.textContent='Encontrados '+achados.length+' título(s) de '+bills.length+' no total.\n\n'+JSON.stringify(achados.slice(0,3),null,2);
 }
 
 function processCSVText(txt){
