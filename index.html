@@ -237,6 +237,20 @@ tbody td.c{text-align:center}
 <div class="page active" id="page-dash">
   <div class="sec-title">Dashboard</div>
   <div class="sec-sub">Visão geral financeira — Rossa Incorporadora</div>
+  <div class="tbl-card" style="margin-bottom:20px">
+    <div class="tbl-head"><div class="tbl-title">🔌 Sync Sienge</div><span class="tbl-badge" id="dash-sienge-badge">Nunca sincronizado</span></div>
+    <div style="padding:14px 18px">
+      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Sincroniza tudo que já está integrado com o Sienge de uma vez só, pra não esquecer nenhuma aba.</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="filter-label">De</span>
+        <input type="date" id="dash-sienge-start" class="filter-select" style="width:150px">
+        <span class="filter-label">Até</span>
+        <input type="date" id="dash-sienge-end" class="filter-select" style="width:150px">
+        <button class="btn-primary" onclick="sienceSyncAll()">🔄 Sync Sienge</button>
+      </div>
+      <pre id="dash-sienge-result" style="display:none;margin-top:12px;white-space:pre-wrap;background:#f7f7f7;padding:12px;font-size:12px;border:1px solid var(--border)"></pre>
+    </div>
+  </div>
   <div class="filters-bar">
     <span class="filter-label">Filtrar</span>
     <select class="filter-select" id="dash-obra" onchange="renderDash()"><option value="">Todas as obras</option></select>
@@ -293,15 +307,16 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-gold"><div class="kpi-label">Outro</div><div class="kpi-val" id="csv-outro">—</div><div class="kpi-sub" id="csv-outro-n">0 registros</div></div>
   </div>
   <div class="tbl-card" style="margin-bottom:20px">
-    <div class="tbl-head"><div class="tbl-title">🔌 Sincronização via API (Sienge) — em teste</div><span class="tbl-badge" id="sienge-csv-badge">Prévia</span></div>
+    <div class="tbl-head"><div class="tbl-title">🔌 Sincronização via API (Sienge)</div><span class="tbl-badge" id="sienge-csv-badge">—</span></div>
     <div style="padding:14px 18px">
-      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Busca os dados brutos do Sienge (endpoint /outcome) só para conferência — ainda não importa nada para a tabela abaixo.</div>
+      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Prévia mostra os dados brutos sem importar nada. "Sincronizar" importa de verdade para a tabela abaixo, ignorando movimentos em Mútuo e transferências internas sem categoria.</div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span class="filter-label">De</span>
         <input type="date" id="sienge-csv-start" class="filter-select" style="width:150px">
         <span class="filter-label">Até</span>
         <input type="date" id="sienge-csv-end" class="filter-select" style="width:150px">
-        <button class="btn-primary" onclick="siengePreviewOutcome()">🔎 Buscar prévia do Sienge</button>
+        <button class="btn-ghost" onclick="siengePreviewOutcome()">🔎 Prévia (bruto)</button>
+        <button class="btn-primary" onclick="sienceSyncOutcome()">⬇ Sincronizar Contas Pagas</button>
       </div>
       <pre id="sienge-csv-preview" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
     </div>
@@ -465,15 +480,16 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-green"><div class="kpi-label">Em Dia</div><div class="kpi-val pos" id="arec-emdia">—</div><div class="kpi-sub" id="arec-emdia-n">0 títulos</div></div>
   </div>
   <div class="tbl-card" style="margin-bottom:20px">
-    <div class="tbl-head"><div class="tbl-title">🔌 Sincronização via API (Sienge) — em teste</div><span class="tbl-badge" id="sienge-arec-badge">Prévia</span></div>
+    <div class="tbl-head"><div class="tbl-title">🔌 Sincronização via API (Sienge)</div><span class="tbl-badge" id="sienge-arec-badge">—</span></div>
     <div style="padding:14px 18px">
-      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Busca os dados brutos do Sienge (endpoint /income) só para conferência — ainda não importa nada para a tabela abaixo.</div>
+      <div style="color:var(--text3);font-size:12px;margin-bottom:10px">Prévia mostra os dados brutos sem importar nada. "Sincronizar" importa de verdade para a tabela abaixo, já com o Centro de Custo (vem direto do Sienge, sem precisar cruzar Nº Título).</div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span class="filter-label">De</span>
         <input type="date" id="sienge-arec-start" class="filter-select" style="width:150px">
         <span class="filter-label">Até</span>
         <input type="date" id="sienge-arec-end" class="filter-select" style="width:150px">
-        <button class="btn-primary" onclick="siengePreviewIncome()">🔎 Buscar prévia do Sienge</button>
+        <button class="btn-ghost" onclick="siengePreviewIncome()">🔎 Prévia (bruto)</button>
+        <button class="btn-primary" onclick="siengeSyncIncome()">⬇ Sincronizar A Receber</button>
       </div>
       <pre id="sienge-arec-preview" style="display:none;margin-top:12px;max-height:320px;overflow:auto;background:#f7f7f7;padding:12px;font-size:11px;border:1px solid var(--border)"></pre>
     </div>
@@ -642,6 +658,156 @@ async function siengePreviewFetch(path,startId,endId,previewId,badgeId){
 function siengePreviewOutcome(){siengePreviewFetch('/sienge/outcome','sienge-csv-start','sienge-csv-end','sienge-csv-preview','sienge-csv-badge');}
 function siengePreviewIncome(){siengePreviewFetch('/sienge/income','sienge-arec-start','sienge-arec-end','sienge-arec-preview','sienge-arec-badge');}
 
+// ── SIENGE — importação real de Contas Pagas (/outcome) ────────────────────
+// Regras: ignora movimentos em contas Mútuo (accountType 'M'); ignora movimentos
+// sem paymentCategories (transferências internas, sem categorização); um registro
+// por combinação movimento+categoria; dedup por siengeId (bankMovement.id + categoria).
+async function siengeSyncOutcomeCore(start,end){
+  const url=SIENGE.proxy+'/sienge/outcome?start='+start+'&end='+end;
+  const resp=await fetch(url);
+  const data=await resp.json();
+  if(data.error)return{error:data.error};
+  const bills=Array.isArray(data)?data:(data.data||[]);
+  const existentes=new Set(DATA.csv.map(r=>r.siengeId).filter(Boolean));
+  const novos=[];
+  bills.forEach(bill=>{
+    const credor=bill.creditorName||'';
+    (bill.payments||[]).forEach(pay=>{
+      (pay.bankMovements||[]).forEach(bm=>{
+        if(bm.accountType==='M')return; // ignora Mútuo
+        const cats=bm.paymentCategories||[];
+        if(!cats.length)return; // ignora movimentos sem categoria (transferência interna)
+        cats.forEach((pc,idx)=>{
+          const siengeId=bm.id+'-'+idx;
+          if(existentes.has(siengeId))return;
+          const valorCat=(bm.amount||0)*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
+          const dataMov=bm.bankMovementDate?new Date(bm.bankMovementDate+'T12:00:00'):null;
+          novos.push({
+            data:dataMov,
+            complemento:credor,
+            valor:-Math.abs(valorCat),
+            cc:normCC(pc.costCenterName||''),
+            conta:(pc.financialCategoryId?pc.financialCategoryId+' - ':'')+(pc.financialCategoryName||''),
+            contaCod:pc.financialCategoryId||'',
+            tipo:'PAGAMENTO',
+            movCaixa:true,
+            contaCorrente:bm.accountNumber||'',
+            siengeId,
+            mes:dataMov?dataMov.getMonth():null,
+            ano:dataMov?dataMov.getFullYear():null
+          });
+          existentes.add(siengeId);
+        });
+      });
+    });
+  });
+  DATA.csv=[...DATA.csv,...novos];
+  return{billsCount:bills.length,novosCount:novos.length};
+}
+async function sienceSyncOutcome(){
+  const startEl=document.getElementById('sienge-csv-start'),endEl=document.getElementById('sienge-csv-end');
+  const start=startEl?.value,end=endEl?.value;
+  if(!start||!end){alert('Preencha as datas de início e fim.');return;}
+  const pre=document.getElementById('sienge-csv-preview'),badge=document.getElementById('sienge-csv-badge');
+  pre.style.display='block';pre.textContent='Sincronizando com o Sienge...';
+  if(badge)badge.textContent='Sincronizando...';
+  try{
+    const r=await siengeSyncOutcomeCore(start,end);
+    if(r.error){pre.textContent='Erro retornado pelo proxy:\n'+JSON.stringify(r.error,null,2);if(badge)badge.textContent='Erro';return;}
+    pre.textContent='Sincronização concluída.\nTítulos recebidos do Sienge: '+r.billsCount+'\nMovimentos importados (novos): '+r.novosCount+'\nMovimentos em Mútuo ou sem categoria foram ignorados automaticamente.';
+    if(badge)badge.textContent='+'+r.novosCount+' novos registros';
+    renderCSVTable();renderDash();renderFluxo();renderProjecao();autoSave();
+  }catch(e){
+    pre.textContent='Falha ao sincronizar: '+e.message;
+    if(badge)badge.textContent='Falha';
+  }
+}
+
+// ── SIENGE — botão único (Dashboard): sincroniza tudo que já está pronto ───
+// ── SIENGE — importação real de Entradas A Receber (/income) ───────────────
+// Parcelas em aberto (sem baixa); CC já vem direto em receiptsCategories, sem
+// precisar cruzar com Nº Título; dedup por siengeId (bill+parcela+categoria).
+async function siengeSyncIncomeCore(start,end){
+  const url=SIENGE.proxy+'/sienge/income?start='+start+'&end='+end;
+  const resp=await fetch(url);
+  const data=await resp.json();
+  if(data.error)return{error:data.error};
+  const bills=Array.isArray(data)?data:(data.data||[]);
+  const existentes=new Set(DATA.arec.map(r=>r.siengeId).filter(Boolean));
+  const novos=[];
+  bills.forEach(bill=>{
+    const cliente=bill.clientName||'';
+    const dataVc=bill.dueDate?new Date(bill.dueDate+'T12:00:00'):null;
+    const saldo=bill.balanceAmount!=null?bill.balanceAmount:(bill.correctedBalanceAmount||0);
+    const cats=bill.receiptsCategories||[];
+    const base=cats.length?cats:[{costCenterName:'',financialCategoryRate:100}];
+    base.forEach((pc,idx)=>{
+      const siengeId=bill.billId+'-'+bill.installmentId+'-'+idx;
+      if(existentes.has(siengeId))return;
+      const valorCat=saldo*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
+      novos.push({
+        data:dataVc,
+        cliente,
+        valor:Math.abs(valorCat),
+        nuTitulo:bill.documentNumber||String(bill.billId)+'-'+String(bill.installmentId),
+        cc:normCC(pc.costCenterName||''),
+        siengeId,
+        mes:dataVc?dataVc.getMonth():null,
+        ano:dataVc?dataVc.getFullYear():null
+      });
+      existentes.add(siengeId);
+    });
+  });
+  DATA.arec=[...DATA.arec,...novos];
+  return{billsCount:bills.length,novosCount:novos.length};
+}
+async function siengeSyncIncome(){
+  const startEl=document.getElementById('sienge-arec-start'),endEl=document.getElementById('sienge-arec-end');
+  const start=startEl?.value,end=endEl?.value;
+  if(!start||!end){alert('Preencha as datas de início e fim.');return;}
+  const pre=document.getElementById('sienge-arec-preview'),badge=document.getElementById('sienge-arec-badge');
+  pre.style.display='block';pre.textContent='Sincronizando com o Sienge...';
+  if(badge)badge.textContent='Sincronizando...';
+  try{
+    const r=await siengeSyncIncomeCore(start,end);
+    if(r.error){pre.textContent='Erro retornado pelo proxy:\n'+JSON.stringify(r.error,null,2);if(badge)badge.textContent='Erro';return;}
+    pre.textContent='Sincronização concluída.\nParcelas em aberto recebidas do Sienge: '+r.billsCount+'\nRegistros importados (novos): '+r.novosCount;
+    if(badge)badge.textContent='+'+r.novosCount+' novos registros';
+    renderArecTable();renderTitCCTable();renderDash();renderProjecao();autoSave();
+  }catch(e){
+    pre.textContent='Falha ao sincronizar: '+e.message;
+    if(badge)badge.textContent='Falha';
+  }
+}
+
+async function sienceSyncAll(){
+  const startEl=document.getElementById('dash-sienge-start'),endEl=document.getElementById('dash-sienge-end');
+  const start=startEl?.value,end=endEl?.value;
+  if(!start||!end){alert('Preencha as datas de início e fim.');return;}
+  const box=document.getElementById('dash-sienge-result'),badge=document.getElementById('dash-sienge-badge');
+  box.style.display='block';box.textContent='Sincronizando Contas Pagas...';
+  if(badge)badge.textContent='Sincronizando...';
+  let linhas=[];
+  try{
+    const r=await siengeSyncOutcomeCore(start,end);
+    if(r.error){linhas.push('❌ Contas Pagas: erro — '+JSON.stringify(r.error));}
+    else{linhas.push('✅ Contas Pagas: '+r.billsCount+' títulos recebidos, '+r.novosCount+' movimentos novos importados.');}
+  }catch(e){linhas.push('❌ Contas Pagas: falha — '+e.message);}
+  try{
+    const r=await siengeSyncIncomeCore(start,end);
+    if(r.error){linhas.push('❌ Entradas A Receber: erro — '+JSON.stringify(r.error));}
+    else{linhas.push('✅ Entradas A Receber: '+r.billsCount+' parcelas em aberto recebidas, '+r.novosCount+' registros novos importados.');}
+  }catch(e){linhas.push('❌ Entradas A Receber: falha — '+e.message);}
+  box.textContent=linhas.join('\n');
+  if(badge)badge.textContent='Última sync: '+new Date().toLocaleString('pt-BR');
+  // Atualiza também os campos de data nas abas individuais, pra ficar tudo consistente
+  const csvS=document.getElementById('sienge-csv-start'),csvE=document.getElementById('sienge-csv-end');
+  if(csvS)csvS.value=start;if(csvE)csvE.value=end;
+  const arecS=document.getElementById('sienge-arec-start'),arecE=document.getElementById('sienge-arec-end');
+  if(arecS)arecS.value=start;if(arecE)arecE.value=end;
+  renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();renderDash();renderFluxo();renderProjecao();autoSave();
+}
+
 function processCSVText(txt){
   // Corrigir double-encoding Latin-1 → UTF-8
   txt=fixEncoding(txt);
@@ -797,7 +963,7 @@ function processArecText(txt){
 }
 function limparArec(){DATA.arec=[];renderArecTable();setStatus('status-arec','',null);autoSave();}
 function renderArecTable(){
-  const arr=DATA.arec.map(r=>({...r,cc:ccPorTitulo(r.nuTitulo)}));
+  const arr=DATA.arec.map(r=>({...r,cc:r.cc||ccPorTitulo(r.nuTitulo)}));
   const hoje=new Date();const refKey=hoje.getFullYear()*100+hoje.getMonth();
   arr.forEach(r=>{r.status=(r.data&&(r.data.getFullYear()*100+r.data.getMonth())<refKey)?'Inadimplente':'Em dia';});
   fillSelect('farec-cc',[...new Set(arr.map(r=>r.cc).filter(Boolean))].sort(),v=>v,v=>v);
