@@ -1475,7 +1475,7 @@ function apresentacaoFluxo(){
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fluxo de Caixa — Rossa</title><style>body{font-family:sans-serif;padding:32px;font-size:11px}h1{font-size:18px;margin-bottom:8px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:4px 8px}thead th{background:#f5f5f5}tfoot tr{font-weight:700}@media print{body{padding:0}}</style></head><body><h1>Fluxo de Caixa — Rossa Incorporadora</h1><p style="color:#888;font-size:11px;margin-bottom:16px">'+new Date().toLocaleDateString('pt-BR')+'</p><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></body></html>');
   win.document.close();setTimeout(()=>win.print(),400);
 }
-function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},titCC:DATA.titCC||{},orcamentoObra:DATA.orcamentoObra||{}});}
+function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},titCC:DATA.titCC||{},orcamentoObra:DATA.orcamentoObra||{},_cleanup2025Done:DATA._cleanup2025Done||false});}
 const GHUB={token:['ghp_DMtc','LFDDPZIq7QGo','GgJvmTc1TbfSMf0H9mw1'].join(''),repo:'LEONARDOBLUCENA/ROSSA-INCORPORADORA',file:'data.json',raw:'https://raw.githubusercontent.com/LEONARDOBLUCENA/ROSSA-INCORPORADORA/main/data.json'};
 const SIENGE={proxy:'https://sienge-proxy-rossa-production.up.railway.app'};
 let _ghubSha=null,_ghubSaving=false,_ghubDirty=false;
@@ -1505,6 +1505,19 @@ async function jbinLoad(){
     DATA.orcamentoObra=d.orcamentoObra||{};
     let seedNovos=false;
     Object.keys(SEED_TITCC).forEach(k=>{if(DATA.titCC[k]===undefined){DATA.titCC[k]=SEED_TITCC[k];seedNovos=true;}});
+    // Limpeza automática (roda uma única vez): um bug na sincronização trazia pagamentos
+    // históricos de anos não pedidos (ex: 2025). Remove lançamentos da API com data em 2025 ou antes.
+    if(!d._cleanup2025Done){
+      const antesCsv=DATA.csv.length,antesArec=DATA.arec.length;
+      DATA.csv=DATA.csv.filter(r=>!(r.siengeId&&r.ano!=null&&r.ano<=2025));
+      DATA.arec=DATA.arec.filter(r=>!(r.siengeId&&r.ano!=null&&r.ano<=2025));
+      const removidos=(antesCsv-DATA.csv.length)+(antesArec-DATA.arec.length);
+      DATA._cleanup2025Done=true;
+      seedNovos=true;
+      if(removidos>0)console.log('Limpeza automática: removidos '+removidos+' lançamento(s) de 2025 ou antes importados por engano.');
+    }else{
+      DATA._cleanup2025Done=true;
+    }
     renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();setJbinStatus('ok');
     if(seedNovos)autoSave();
     fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
