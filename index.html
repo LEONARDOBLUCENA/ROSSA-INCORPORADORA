@@ -440,6 +440,8 @@ tbody td.c{text-align:center}
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span class="filter-label">Ano</span>
         <select class="filter-select" id="ffat-ano" onchange="renderFatTable()" style="min-width:100px"><option value="">Todos</option></select>
+        <span class="filter-label">Mês</span>
+        <select class="filter-select" id="ffat-mes" onchange="renderFatTable()" style="min-width:120px"><option value="">Todos</option></select>
         <span class="filter-label">CC</span>
         <select class="filter-select" id="ffat-cc" onchange="renderFatTable()" style="min-width:160px"><option value="">Todos</option></select>
         <span class="filter-label">Tipo Baixa</span>
@@ -474,6 +476,10 @@ tbody td.c{text-align:center}
     <div class="tbl-head">
       <div class="tbl-title">Títulos A Receber</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="filter-label">Ano</span>
+        <select class="filter-select" id="farec-ano" onchange="renderArecTable()" style="min-width:100px"><option value="">Todos</option></select>
+        <span class="filter-label">Mês</span>
+        <select class="filter-select" id="farec-mes" onchange="renderArecTable()" style="min-width:120px"><option value="">Todos</option></select>
         <span class="filter-label">CC</span>
         <select class="filter-select" id="farec-cc" onchange="renderArecTable()" style="min-width:160px"><option value="">Todos</option></select>
         <span class="filter-label">Status</span>
@@ -794,6 +800,8 @@ async function siengeSyncBankMovementCore(start,end){
     const dataMov=m.bankMovementDate?new Date(m.bankMovementDate+'T12:00:00'):null;
     const buildings=m.buldingCosts||[]; // grafia real do Sienge (sem "i")
     const cats=m.financialCategories||[];
+    const contaLabel=cats.length?((cats[0].financialCategoryId?cats[0].financialCategoryId+' - ':'')+(cats[0].financialCategoryName||'')):(m.bankMovementHistoricName||'');
+    const contaCodTop=cats.length?(cats[0].financialCategoryId||''):'';
     if(buildings.length){
       buildings.forEach((b,idx)=>{
         const siengeId='bm-'+mi+'-'+(m.accountNumber||'')+'-'+(m.bankMovementDate||'')+'-bc'+idx;
@@ -801,7 +809,7 @@ async function siengeSyncBankMovementCore(start,end){
         novos.push({
           data:dataMov,complemento:credor,valor:-Math.abs(valor),
           cc:normCC(b.buildingName||''),
-          conta:m.bankMovementHistoricName||'',contaCod:'',tipo:'PAGAMENTO',movCaixa:true,
+          conta:contaLabel,contaCod:contaCodTop,tipo:'PAGAMENTO',movCaixa:true,
           contaCorrente:m.accountNumber||'',siengeId,
           mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
         });
@@ -937,12 +945,14 @@ function limparFat(){DATA.fat=[];renderFatTable();renderArecTable();setStatus('s
 function renderFatTable(){
   const arr=DATA.fat;
   fillSelect('ffat-ano',[...new Set(arr.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
+  fillSelect('ffat-mes',[...new Set(arr.map(r=>r.mes).filter(x=>x!=null))].sort((a,b)=>a-b),v=>v,v=>MESES_ABR[v]);
   fillSelect('ffat-cc',[...new Set(arr.map(r=>r.cc).filter(Boolean))].sort(),v=>v,v=>v);
   fillSelect('ffat-tipo',[...new Set(arr.map(r=>r.tipoBaixa).filter(Boolean))].sort(),v=>v,v=>v);
   const fA=document.getElementById('ffat-ano')?.value||'';
+  const fM=document.getElementById('ffat-mes')?.value||'';
   const fC=document.getElementById('ffat-cc')?.value||'';
   const fT=document.getElementById('ffat-tipo')?.value||'';
-  const fil=arr.filter(r=>(!fA||String(r.ano)===fA)&&(!fC||ccMatch(r.cc||'',fC))&&(!fT||r.tipoBaixa===fT));
+  const fil=arr.filter(r=>(!fA||String(r.ano)===fA)&&(!fM||String(r.mes)===fM)&&(!fC||ccMatch(r.cc||'',fC))&&(!fT||r.tipoBaixa===fT));
   document.getElementById('count-fat').textContent=fil.length+' de '+arr.length+' registros';
   const totVal=fil.reduce((s,r)=>s+Math.abs(r.valor),0);
   const caixaR=fil.filter(r=>r.movCaixa===true),outroR=fil.filter(r=>r.movCaixa!==true);
@@ -1026,9 +1036,12 @@ function renderArecTable(){
   const arr=DATA.arec.map(r=>({...r,cc:r.cc||ccPorTitulo(r.nuTitulo)}));
   const hoje=new Date();const refKey=hoje.getFullYear()*100+hoje.getMonth();
   arr.forEach(r=>{r.status=(r.data&&(r.data.getFullYear()*100+r.data.getMonth())<refKey)?'Inadimplente':'Em dia';});
+  fillSelect('farec-ano',[...new Set(arr.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
+  fillSelect('farec-mes',[...new Set(arr.map(r=>r.mes).filter(x=>x!=null))].sort((a,b)=>a-b),v=>v,v=>MESES_ABR[v]);
   fillSelect('farec-cc',[...new Set(arr.map(r=>r.cc).filter(Boolean))].sort(),v=>v,v=>v);
+  const fA=document.getElementById('farec-ano')?.value||'',fM=document.getElementById('farec-mes')?.value||'';
   const fC=document.getElementById('farec-cc')?.value||'',fS=document.getElementById('farec-status')?.value||'';
-  const fil=arr.filter(r=>(!fC||ccMatch(r.cc||'',fC))&&(!fS||r.status===fS));
+  const fil=arr.filter(r=>(!fA||String(r.ano)===fA)&&(!fM||String(r.mes)===fM)&&(!fC||ccMatch(r.cc||'',fC))&&(!fS||r.status===fS));
   document.getElementById('count-arec').textContent=fil.length+' de '+arr.length+' registros';
   const totVal=arr.reduce((s,r)=>s+r.valor,0);
   const inad=arr.filter(r=>r.status==='Inadimplente'),emdia=arr.filter(r=>r.status==='Em dia');
@@ -1045,7 +1058,7 @@ function renderArecTable(){
 function exportarArec(){
   if(!DATA.arec.length){alert('Nenhum dado.');return;}
   const hoje=new Date();const refKey=hoje.getFullYear()*100+hoje.getMonth();
-  const rows=DATA.arec.map(r=>{const cc=ccPorTitulo(r.nuTitulo);const status=(r.data&&(r.data.getFullYear()*100+r.data.getMonth())<refKey)?'Inadimplente':'Em dia';return{'Vencimento':r.data?r.data.toLocaleDateString('pt-BR'):'','Cliente':r.cliente||'','Nº Título':r.nuTitulo||'','Centro de Custo':cc||'','Status':status,'Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})};});
+  const rows=DATA.arec.map(r=>{const cc=r.cc||ccPorTitulo(r.nuTitulo);const status=(r.data&&(r.data.getFullYear()*100+r.data.getMonth())<refKey)?'Inadimplente':'Em dia';return{'Vencimento':r.data?r.data.toLocaleDateString('pt-BR'):'','Cliente':r.cliente||'','Nº Título':r.nuTitulo||'','Centro de Custo':cc||'','Status':status,'Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})};});
   const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});
   XLSX.utils.book_append_sheet(wb,ws,'A Receber');
   XLSX.writeFile(wb,'Rossa_AReceber_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
@@ -1305,8 +1318,8 @@ function renderProjecao(){
   const timeline=[];for(let i=0;i<nMeses;i++)timeline.push(addMonthsKey(hojeKey,i));
   const timelineLabels=timeline.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
   const NC=timeline.length;
-  // Títulos a receber com CC identificado
-  const arecCC=DATA.arec.map(r=>({...r,cc:ccPorTitulo(r.nuTitulo)})).filter(r=>r.cc&&r.data);
+  // Títulos a receber com CC identificado (usa o CC que já veio da API; só cruza por Nº Título quando faltar)
+  const arecCC=DATA.arec.map(r=>({...r,cc:r.cc||ccPorTitulo(r.nuTitulo)})).filter(r=>r.cc&&r.data);
   // Universo de centros de custo conhecidos
   const ccSet=new Set();
   DATA.csv.forEach(r=>{if(r.cc)ccSet.add(r.cc);});
