@@ -693,6 +693,16 @@ async function siengeSyncOutcomeCore(start,end){
             mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
           });
         });
+      }else{
+        // Sem nenhuma categorização disponível (nem obra, nem plano financeiro) — não descarta o
+        // valor, senão o total de Caixa fica errado; entra sem CC/conta para revisão manual depois.
+        const siengeId=bill.billId+'-'+bill.installmentId+'-'+pay.sequencialNumber+'-sc';
+        novos.push({
+          data:dataMov,complemento:credor,valor:-Math.abs(pay.netAmount||0),
+          cc:'',conta:'(Sem categoria - revisar)',contaCod:'',tipo:'PAGAMENTO',movCaixa,
+          contaCorrente,siengeId,
+          mes:dataMov?dataMov.getMonth():null,ano:dataMov?dataMov.getFullYear():null
+        });
       }
     });
   });
