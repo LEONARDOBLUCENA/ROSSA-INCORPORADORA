@@ -661,6 +661,7 @@ async function siengeSyncOutcomeCore(start,end){
     const contaCod=cats.length?(cats[0].financialCategoryId||''):'';
     (bill.payments||[]).forEach(pay=>{
       if(!OP_ACEITA.includes(pay.operationTypeId))return; // exclui Cancelamento(3), Substituição(5), Abatimento(8)
+      if(!pay.paymentDate||pay.paymentDate<start||pay.paymentDate>end)return; // o Sienge retorna TODO o histórico de pagamentos do título, mesmo os fora do período pedido
       const movCaixa=(pay.operationTypeId===1||pay.operationTypeId===10); // Pagamento/Adiantamento=caixa; Outros(2)/Por Bens(11)=não-caixa
       const dataMov=pay.paymentDate?new Date(pay.paymentDate+'T12:00:00'):null;
       const contaCorrente=(pay.bankMovements&&pay.bankMovements[0]&&pay.bankMovements[0].accountNumber)||'';
