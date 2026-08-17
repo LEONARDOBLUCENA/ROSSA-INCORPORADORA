@@ -69,6 +69,10 @@ nav{background:var(--text);display:flex;align-items:center;height:56px;padding:0
 .kpi-val.pos{color:var(--green)}
 .kpi-val.neg{color:var(--danger)}
 .kpi-sub{font-size:12px;color:var(--text3);margin-top:5px}
+.kpi-card.clickable{cursor:pointer;transition:transform .12s,box-shadow .12s}
+.kpi-card.clickable:hover{box-shadow:0 6px 18px rgba(26,18,8,.13);transform:translateY(-2px)}
+.kpi-card.clickable::after{content:'🔍 ver detalhe';position:absolute;bottom:6px;right:10px;font-size:9px;color:var(--text3);opacity:0;transition:opacity .12s}
+.kpi-card.clickable:hover::after{opacity:1}
 .chart-card{background:var(--surface);border:1px solid var(--border);padding:18px 20px;box-shadow:var(--sh)}
 .chart-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:600;margin-bottom:2px}
 .chart-subtitle{font-size:11px;color:var(--text3);margin-bottom:14px}
@@ -239,10 +243,24 @@ tbody td.c{text-align:center}
   </div>
 </div>
 
+<!-- MODAL DE DETALHE (tabelas clicáveis: KPIs e gráficos por ano) -->
+<div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)closeDetailModal()">
+  <div class="modal-box" style="max-width:920px">
+    <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    <div class="modal-title" id="modal-detail-title">Detalhes</div>
+    <div id="modal-detail-filters" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;flex-wrap:wrap">
+      <span class="tbl-badge" id="modal-detail-count">—</span>
+      <button class="btn-export" onclick="exportModalDetail()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
+    </div>
+    <div class="tbl-wrap" id="modal-detail-body" style="max-height:52vh;overflow-y:auto"></div>
+  </div>
+</div>
+
 <div class="app-body">
   <aside class="sidebar">
     <div class="nav-tabs">
-      <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Dashboard</button>
+      <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Resumo</button>
       <button class="nav-tab" data-tab="fat" onclick="goTab(this)">Entradas</button>
       <button class="nav-tab" data-tab="arec" onclick="goTab(this)">Entradas A Receber</button>
       <button class="nav-tab" data-tab="csv" onclick="goTab(this)">Contas Pagas</button>
@@ -255,7 +273,7 @@ tbody td.c{text-align:center}
 
 <!-- ===================== DASHBOARD ===================== -->
 <div class="page active" id="page-dash">
-  <div class="sec-title">Dashboard</div>
+  <div class="sec-title">Resumo</div>
   <div class="sec-sub">Visão geral financeira — Rossa Incorporadora</div>
   <div class="filters-bar">
     <span class="filter-label">Filtrar</span>
@@ -307,10 +325,18 @@ tbody td.c{text-align:center}
 <div class="page" id="page-csv">
   <div class="sec-title">Contas Pagas</div>
   <div class="sec-sub">Cole aqui os dados do relatório analítico exportado do ERP</div>
+  <div class="filters-bar">
+    <span class="filter-label">Filtrar</span>
+    <select class="filter-select" id="fcsv-ano" onchange="renderCSVTable()"><option value="">Todos os anos</option></select>
+    <select class="filter-select" id="fcsv-mes" onchange="renderCSVTable()"><option value="">Todos os meses</option></select>
+    <select class="filter-select" id="fcsv-cc" onchange="renderCSVTable()"><option value="">Todos os CCs</option></select>
+    <select class="filter-select" id="fcsv-conta" onchange="renderCSVTable()"><option value="">Todas as contas</option></select>
+    <button class="btn-ghost" onclick="clearCSVFilters()">✕ Limpar</button>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-blue"><div class="kpi-label">Total Pago</div><div class="kpi-val" id="csv-total">—</div><div class="kpi-sub" id="csv-total-n">0 registros</div></div>
-    <div class="kpi-card c-red"><div class="kpi-label">Caixa</div><div class="kpi-val neg" id="csv-caixa">—</div><div class="kpi-sub" id="csv-caixa-n">0 registros</div></div>
-    <div class="kpi-card c-gold"><div class="kpi-label">Outro</div><div class="kpi-val" id="csv-outro">—</div><div class="kpi-sub" id="csv-outro-n">0 registros</div></div>
+    <div class="kpi-card c-red clickable" onclick="abrirCsvDetalheModal('caixa')"><div class="kpi-label">Caixa</div><div class="kpi-val neg" id="csv-caixa">—</div><div class="kpi-sub" id="csv-caixa-n">0 registros</div></div>
+    <div class="kpi-card c-gold clickable" onclick="abrirCsvDetalheModal('outro')"><div class="kpi-label">Outro</div><div class="kpi-val" id="csv-outro">—</div><div class="kpi-sub" id="csv-outro-n">0 registros</div></div>
   </div>
   <div class="paste-section">
     <div class="paste-instructions"><strong>Como usar:</strong> Exporte o relatório de <strong>Contas Pagas</strong> no ERP, selecione a tabela com cabeçalho, copie Ctrl+C, cole abaixo Ctrl+V.<br>Colunas utilizadas: <strong>Nome credor · Data pagamento · Desc centro custo · Cod plano fin · Desc plano fin · Valor aprop fin</strong></div>
@@ -327,16 +353,6 @@ tbody td.c{text-align:center}
         <span class="tbl-badge" id="count-csv">0 registros</span>
         <button class="btn-ghost" onclick="limparCSV()">✕ Limpar</button>
         <button class="btn-export" onclick="exportExcelCSV()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
-      </div>
-    </div>
-    <div style="padding:8px 16px 0;border-bottom:1px solid var(--border)">
-      <div class="inline-filters">
-        <span class="filter-label">Filtrar</span>
-        <select class="filter-select" id="fcsv-ano" onchange="renderCSVTable()"><option value="">Todos os anos</option></select>
-        <select class="filter-select" id="fcsv-mes" onchange="renderCSVTable()"><option value="">Todos os meses</option></select>
-        <select class="filter-select" id="fcsv-cc" onchange="renderCSVTable()"><option value="">Todos os CCs</option></select>
-        <select class="filter-select" id="fcsv-conta" onchange="renderCSVTable()"><option value="">Todas as contas</option></select>
-        <button class="btn-ghost" onclick="clearCSVFilters()">✕</button>
       </div>
     </div>
     <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Complemento</th><th>Centro de Custo</th><th>Conta</th><th>Conta Corrente</th><th>Tipo</th><th class="r">Valor (R$)</th></tr></thead><tbody id="body-csv"><tr><td colspan="7"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
@@ -429,23 +445,31 @@ tbody td.c{text-align:center}
 <div class="page" id="page-fat">
   <div class="sec-title">Entradas</div>
   <div class="sec-sub">Cole aqui os dados do relatório de contas recebidas exportado do ERP</div>
+  <div class="filters-bar">
+    <span class="filter-label">Ano</span>
+    <select class="filter-select" id="ffat-ano" onchange="renderFatTable()" style="min-width:100px"><option value="">Todos</option></select>
+    <span class="filter-label">Mês</span>
+    <select class="filter-select" id="ffat-mes" onchange="renderFatTable()" style="min-width:120px"><option value="">Todos</option></select>
+    <span class="filter-label">CC</span>
+    <select class="filter-select" id="ffat-cc" onchange="renderFatTable()" style="min-width:160px"><option value="">Todos</option></select>
+    <span class="filter-label">Tipo Baixa</span>
+    <select class="filter-select" id="ffat-tipo" onchange="renderFatTable()" style="min-width:140px"><option value="">Todos</option></select>
+    <button class="btn-ghost" onclick="document.getElementById('ffat-ano').value='';document.getElementById('ffat-mes').value='';document.getElementById('ffat-cc').value='';document.getElementById('ffat-tipo').value='';renderFatTable()">✕ Limpar</button>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-blue"><div class="kpi-label">Total Recebido</div><div class="kpi-val" id="fat-total">—</div><div class="kpi-sub" id="fat-total-n">0 registros</div></div>
     <div class="kpi-card c-green"><div class="kpi-label">Caixa</div><div class="kpi-val pos" id="fat-caixa">—</div><div class="kpi-sub" id="fat-caixa-n">0 registros</div></div>
     <div class="kpi-card c-gold"><div class="kpi-label">Outro</div><div class="kpi-val" id="fat-outro">—</div><div class="kpi-sub" id="fat-outro-n">0 registros</div></div>
   </div>
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-title">Recebimento por Ano</div>
+    <div class="chart-subtitle">Clique em uma barra para ver o detalhamento mensal do ano</div>
+    <canvas id="fat-ch-ano" height="90"></canvas>
+  </div>
   <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">Contas Recebidas</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span class="filter-label">Ano</span>
-        <select class="filter-select" id="ffat-ano" onchange="renderFatTable()" style="min-width:100px"><option value="">Todos</option></select>
-        <span class="filter-label">Mês</span>
-        <select class="filter-select" id="ffat-mes" onchange="renderFatTable()" style="min-width:120px"><option value="">Todos</option></select>
-        <span class="filter-label">CC</span>
-        <select class="filter-select" id="ffat-cc" onchange="renderFatTable()" style="min-width:160px"><option value="">Todos</option></select>
-        <span class="filter-label">Tipo Baixa</span>
-        <select class="filter-select" id="ffat-tipo" onchange="renderFatTable()" style="min-width:140px"><option value="">Todos</option></select>
         <span class="tbl-badge" id="count-fat">—</span>
         <button class="btn-export" onclick="exportarFat()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
         <button class="btn-ghost" onclick="limparFat()">✕ Limpar dados</button>
@@ -467,23 +491,31 @@ tbody td.c{text-align:center}
 <div class="page" id="page-arec">
   <div class="sec-title">Entradas A Receber</div>
   <div class="sec-sub">Títulos em aberto — status Inadimplente quando o vencimento é anterior ao mês atual</div>
+  <div class="filters-bar">
+    <span class="filter-label">Ano</span>
+    <select class="filter-select" id="farec-ano" onchange="renderArecTable()" style="min-width:100px"><option value="">Todos</option></select>
+    <span class="filter-label">Mês</span>
+    <select class="filter-select" id="farec-mes" onchange="renderArecTable()" style="min-width:120px"><option value="">Todos</option></select>
+    <span class="filter-label">CC</span>
+    <select class="filter-select" id="farec-cc" onchange="renderArecTable()" style="min-width:160px"><option value="">Todos</option></select>
+    <span class="filter-label">Status</span>
+    <select class="filter-select" id="farec-status" onchange="renderArecTable()" style="min-width:140px"><option value="">Todos</option><option value="Inadimplente">Inadimplente</option><option value="Em dia">Em dia</option></select>
+    <button class="btn-ghost" onclick="document.getElementById('farec-ano').value='';document.getElementById('farec-mes').value='';document.getElementById('farec-cc').value='';document.getElementById('farec-status').value='';renderArecTable()">✕ Limpar</button>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-blue"><div class="kpi-label">Total A Receber</div><div class="kpi-val" id="arec-total">—</div><div class="kpi-sub" id="arec-total-n">0 títulos</div></div>
-    <div class="kpi-card c-red"><div class="kpi-label">Inadimplente</div><div class="kpi-val neg" id="arec-inad">—</div><div class="kpi-sub" id="arec-inad-n">0 títulos</div></div>
+    <div class="kpi-card c-red clickable" onclick="abrirInadimplentesModal()"><div class="kpi-label">Inadimplente</div><div class="kpi-val neg" id="arec-inad">—</div><div class="kpi-sub" id="arec-inad-n">0 títulos</div></div>
     <div class="kpi-card c-green"><div class="kpi-label">Em Dia</div><div class="kpi-val pos" id="arec-emdia">—</div><div class="kpi-sub" id="arec-emdia-n">0 títulos</div></div>
+  </div>
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-title">Recebimento (A Receber) por Ano</div>
+    <div class="chart-subtitle">Clique em uma barra para ver o detalhamento mensal do ano</div>
+    <canvas id="arec-ch-ano" height="90"></canvas>
   </div>
   <div class="tbl-card">
     <div class="tbl-head">
       <div class="tbl-title">Títulos A Receber</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span class="filter-label">Ano</span>
-        <select class="filter-select" id="farec-ano" onchange="renderArecTable()" style="min-width:100px"><option value="">Todos</option></select>
-        <span class="filter-label">Mês</span>
-        <select class="filter-select" id="farec-mes" onchange="renderArecTable()" style="min-width:120px"><option value="">Todos</option></select>
-        <span class="filter-label">CC</span>
-        <select class="filter-select" id="farec-cc" onchange="renderArecTable()" style="min-width:160px"><option value="">Todos</option></select>
-        <span class="filter-label">Status</span>
-        <select class="filter-select" id="farec-status" onchange="renderArecTable()" style="min-width:140px"><option value="">Todos</option><option value="Inadimplente">Inadimplente</option><option value="Em dia">Em dia</option></select>
         <span class="tbl-badge" id="count-arec">—</span>
         <button class="btn-export" onclick="exportarArec()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
         <button class="btn-ghost" onclick="limparArec()">✕ Limpar dados</button>
@@ -595,6 +627,69 @@ function findColExact(row,exact,fallback){const keys=Object.keys(row);for(const 
 function fillSelect(id,values,vFn,lFn,placeholder){const sel=document.getElementById(id);if(!sel)return;const cur=sel.value;const ph=placeholder||(sel.options[0]&&sel.options[0].value===''?sel.options[0].textContent:'Todos');sel.innerHTML='<option value="">'+ph+'</option>';values.forEach(v=>{const o=document.createElement('option');o.value=vFn(v);o.textContent=lFn(v);sel.appendChild(o);});if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;}
 function setStatus(id,msg,ok){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.className='paste-status'+(ok===true?' ok':ok===false?' err':'');}
 function destroyChart(id){if(CHARTS[id]){CHARTS[id].destroy();delete CHARTS[id];}}
+
+// ── MODAL DE DETALHE (genérico — usado por KPIs clicáveis e drill-down de gráficos por ano) ──
+let _md={baseRows:[],rows:[],cols:[],exportName:'Detalhe'};
+function openDetailModal(title,rows,cols,opts){
+  opts=opts||{};
+  _md.baseRows=rows;_md.cols=cols;_md.exportName=opts.exportName||title;
+  document.getElementById('modal-detail-title').textContent=title;
+  const anos=[...new Set(rows.map(r=>r.ano).filter(x=>x!=null))].sort();
+  let filtersHtml='';
+  if(!opts.noFilters&&anos.length){
+    filtersHtml='<span class="filter-label">Ano</span><select class="filter-select" id="md-f-ano" onchange="renderModalDetail()" style="min-width:100px"><option value="">Todos</option>'+anos.map(a=>'<option value="'+a+'">'+a+'</option>').join('')+'</select>'
+      +'<span class="filter-label">Mês</span><select class="filter-select" id="md-f-mes" onchange="renderModalDetail()" style="min-width:130px"><option value="">Todos</option>'+MESES_PT.map((m,i)=>'<option value="'+i+'">'+m+'</option>').join('')+'</select>'
+      +'<button class="btn-ghost" onclick="document.getElementById(\'md-f-ano\').value=\'\';document.getElementById(\'md-f-mes\').value=\'\';renderModalDetail()">✕ Limpar</button>';
+  }
+  document.getElementById('modal-detail-filters').innerHTML=filtersHtml;
+  renderModalDetail();
+  document.getElementById('modal-detail').classList.add('open');
+}
+function closeDetailModal(){document.getElementById('modal-detail').classList.remove('open');}
+function renderModalDetail(){
+  const fA=document.getElementById('md-f-ano')?.value||'';
+  const fM=document.getElementById('md-f-mes')?.value||'';
+  const rows=_md.baseRows.filter(r=>(!fA||String(r.ano)===fA)&&(!fM||String(r.mes)===fM));
+  _md.rows=rows;
+  const badge=document.getElementById('modal-detail-count');if(badge)badge.textContent=rows.length+' de '+_md.baseRows.length+' registro'+(_md.baseRows.length!==1?'s':'');
+  const thead='<tr>'+_md.cols.map(c=>'<th'+(c.align?' class="'+c.align+'"':'')+'>'+c.label+'</th>').join('')+'</tr>';
+  const tbody=rows.length?rows.map(r=>'<tr>'+_md.cols.map(c=>'<td'+(c.align?' class="'+c.align+'"':'')+'>'+(c.fmt?c.fmt(r):(r[c.key]??'—'))+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+_md.cols.length+'"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';
+  const body=document.getElementById('modal-detail-body');if(body)body.innerHTML='<table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
+}
+function exportModalDetail(){
+  if(!_md.rows.length){alert('Nenhum dado para exportar.');return;}
+  const rows=_md.rows.map(r=>{const o={};_md.cols.forEach(c=>{o[c.label]=c.fmt?c.fmt(r).replace(/<[^>]+>/g,''):(r[c.key]??'');});return o;});
+  const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});
+  XLSX.utils.book_append_sheet(wb,ws,'Detalhe');
+  XLSX.writeFile(wb,'Rossa_'+_md.exportName.replace(/[^a-zA-Z0-9]+/g,'_')+'_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
+}
+
+// ── GRÁFICO POR ANO COM DRILL-DOWN MENSAL (genérico) ──
+function renderYearDrillChart(canvasId,arr,valueKey,opts){
+  opts=opts||{};
+  destroyChart(canvasId);
+  const el=document.getElementById(canvasId);if(!el)return;
+  const years=[...new Set(arr.map(r=>r.ano).filter(x=>x!=null))].sort();
+  if(!years.length)return;
+  const vals=years.map(y=>arr.filter(r=>r.ano===y).reduce((s,r)=>s+Math.abs(r[valueKey]||0),0));
+  CHARTS[canvasId]=new Chart(el,{type:'bar',data:{labels:years.map(String),datasets:[{label:opts.label||'Total',data:vals,backgroundColor:opts.color||'#1B6B35',borderRadius:4,maxBarThickness:100}]},options:{
+    responsive:true,
+    onClick:(evt,elements)=>{
+      if(!elements.length)return;
+      const year=years[elements[0].index];
+      const rowsYear=arr.filter(r=>r.ano===year);
+      const byMonth=MESES_PT.map((nome,m)=>{
+        const rs=rowsYear.filter(r=>r.mes===m);
+        return{mesNome:nome,qtd:rs.length,valor:rs.reduce((s,r)=>s+Math.abs(r[valueKey]||0),0)};
+      }).filter(x=>x.qtd>0);
+      openDetailModal((opts.modalTitle||'Total')+' — '+year,byMonth,
+        [{label:'Mês',key:'mesNome'},{label:'Registros',key:'qtd',align:'c'},{label:'Valor',align:'r',fmt:r=>fmt(r.valor)}],
+        {noFilters:true,exportName:(opts.modalTitle||'Total')+'_'+year});
+    },
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}},
+    scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}}}
+  }});
+}
 function fPct(r,o){return o?'<span style="font-size:10px;font-weight:600;color:'+(r/o>1?'#C0392B':'#1B6B35')+'">'+(r/o*100).toFixed(1)+'%</span>':'<span style="color:#ccc;font-size:10px">—</span>';}
 function f2(v){return v===0?'<span style="color:#ccc;font-size:10px">—</span>':(v<0?'<span style="color:#C0392B">'+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span>':v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));}
 function renderDiag(cid,allH,mappings,first){const el=document.getElementById(cid);if(!el)return;const pills=allH.map(h=>'<span class="diag-pill">'+h+'</span>').join('');const rows=mappings.map(m=>{const raw=first&&m.foundKey!=null?first[m.foundKey]:'';return'<div class="diag-row"><div class="diag-col-name">'+m.label+'</div>'+(m.foundKey?'<span class="diag-col-mapped">→ "'+m.foundKey+'"</span>':'<span class="diag-col-mapped miss">✕ Não encontrada</span>')+(raw===''||raw==null?'<span class="diag-col-val empty">(vazio)</span>':'<span class="diag-col-val">'+String(raw).slice(0,80)+'</span>')+'</div>';}).join('');el.innerHTML='<div class="diag-box"><div class="diag-grid">'+rows+'</div><div class="diag-all-cols"><div class="diag-all-label">Todas as colunas encontradas</div>'+pills+'</div></div>';el.style.display='block';}
@@ -971,6 +1066,7 @@ function renderFatTable(){
   set('fat-caixa',fmt(caixaR.reduce((s,r)=>s+Math.abs(r.valor),0)));set('fat-caixa-n',caixaR.length+' registro'+(caixaR.length!==1?'s':''));
   set('fat-outro',fmt(outroR.reduce((s,r)=>s+Math.abs(r.valor),0)));set('fat-outro-n',outroR.length+' registro'+(outroR.length!==1?'s':''));
   const tbody=document.getElementById('body-fat');
+  renderYearDrillChart('fat-ch-ano',fil,'valor',{label:'Recebimento',color:'#1B6B35',modalTitle:'Recebimento Mensal'});
   if(!fil.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
   tbody.innerHTML=fil.map(r=>{
     const mc=r.movCaixa?'<span class="badge bg-green">Caixa</span>':'<span class="badge bg-gold">Outro</span>';
@@ -1001,6 +1097,8 @@ function renderCSVTable(){
   set('csv-total',fmt(totVal));set('csv-total-n',fil.length+' registro'+(fil.length!==1?'s':''));
   set('csv-caixa',fmt(caixaR.reduce((s,r)=>s+Math.abs(r.valor),0)));set('csv-caixa-n',caixaR.length+' registro'+(caixaR.length!==1?'s':''));
   set('csv-outro',fmt(outroR.reduce((s,r)=>s+Math.abs(r.valor),0)));set('csv-outro-n',outroR.length+' registro'+(outroR.length!==1?'s':''));
+  _csvCaixaCache=caixaR.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
+  _csvOutroCache=outroR.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
   const tbody=document.getElementById('body-csv');
   if(!fil.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
   tbody.innerHTML=fil.map(r=>{
@@ -1008,6 +1106,12 @@ function renderCSVTable(){
     const vc=r.tipo==='FATURAMENTO'?'val-pos':r.tipo==='DESCONTO'?'val-gold':r.tipo==='OUTROS'?'val-blue':'val-neg';
     return'<tr><td>'+(r.data?r.data.toLocaleDateString('pt-BR'):'—')+'</td><td>'+(r.complemento||'—')+'</td><td>'+(r.cc||'—')+'</td><td>'+(r.conta||'—')+'</td><td>'+(r.contaCorrente||'—')+'</td><td><span class="badge '+tc+'">'+r.tipo+'</span></td><td class="r '+vc+'">'+fmt(r.valor)+'</td></tr>';
   }).join('');
+}
+let _csvCaixaCache=[],_csvOutroCache=[];
+function abrirCsvDetalheModal(tipo){
+  const rows=tipo==='caixa'?_csvCaixaCache:_csvOutroCache;
+  const cols=[{label:'Data',key:'dataStr'},{label:'Credor',key:'complemento'},{label:'Centro de Custo',key:'cc'},{label:'Valor',align:'r',fmt:r=>fmt(r.valor)}];
+  openDetailModal(tipo==='caixa'?'Contas Pagas — Caixa':'Contas Pagas — Outro',rows,cols,{exportName:'ContasPagas_'+(tipo==='caixa'?'Caixa':'Outro')});
 }
 function exportExcelCSV(){if(!DATA.csv.length){alert('Nenhum dado.');return;}const rows=DATA.csv.map(r=>({'Data':r.data?r.data.toLocaleDateString('pt-BR'):'','Complemento':r.complemento||'','CC':r.cc||'','Conta':r.conta||'','Tipo':r.tipo||'','Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}));const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});XLSX.utils.book_append_sheet(wb,ws,'CSV');XLSX.writeFile(wb,'Rossa_CSV_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');}
 function exportarFat(){
@@ -1059,12 +1163,20 @@ function renderArecTable(){
   set('arec-total',fmt(totVal));set('arec-total-n',arr.length+' título'+(arr.length!==1?'s':''));
   set('arec-inad',fmt(inad.reduce((s,r)=>s+r.valor,0)));set('arec-inad-n',inad.length+' título'+(inad.length!==1?'s':''));
   set('arec-emdia',fmt(emdia.reduce((s,r)=>s+r.valor,0)));set('arec-emdia-n',emdia.length+' título'+(emdia.length!==1?'s':''));
+  _arecInadCache=inad.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
   const tbody=document.getElementById('body-arec');if(!tbody)return;
+  renderYearDrillChart('arec-ch-ano',fil,'valor',{label:'A Receber',color:'#1A5276',modalTitle:'A Receber Mensal'});
   if(!fil.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
   tbody.innerHTML=fil.map(r=>{
     const badge=r.status==='Inadimplente'?'<span class="badge bg-red">Inadimplente</span>':'<span class="badge bg-green">Em dia</span>';
     return'<tr><td>'+(r.data?r.data.toLocaleDateString('pt-BR'):'—')+'</td><td>'+(r.cliente||'—')+'</td><td>'+(r.nuTitulo||'—')+'</td><td>'+(r.cc||'—')+'</td><td>'+badge+'</td><td class="r val-pos">'+fmt(r.valor)+'</td></tr>';
   }).join('');
+}
+let _arecInadCache=[];
+function abrirInadimplentesModal(){
+  openDetailModal('Títulos Inadimplentes',_arecInadCache,
+    [{label:'Vencimento',key:'dataStr'},{label:'Cliente',key:'cliente'},{label:'Nº Título',key:'nuTitulo'},{label:'Centro de Custo',key:'cc'},{label:'Valor',align:'r',fmt:r=>fmt(r.valor)}],
+    {exportName:'Inadimplentes'});
 }
 function exportarArec(){
   if(!DATA.arec.length){alert('Nenhum dado.');return;}
