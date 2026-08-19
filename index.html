@@ -436,6 +436,8 @@ tbody td.c{text-align:center}
       <option value="6">Últimos 6 meses</option>
       <option value="12">Últimos 12 meses</option>
     </select>
+    <span class="filter-label">Caixa Inicial</span>
+    <div id="proj-caixa-campos"></div>
     <span class="filter-label">Centro de Custo</span>
     <div class="mes-picker" id="proj-cc-picker-wrap">
       <button class="mes-picker-btn" id="proj-cc-picker-btn" onclick="toggleProjCcPicker(event)">Todos os CCs</button>
@@ -496,11 +498,6 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-blue clickable" onclick="abrirFatModal('total')"><div class="kpi-label">Total Recebido</div><div class="kpi-val" id="fat-total">—</div><div class="kpi-sub" id="fat-total-n">0 registros</div></div>
     <div class="kpi-card c-green clickable" onclick="abrirFatModal('caixa')"><div class="kpi-label">Caixa</div><div class="kpi-val pos" id="fat-caixa">—</div><div class="kpi-sub" id="fat-caixa-n">0 registros</div></div>
     <div class="kpi-card c-gold clickable" onclick="abrirFatModal('outro')"><div class="kpi-label">Outro</div><div class="kpi-val" id="fat-outro">—</div><div class="kpi-sub" id="fat-outro-n">0 registros</div></div>
-  </div>
-  <div class="chart-card" style="margin-bottom:20px">
-    <div class="chart-title">Recebimento por Ano</div>
-    <div class="chart-subtitle">Clique em uma barra para ver o detalhamento mensal do ano</div>
-    <canvas id="fat-ch-ano" height="90"></canvas>
   </div>
   <div class="tbl-card">
     <div class="tbl-head">
@@ -658,8 +655,19 @@ function setSigned(id,v){const el=document.getElementById(id);if(!el)return;el.t
 function normCC(s){return(s||'').trim().toUpperCase().replace(/\s+/g,' ');}
 function stripAccents(s){return(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 function normLoose(s){return stripAccents(s).trim().toUpperCase().replace(/\s+/g,' ');}
-const ORC_EXCLUIR=['ADMINISTRATIVO','CASA RESIDENCIAL','GLB INCORPORADORA','POS OBRA','REFORMAS','ROSSA BOULEVARD','ROSSA COMMERCIALE','ROSSA GARDEN','TERRENO VENERAVEL','ROSSA RESIDENZIALE','POUSADA CANELA'].map(normLoose);
-function excluidoOrcamentoObra(cc){const n=normLoose(cc);return ORC_EXCLUIR.some(k=>n.includes(k));}
+// Orçamento de Obra (tabela editável da Projeção): mostrar apenas estes CCs (lista fechada a pedido)
+const ORC_INCLUIR=['PALAZZO','DIAMOND'].map(normLoose);
+function incluidoOrcamentoObra(cc){const n=normLoose(cc);return ORC_INCLUIR.some(k=>n.includes(k));}
+// Projeção de Fluxo de Caixa: CCs excluídos completamente (sem custo/receita futura)
+const PROJ_EXCLUIR=['GLB INCORPORADORA'].map(normLoose);
+function excluidoProjecao(cc){const n=normLoose(cc);return PROJ_EXCLUIR.some(k=>n.includes(k));}
+// Projeção: CCs que exibem apenas a coluna Faturamento (sem Despesa/Resultado previstos)
+const PROJ_APENAS_FAT=['CASA RESIDENCIAL','POUSADA CANELA','ROSSA COMMERCIALE'].map(normLoose);
+function projApenasFaturamento(cc){const n=normLoose(cc);return PROJ_APENAS_FAT.some(k=>n.includes(k));}
+// Projeção: CCs que recebem a coluna Afetação (4% do Faturamento)
+const PROJ_AFETACAO=['PALAZZO','GRAND PLACE','DIAMOND'].map(normLoose);
+function projTemAfetacao(cc){const n=normLoose(cc);return PROJ_AFETACAO.some(k=>n.includes(k));}
+const AFETACAO_PCT=0.04;
 function ccMatch(a,b){return normCC(a)===normCC(b);}
 function parseBRNum(s){if(!s)return 0;s=String(s).trim().replace(/\s/g,'').replace(/R\$\s*/,'');if(!s||s==='-')return 0;if(s.includes(','))return parseFloat(s.replace(/\./g,'').replace(',','.'))||0;const dots=(s.match(/\./g)||[]).length;if(dots===1){const p=s.split('.');if(p[1].length===3)s=s.replace('.','');}else if(dots>1)s=s.replace(/\./g,'');return parseFloat(s)||0;}
 function parseDateBR(s){if(!s)return null;s=String(s).trim();const m=s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);if(m){let y=parseInt(m[3]);if(y<100)y+=2000;const d=new Date(y,parseInt(m[2])-1,parseInt(m[1]));return isNaN(d.getTime())?null:d;}const m2=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m2){const d=new Date(parseInt(m2[1]),parseInt(m2[2])-1,parseInt(m2[3]));return isNaN(d.getTime())?null:d;}return null;}
@@ -677,11 +685,20 @@ function openDetailModal(title,rows,cols,opts){
   _md.baseRows=rows;_md.cols=cols;_md.exportName=opts.exportName||title;
   document.getElementById('modal-detail-title').textContent=title;
   const anos=[...new Set(rows.map(r=>r.ano).filter(x=>x!=null))].sort();
+  const ccs=[...new Set(rows.map(r=>r.cc).filter(Boolean))].sort();
   let filtersHtml='';
   if(!opts.noFilters&&anos.length){
-    filtersHtml='<span class="filter-label">Ano</span><select class="filter-select" id="md-f-ano" onchange="renderModalDetail()" style="min-width:100px"><option value="">Todos</option>'+anos.map(a=>'<option value="'+a+'">'+a+'</option>').join('')+'</select>'
-      +'<span class="filter-label">Mês</span><select class="filter-select" id="md-f-mes" onchange="renderModalDetail()" style="min-width:130px"><option value="">Todos</option>'+MESES_PT.map((m,i)=>'<option value="'+i+'">'+m+'</option>').join('')+'</select>'
-      +'<button class="btn-ghost" onclick="document.getElementById(\'md-f-ano\').value=\'\';document.getElementById(\'md-f-mes\').value=\'\';renderModalDetail()">✕ Limpar</button>';
+    filtersHtml+='<span class="filter-label">Ano</span><select class="filter-select" id="md-f-ano" onchange="renderModalDetail()" style="min-width:100px"><option value="">Todos</option>'+anos.map(a=>'<option value="'+a+'">'+a+'</option>').join('')+'</select>'
+      +'<span class="filter-label">Mês</span><select class="filter-select" id="md-f-mes" onchange="renderModalDetail()" style="min-width:130px"><option value="">Todos</option>'+MESES_PT.map((m,i)=>'<option value="'+i+'">'+m+'</option>').join('')+'</select>';
+  }
+  // Filtro de Centro de Custo — aparece sempre que o resultado juntar mais de um CC
+  // (independe de opts.noFilters: útil inclusive nos modais de "Total"/"Consolidado" já
+  // filtrados por mês, que somam vários CCs em uma célula só).
+  if(ccs.length>1){
+    filtersHtml+='<span class="filter-label">Centro de Custo</span><select class="filter-select" id="md-f-cc" onchange="renderModalDetail()" style="min-width:170px"><option value="">Todos</option>'+ccs.map(c=>'<option value="'+c.replace(/"/g,'&quot;')+'">'+c+'</option>').join('')+'</select>';
+  }
+  if(filtersHtml){
+    filtersHtml+='<button class="btn-ghost" onclick="[\'md-f-ano\',\'md-f-mes\',\'md-f-cc\'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=\'\';});renderModalDetail()">✕ Limpar</button>';
   }
   document.getElementById('modal-detail-filters').innerHTML=filtersHtml;
   renderModalDetail();
@@ -691,7 +708,8 @@ function closeDetailModal(){document.getElementById('modal-detail').classList.re
 function renderModalDetail(){
   const fA=document.getElementById('md-f-ano')?.value||'';
   const fM=document.getElementById('md-f-mes')?.value||'';
-  const rows=_md.baseRows.filter(r=>(!fA||String(r.ano)===fA)&&(!fM||String(r.mes)===fM));
+  const fC=document.getElementById('md-f-cc')?.value||'';
+  const rows=_md.baseRows.filter(r=>(!fA||String(r.ano)===fA)&&(!fM||String(r.mes)===fM)&&(!fC||r.cc===fC));
   _md.rows=rows;
   const badge=document.getElementById('modal-detail-count');if(badge)badge.textContent=rows.length+' de '+_md.baseRows.length+' registro'+(_md.baseRows.length!==1?'s':'');
   const thead='<tr>'+_md.cols.map(c=>'<th'+(c.align?' class="'+c.align+'"':'')+'>'+c.label+'</th>').join('')+'</tr>';
@@ -1047,7 +1065,6 @@ function renderFatTable(){
   _fatCaixaCache=caixaR.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—',movStr:'Caixa'}));
   _fatOutroCache=outroR.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—',movStr:'Outro'}));
   const tbody=document.getElementById('body-fat');
-  renderYearDrillChart('fat-ch-ano',fil,'valor',{label:'Recebimento',color:'#1B6B35',modalTitle:'Recebimento Mensal'});
   if(!fil.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
   tbody.innerHTML=fil.map(r=>{
     const mc=r.movCaixa?'<span class="badge bg-green">Caixa</span>':'<span class="badge bg-gold">Outro</span>';
@@ -1515,6 +1532,15 @@ function renderCaixaInicialCampos(){
     +' style="border:1px solid var(--brand);background:#fff;padding:7px 12px;font-family:\'DM Sans\',sans-serif;font-size:14px;font-weight:600;color:var(--text);outline:none;text-align:right;width:100%">'
     +'</div>';
 }
+// Caixa Inicial dedicado da aba Projeção — usado diretamente como base do Saldo Acumulado
+// (independente do Caixa Inicial do Fluxo de Caixa Geral, que reconstrói o saldo pelo histórico)
+function renderCaixaInicialProjecao(){
+  const container=document.getElementById('proj-caixa-campos');if(!container)return;
+  const val=DATA.caixaInicial['_projecao']||'';
+  container.innerHTML='<input type="number" value="'+val+'" placeholder="0,00" step="0.01"'
+    +' onchange="DATA.caixaInicial[\'_projecao\']=parseFloat(this.value)||0;renderProjecao();autoSave()"'
+    +' style="border:1px solid var(--brand);background:#fff;padding:6px 10px;font-family:\'DM Sans\',sans-serif;font-size:13px;font-weight:600;color:var(--text);outline:none;text-align:right;width:140px">';
+}
 // ── PROJEÇÃO DE FLUXO DE CAIXA ──────────────────────────────────────────────
 function addMonthsKey(key,n){let ano=Math.floor(key/100),mes=(key%100)+n;while(mes>11){mes-=12;ano++;}while(mes<0){mes+=12;ano--;}return ano*100+mes;}
 function parseInicioObra(str){if(!str)return null;const p=String(str).split('-');if(p.length<2)return null;const ano=parseInt(p[0]),mes=parseInt(p[1])-1;if(isNaN(ano)||isNaN(mes))return null;return ano*100+mes;}
@@ -1548,7 +1574,7 @@ function selecionarTodosProjCC(){_projCcSel=new Set();document.querySelectorAll(
 function limparProjCC(){_projCcSel=new Set();document.querySelectorAll('#proj-cc-picker-items input').forEach(cb=>{cb.checked=false;});atualizarBtnProjCc();renderProjecao();}
 document.addEventListener('click',()=>{const d=document.getElementById('proj-cc-picker-dropdown');if(d)d.classList.remove('open');});
 // Caches para os KPIs e células clicáveis da Projeção
-let _projCcsAtivasCache=[],_projArecCCCache=[],_projDespInfoCache={},_projSaiPrevCache={},_projMensalCache=[];
+let _projCcsAtivasCache=[],_projArecCCCache=[],_projDespInfoCache={},_projSaiPrevCache={},_projAfetPrevCache={},_projMensalCache=[];
 function abrirProjKpiModal(tipo){
   if(tipo==='fat'){
     const rows=_projArecCCCache.filter(r=>_projCcsAtivasCache.includes(r.cc)).map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
@@ -1562,7 +1588,7 @@ function abrirProjKpiModal(tipo){
       {exportName:'Projecao_DespesaPrevista',noFilters:true});
   }else if(tipo==='necessidade'){
     openDetailModal('Saldo Projetado Mês a Mês — onde o caixa fica mais apertado',_projMensalCache,
-      [{label:'Mês',key:'mesNome'},{label:'Faturamento',align:'r',fmt:r=>fmt(r.fat)},{label:'Despesa',align:'r',fmt:r=>fmt(r.desp)},{label:'Resultado',align:'r',fmt:r=>fmtSgn(r.resultado)},{label:'Saldo Acumulado',align:'r',fmt:r=>fmtSgn(r.saldoAcum)}],
+      [{label:'Mês',key:'mesNome'},{label:'Faturamento',align:'r',fmt:r=>fmt(r.fat)},{label:'Despesa',align:'r',fmt:r=>fmt(r.desp)},{label:'Afetação',align:'r',fmt:r=>fmt(r.afet)},{label:'Resultado',align:'r',fmt:r=>fmtSgn(r.resultado)},{label:'Saldo Acumulado',align:'r',fmt:r=>fmtSgn(r.saldoAcum)}],
       {exportName:'Projecao_SaldoMensal',noFilters:true});
   }
 }
@@ -1584,11 +1610,22 @@ function abrirProjCelulaModal(el){
     openDetailModal('Despesa Prevista — '+tituloCc+' — '+tituloMes,rows,
       [{label:'Centro de Custo',key:'cc'},{label:'Fonte',key:'fonte'},{label:'Premissa',key:'detalhe'},{label:'Valor Mensal Previsto',align:'r',fmt:r=>fmt(r.valorMensal)}],
       {exportName:'Projecao_Desp_'+(cc||'Consolidado')+'_'+MESES_ABR[mes]+ano,noFilters:true});
+  }else if(tipo==='AFET'){
+    const k=ano*100+mes;
+    const rows=ccsRef.filter(c=>projTemAfetacao(c)).map(c=>{
+      const fatCC=_projArecCCCache.filter(r=>r.cc===c&&r.ano===ano&&r.mes===mes).reduce((s,r)=>s+Math.abs(r.valor),0);
+      const afetCC=(_projAfetPrevCache[c]||{})[k]||0;
+      return{cc:c,fat:fatCC,pct:AFETACAO_PCT*100,valor:afetCC};
+    });
+    openDetailModal('Afetação Prevista (4% do Faturamento) — '+tituloCc+' — '+tituloMes,rows,
+      [{label:'Centro de Custo',key:'cc'},{label:'Faturamento do Mês',align:'r',fmt:r=>fmt(r.fat)},{label:'% Afetação',align:'r',fmt:r=>r.pct.toLocaleString('pt-BR')+'%'},{label:'Afetação',align:'r',fmt:r=>fmt(r.valor)}],
+      {exportName:'Projecao_Afet_'+(cc||'Consolidado')+'_'+MESES_ABR[mes]+ano,noFilters:true});
   }else{
     const k=ano*100+mes;
     const fatTot=_projArecCCCache.filter(r=>ccsRef.includes(r.cc)&&r.ano===ano&&r.mes===mes).reduce((s,r)=>s+Math.abs(r.valor),0);
     const despTot=ccsRef.reduce((s,c)=>s+((_projSaiPrevCache[c]||{})[k]||0),0);
-    const rows=[{item:'Faturamento Previsto',valor:fatTot},{item:'Despesa Prevista',valor:-despTot},{item:'Resultado do Mês',valor:fatTot-despTot}];
+    const afetTot=ccsRef.reduce((s,c)=>s+((_projAfetPrevCache[c]||{})[k]||0),0);
+    const rows=[{item:'Faturamento Previsto',valor:fatTot},{item:'Despesa Prevista',valor:-despTot},{item:'Afetação Prevista (4% Fat.)',valor:-afetTot},{item:'Resultado do Mês',valor:fatTot-despTot-afetTot}];
     openDetailModal('Resultado Previsto — '+tituloCc+' — '+tituloMes,rows,
       [{label:'Item',key:'item'},{label:'Valor',align:'r',fmt:r=>fmtSgn(r.valor)}],
       {exportName:'Projecao_Result_'+(cc||'Consolidado')+'_'+MESES_ABR[mes]+ano,noFilters:true});
@@ -1612,8 +1649,8 @@ function renderProjecao(){
   DATA.fat.forEach(r=>{if(r.cc)ccSet.add(r.cc);});
   arecCC.forEach(r=>ccSet.add(r.cc));
   Object.keys(DATA.orcamentoObra).forEach(cc=>ccSet.add(cc));
-  const todosCC=[...ccSet].sort();
-  const ccOrcamento=todosCC.filter(cc=>!excluidoOrcamentoObra(cc));
+  const todosCC=[...ccSet].sort().filter(cc=>!excluidoProjecao(cc));
+  const ccOrcamento=todosCC.filter(cc=>incluidoOrcamentoObra(cc));
   // Card de Orçamento de Obra (editável) — lista os CCs conhecidos, exceto os excluídos
   if(orcTbody){
     set('proj-orc-badge',ccOrcamento.length+' centro'+(ccOrcamento.length!==1?'s':'')+' de custo');
@@ -1633,7 +1670,7 @@ function renderProjecao(){
       }).join('');
     }
   }
-  if(!todosCC.length){tbodyEl.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr>';theadEl.innerHTML='';if(tfootEl)tfootEl.innerHTML='';set('proj-badge','—');set('proj-kpi-fat','—');set('proj-kpi-desp','—');set('proj-kpi-saldofinal','—');set('proj-kpi-necessidade','—');set('proj-kpi-necessidade-n','—');_projMensalCache=[];_projArecCCCache=[];_projCcsAtivasCache=[];buildProjCcPicker([]);return;}
+  if(!todosCC.length){tbodyEl.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr>';theadEl.innerHTML='';if(tfootEl)tfootEl.innerHTML='';set('proj-badge','—');set('proj-kpi-fat','—');set('proj-kpi-desp','—');set('proj-kpi-saldofinal','—');set('proj-kpi-necessidade','—');set('proj-kpi-necessidade-n','—');_projMensalCache=[];_projArecCCCache=[];_projCcsAtivasCache=[];buildProjCcPicker([]);renderCaixaInicialProjecao();return;}
   // Faturamento previsto por CC/mês (Entradas A Receber, por vencimento)
   const fatPrevCC={};
   todosCC.forEach(cc=>{fatPrevCC[cc]=timeline.map(k=>{const ano=Math.floor(k/100),mes=k%100;return arecCC.filter(r=>r.cc===cc&&r.data.getFullYear()===ano&&r.data.getMonth()===mes).reduce((s,r)=>s+Math.abs(r.valor),0);});});
@@ -1659,6 +1696,11 @@ function renderProjecao(){
       saiPrevCC[cc]=timeline.map(()=>mediaDespesaCC[cc]||0);
     }
   });
+  // CCs "apenas faturamento": sem despesa/resultado previstos nesta aba (não entram no Total de Saídas)
+  todosCC.forEach(cc=>{if(projApenasFaturamento(cc))saiPrevCC[cc]=timeline.map(()=>0);});
+  // Afetação (4% do Faturamento) por CC/mês, apenas para os CCs configurados
+  const afetPrevCC={};
+  todosCC.forEach(cc=>{afetPrevCC[cc]=projTemAfetacao(cc)?fatPrevCC[cc].map(v=>v*AFETACAO_PCT):timeline.map(()=>0);});
   // Regra: CC sem faturamento nos últimos 2 meses e sem previsto → não exibir bloco de faturamento
   const doisMesesAtras=addMonthsKey(hojeKey,-2);
   const ccsAtivos=todosCC.filter(cc=>{
@@ -1684,47 +1726,83 @@ function renderProjecao(){
   });
   _projSaiPrevCache={};
   todosCC.forEach(cc=>{_projSaiPrevCache[cc]={};timeline.forEach((k,i)=>{_projSaiPrevCache[cc][k]=saiPrevCC[cc][i];});});
+  _projAfetPrevCache={};
+  todosCC.forEach(cc=>{_projAfetPrevCache[cc]={};timeline.forEach((k,i)=>{_projAfetPrevCache[cc][k]=afetPrevCC[cc][i];});});
   // Tabela transposta: meses em linhas, Centro de Custo em colunas (Faturamento | Despesas | Resultado)
   set('proj-badge',ccsAtivas.length+' de '+ccsAtivos.length+' centro'+(ccsAtivos.length!==1?'s':'')+' de custo · '+nMeses+' meses a partir de '+timelineLabels[0]);
-  const tFatT=Array(NC).fill(0),tSaiT=Array(NC).fill(0);
-  ccsAtivas.forEach(cc=>{fatPrevCC[cc].forEach((v,i)=>tFatT[i]+=v);saiPrevCC[cc].forEach((v,i)=>tSaiT[i]+=v);});
+  const colType=cc=>projApenasFaturamento(cc)?'fat':(projTemAfetacao(cc)?'afet':'default');
+  const colCount=t=>t==='fat'?1:(t==='afet'?4:3);
+  const tFatT=Array(NC).fill(0),tSaiT=Array(NC).fill(0),tAfetT=Array(NC).fill(0);
+  ccsAtivas.forEach(cc=>{fatPrevCC[cc].forEach((v,i)=>tFatT[i]+=v);saiPrevCC[cc].forEach((v,i)=>tSaiT[i]+=v);afetPrevCC[cc].forEach((v,i)=>tAfetT[i]+=v);});
+  const headCellsFor=t=>t==='fat'
+    ?'<th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;border-left:2px solid #ddd;color:#1B6B35">Fat.</th>'
+    :t==='afet'
+      ?'<th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;border-left:2px solid #ddd;color:#1B6B35">Fat.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;color:#C0392B">Desp.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;color:#B7950B">Afet.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;font-weight:700">Result.</th>'
+      :'<th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;border-left:2px solid #ddd;color:#1B6B35">Fat.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;color:#C0392B">Desp.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;font-weight:700">Result.</th>';
   theadEl.innerHTML=
     '<tr style="background:#f5f5f5"><th rowspan="2" style="text-align:left;padding:8px 12px;min-width:110px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Mês</th>'
-      +ccsAtivas.map(cc=>'<th colspan="3" class="c" style="padding:6px 8px;font-size:10px;border-left:2px solid #ddd;background:#eef2f5">'+cc+'</th>').join('')
-      +'<th colspan="3" class="c" style="padding:6px 8px;font-size:10px;border-left:2px solid #bbb;background:#ececec">Consolidado</th>'
+      +ccsAtivas.map(cc=>'<th colspan="'+colCount(colType(cc))+'" class="c" style="padding:6px 8px;font-size:10px;border-left:2px solid #ddd;background:#eef2f5">'+cc+'</th>').join('')
+      +'<th colspan="4" class="c" style="padding:6px 8px;font-size:10px;border-left:2px solid #bbb;background:#ececec">Consolidado</th>'
       +'<th rowspan="2" class="r" style="padding:6px 8px;min-width:90px;background:#1a5276;color:#fff;font-size:10px">Saldo Acum.</th></tr>'
     +'<tr style="background:#f5f5f5">'
-      +ccsAtivas.map(()=>'<th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;border-left:2px solid #ddd;color:#1B6B35">Fat.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;color:#C0392B">Desp.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;font-weight:700">Result.</th>').join('')
-      +'<th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;border-left:2px solid #bbb;color:#1B6B35">Fat.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;color:#C0392B">Desp.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;font-weight:700">Result.</th>'
+      +ccsAtivas.map(cc=>headCellsFor(colType(cc))).join('')
+      +'<th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;border-left:2px solid #bbb;color:#1B6B35">Fat.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;color:#C0392B">Desp.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;color:#B7950B">Afet.</th><th class="r" style="padding:4px 5px;min-width:66px;font-size:9px;font-weight:700">Result.</th>'
     +'</tr>';
-  const ciTotal=parseFloat(DATA.caixaInicial['_total']||0)||0;
-  let saldoAtual=ciTotal;
-  DATA.fat.filter(r=>r.movCaixa===true).forEach(r=>{saldoAtual+=Math.abs(r.valor);});
-  DATA.csv.filter(r=>r.movCaixa!==false&&r.tipo==='PAGAMENTO').forEach(r=>{saldoAtual+=r.valor;});
-  const resMensal=tFatT.map((v,i)=>v-tSaiT[i]);
+  // Caixa Inicial dedicado da Projeção: usado diretamente como base do saldo acumulado
+  // (não soma histórico de Contas Pagas/Entradas — apenas o valor informado manualmente pelo usuário)
+  let saldoAtual=parseFloat(DATA.caixaInicial['_projecao']||0)||0;
+  const resMensal=tFatT.map((v,i)=>v-tSaiT[i]-tAfetT[i]);
   const saldoProj=[];let acc=saldoAtual;resMensal.forEach(v=>{acc+=v;saldoProj.push(acc);});
   const cellAttr=(cc,k,tipo)=>'data-cc="'+cc.replace(/"/g,'&quot;')+'" data-ano="'+Math.floor(k/100)+'" data-mes="'+(k%100)+'" data-tipo="'+tipo+'" onclick="abrirProjCelulaModal(this)" style="padding:4px 5px;font-size:10px;cursor:pointer;';
+  const rowCellsFor=(cc,k,i)=>{
+    const t=colType(cc);
+    const fv=fatPrevCC[cc][i];
+    if(t==='fat'){
+      return'<td class="r" '+cellAttr(cc,k,'FAT')+'border-left:2px solid #ddd;color:#1B6B35">'+(fv?f2(fv):'<span style="color:#ccc">—</span>')+'</td>';
+    }
+    const sv=saiPrevCC[cc][i];
+    if(t==='afet'){
+      const av=afetPrevCC[cc][i],rv=fv-sv-av;
+      return'<td class="r" '+cellAttr(cc,k,'FAT')+'border-left:2px solid #ddd;color:#1B6B35">'+(fv?f2(fv):'<span style="color:#ccc">—</span>')+'</td>'
+        +'<td class="r" '+cellAttr(cc,k,'DESP')+'color:#C0392B">'+(sv?f2(-sv):'<span style="color:#ccc">—</span>')+'</td>'
+        +'<td class="r" '+cellAttr(cc,k,'AFET')+'color:#B7950B">'+(av?f2(-av):'<span style="color:#ccc">—</span>')+'</td>'
+        +'<td class="r" '+cellAttr(cc,k,'RESULT')+'font-weight:600;color:'+(rv>=0?'#1B6B35':'#C0392B')+'">'+f2(rv)+'</td>';
+    }
+    const rv=fv-sv;
+    return'<td class="r" '+cellAttr(cc,k,'FAT')+'border-left:2px solid #ddd;color:#1B6B35">'+(fv?f2(fv):'<span style="color:#ccc">—</span>')+'</td>'
+      +'<td class="r" '+cellAttr(cc,k,'DESP')+'color:#C0392B">'+(sv?f2(-sv):'<span style="color:#ccc">—</span>')+'</td>'
+      +'<td class="r" '+cellAttr(cc,k,'RESULT')+'font-weight:600;color:'+(rv>=0?'#1B6B35':'#C0392B')+'">'+f2(rv)+'</td>';
+  };
   let rowsH='';
   timeline.forEach((k,i)=>{
     rowsH+='<tr><td style="position:sticky;left:0;z-index:1;background:#fff;padding:5px 12px;font-size:11px;font-weight:600">'+timelineLabels[i]+'</td>';
-    ccsAtivas.forEach(cc=>{
-      const fv=fatPrevCC[cc][i],sv=saiPrevCC[cc][i],rv=fv-sv;
-      rowsH+='<td class="r" '+cellAttr(cc,k,'FAT')+'border-left:2px solid #ddd;color:#1B6B35">'+(fv?f2(fv):'<span style="color:#ccc">—</span>')+'</td>'
-        +'<td class="r" '+cellAttr(cc,k,'DESP')+'color:#C0392B">'+(sv?f2(-sv):'<span style="color:#ccc">—</span>')+'</td>'
-        +'<td class="r" '+cellAttr(cc,k,'RESULT')+'font-weight:600;color:'+(rv>=0?'#1B6B35':'#C0392B')+'">'+f2(rv)+'</td>';
-    });
+    ccsAtivas.forEach(cc=>{rowsH+=rowCellsFor(cc,k,i);});
     rowsH+='<td class="r" '+cellAttr('',k,'FAT')+'border-left:2px solid #bbb;background:#f4f4f4;color:#1B6B35">'+f2(tFatT[i])+'</td>'
       +'<td class="r" '+cellAttr('',k,'DESP')+'background:#f4f4f4;color:#C0392B">'+f2(-tSaiT[i])+'</td>'
+      +'<td class="r" '+cellAttr('',k,'AFET')+'background:#f4f4f4;color:#B7950B">'+f2(-tAfetT[i])+'</td>'
       +'<td class="r" '+cellAttr('',k,'RESULT')+'font-weight:700;background:#f4f4f4;color:'+(resMensal[i]>=0?'#1B6B35':'#C0392B')+'">'+f2(resMensal[i])+'</td>'
       +'<td class="r" style="padding:4px 7px;font-size:10px;font-weight:700;background:#1a5276;color:'+(saldoProj[i]>=0?'#A9DFBF':'#F1948A')+'">'+f2(saldoProj[i])+'</td></tr>';
   });
   tbodyEl.innerHTML=rowsH;
-  const totFat=tFatT.reduce((s,v)=>s+v,0),totSaiG=tSaiT.reduce((s,v)=>s+v,0);
+  const totFat=tFatT.reduce((s,v)=>s+v,0),totSaiG=tSaiT.reduce((s,v)=>s+v,0),totAfetG=tAfetT.reduce((s,v)=>s+v,0);
   if(tfootEl){
     const totRes=resMensal.reduce((s,v)=>s+v,0);
+    const footCellsFor=cc=>{
+      const t=colType(cc);
+      const tf=fatPrevCC[cc].reduce((s,v)=>s+v,0);
+      if(t==='fat'){
+        return'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #ddd;color:#1B6B35">'+f2(tf)+'</td>';
+      }
+      const ts=saiPrevCC[cc].reduce((s,v)=>s+v,0);
+      if(t==='afet'){
+        const ta=afetPrevCC[cc].reduce((s,v)=>s+v,0);
+        return'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #ddd;color:#1B6B35">'+f2(tf)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+f2(-ts)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#B7950B">'+f2(-ta)+'</td><td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;color:'+(tf-ts-ta>=0?'#1B6B35':'#C0392B')+'">'+f2(tf-ts-ta)+'</td>';
+      }
+      return'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #ddd;color:#1B6B35">'+f2(tf)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+f2(-ts)+'</td><td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;color:'+(tf-ts>=0?'#1B6B35':'#C0392B')+'">'+f2(tf-ts)+'</td>';
+    };
     tfootEl.innerHTML='<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="position:sticky;left:0;background:#f0f0f0;padding:6px 12px;font-size:11px">Total</td>'
-      +ccsAtivas.map(cc=>{const tf=fatPrevCC[cc].reduce((s,v)=>s+v,0),ts=saiPrevCC[cc].reduce((s,v)=>s+v,0);return'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #ddd;color:#1B6B35">'+f2(tf)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+f2(-ts)+'</td><td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;color:'+(tf-ts>=0?'#1B6B35':'#C0392B')+'">'+f2(tf-ts)+'</td>';}).join('')
-      +'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #bbb;color:#1B6B35">'+f2(totFat)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+f2(-totSaiG)+'</td><td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;color:'+(totRes>=0?'#1B6B35':'#C0392B')+'">'+f2(totRes)+'</td>'
+      +ccsAtivas.map(cc=>footCellsFor(cc)).join('')
+      +'<td class="r" style="padding:4px 5px;font-size:10px;border-left:2px solid #bbb;color:#1B6B35">'+f2(totFat)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#C0392B">'+f2(-totSaiG)+'</td><td class="r" style="padding:4px 5px;font-size:10px;color:#B7950B">'+f2(-totAfetG)+'</td><td class="r" style="padding:4px 5px;font-size:10px;font-weight:700;color:'+(totRes>=0?'#1B6B35':'#C0392B')+'">'+f2(totRes)+'</td>'
       +'<td class="r" style="padding:4px 7px;font-size:10px;font-weight:700;background:#1a5276;color:'+(saldoProj[saldoProj.length-1]>=0?'#A9DFBF':'#F1948A')+'">'+f2(saldoProj[saldoProj.length-1])+'</td></tr>';
   }
   // KPIs no topo da aba
@@ -1738,7 +1816,8 @@ function renderProjecao(){
   const necessidade=piorVal<0?Math.abs(piorVal):0;
   set('proj-kpi-necessidade',fmt(necessidade));
   set('proj-kpi-necessidade-n',necessidade>0?('Em '+timelineLabels[piorIdx]):'Nenhum mês fica negativo neste cenário');
-  _projMensalCache=timeline.map((k,i)=>({mesNome:timelineLabels[i],ano:Math.floor(k/100),mes:k%100,fat:tFatT[i],desp:tSaiT[i],resultado:resMensal[i],saldoAcum:saldoProj[i]}));
+  _projMensalCache=timeline.map((k,i)=>({mesNome:timelineLabels[i],ano:Math.floor(k/100),mes:k%100,fat:tFatT[i],desp:tSaiT[i],afet:tAfetT[i],resultado:resMensal[i],saldoAcum:saldoProj[i]}));
+  renderCaixaInicialProjecao();
 }
 function exportarFluxo(){
   if(!DATA.csv.length){alert('Nenhum dado.');return;}
