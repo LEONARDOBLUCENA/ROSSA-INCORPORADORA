@@ -245,15 +245,16 @@ tbody td.c{text-align:center}
 
 <!-- MODAL DE DETALHE (tabelas clicáveis: KPIs e gráficos por ano) -->
 <div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)closeDetailModal()">
-  <div class="modal-box" style="max-width:920px">
+  <div class="modal-box" style="max-width:1040px">
     <button class="modal-close" onclick="closeDetailModal()">✕</button>
     <div class="modal-title" id="modal-detail-title">Detalhes</div>
     <div id="modal-detail-filters" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div id="modal-detail-summary"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;flex-wrap:wrap">
       <span class="tbl-badge" id="modal-detail-count">—</span>
       <button class="btn-export" onclick="exportModalDetail()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
     </div>
-    <div class="tbl-wrap" id="modal-detail-body" style="max-height:52vh;overflow-y:auto"></div>
+    <div class="tbl-wrap" id="modal-detail-body" style="max-height:44vh;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -679,10 +680,11 @@ function setStatus(id,msg,ok){const el=document.getElementById(id);if(!el)return
 function destroyChart(id){if(CHARTS[id]){CHARTS[id].destroy();delete CHARTS[id];}}
 
 // ── MODAL DE DETALHE (genérico — usado por KPIs clicáveis e drill-down de gráficos por ano) ──
-let _md={baseRows:[],rows:[],cols:[],exportName:'Detalhe'};
+let _md={baseRows:[],rows:[],cols:[],exportName:'Detalhe',sortKey:'valor',noSort:false};
 function openDetailModal(title,rows,cols,opts){
   opts=opts||{};
   _md.baseRows=rows;_md.cols=cols;_md.exportName=opts.exportName||title;
+  _md.sortKey=opts.sortKey||'valor';_md.noSort=!!opts.noSort;
   document.getElementById('modal-detail-title').textContent=title;
   const anos=[...new Set(rows.map(r=>r.ano).filter(x=>x!=null))].sort();
   const ccs=[...new Set(rows.map(r=>r.cc).filter(Boolean))].sort();
@@ -709,12 +711,43 @@ function renderModalDetail(){
   const fA=document.getElementById('md-f-ano')?.value||'';
   const fM=document.getElementById('md-f-mes')?.value||'';
   const fC=document.getElementById('md-f-cc')?.value||'';
-  const rows=_md.baseRows.filter(r=>(!fA||String(r.ano)===fA)&&(!fM||String(r.mes)===fM)&&(!fC||r.cc===fC));
+  let rows=_md.baseRows.filter(r=>(!fA||String(r.ano)===fA)&&(!fM||String(r.mes)===fM)&&(!fC||r.cc===fC));
+  if(!_md.noSort){
+    const sk=_md.sortKey;
+    rows=rows.slice().sort((a,b)=>Math.abs(b[sk]||0)-Math.abs(a[sk]||0));
+  }
   _md.rows=rows;
   const badge=document.getElementById('modal-detail-count');if(badge)badge.textContent=rows.length+' de '+_md.baseRows.length+' registro'+(_md.baseRows.length!==1?'s':'');
+  const sumEl=document.getElementById('modal-detail-summary');if(sumEl)sumEl.innerHTML=buildResumoSection(rows);
   const thead='<tr>'+_md.cols.map(c=>'<th'+(c.align?' class="'+c.align+'"':'')+'>'+c.label+'</th>').join('')+'</tr>';
   const tbody=rows.length?rows.map(r=>'<tr>'+_md.cols.map(c=>'<td'+(c.align?' class="'+c.align+'"':'')+'>'+(c.fmt?c.fmt(r):(r[c.key]??'—'))+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+_md.cols.length+'"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';
   const body=document.getElementById('modal-detail-body');if(body)body.innerHTML='<table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
+}
+// Tabelas-resumo (por Centro de Custo e por Conta) exibidas acima do detalhamento —
+// só aparecem quando os registros do pop-up têm o campo correspondente (cc/conta).
+function buildResumoGroup(rows,key,label){
+  if(!rows.some(r=>r[key]))return'';
+  const sk=_md.sortKey;
+  const total=rows.reduce((s,r)=>s+Math.abs(r[sk]||0),0);
+  const groups={};
+  rows.forEach(r=>{
+    const k=r[key]||'(Sem '+label.toLowerCase()+')';
+    if(!groups[k])groups[k]={valor:0,n:0};
+    groups[k].valor+=Math.abs(r[sk]||0);
+    groups[k].n++;
+  });
+  const arr=Object.entries(groups).map(([k,v])=>({k,...v})).sort((a,b)=>b.valor-a.valor);
+  const rowsHtml=arr.map(g=>'<tr><td>'+g.k+'</td><td class="r">'+fmt(g.valor)+'</td><td class="r">'+(total?((g.valor/total*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'):'—')+'</td><td class="r">'+g.n+'</td></tr>').join('');
+  return'<div>'
+    +'<div style="font-size:11px;font-weight:700;color:var(--text3);padding:4px 0 6px;text-transform:uppercase;letter-spacing:.03em">Resumo por '+label+'</div>'
+    +'<div class="tbl-wrap" style="max-height:200px;overflow-y:auto"><table><thead><tr><th>'+label+'</th><th class="r">Valor</th><th class="r">%</th><th class="r">Qtd.</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
+    +'</div>';
+}
+function buildResumoSection(rows){
+  const ccHtml=buildResumoGroup(rows,'cc','Centro de Custo');
+  const contaHtml=buildResumoGroup(rows,'conta','Conta');
+  if(!ccHtml&&!contaHtml)return'';
+  return'<div style="display:grid;grid-template-columns:'+(ccHtml&&contaHtml?'1fr 1fr':'1fr')+';gap:14px;margin-bottom:14px">'+ccHtml+contaHtml+'</div>';
 }
 function exportModalDetail(){
   if(!_md.rows.length){alert('Nenhum dado para exportar.');return;}
@@ -744,7 +777,7 @@ function renderYearDrillChart(canvasId,arr,valueKey,opts){
       }).filter(x=>x.qtd>0);
       openDetailModal((opts.modalTitle||'Total')+' — '+year,byMonth,
         [{label:'Mês',key:'mesNome'},{label:'Registros',key:'qtd',align:'c'},{label:'Valor',align:'r',fmt:r=>fmt(r.valor)}],
-        {noFilters:true,exportName:(opts.modalTitle||'Total')+'_'+year});
+        {noFilters:true,noSort:true,exportName:(opts.modalTitle||'Total')+'_'+year});
     },
     plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}},
     scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}}}
@@ -1585,11 +1618,11 @@ function abrirProjKpiModal(tipo){
     const rows=_projCcsAtivasCache.map(cc=>{const i=_projDespInfoCache[cc]||{};return{cc,fonte:i.fonte||'—',detalhe:i.detalhe||'—',valorMensal:i.valorMensal||0};});
     openDetailModal('Despesa Prevista — premissa usada por Centro de Custo',rows,
       [{label:'Centro de Custo',key:'cc'},{label:'Fonte',key:'fonte'},{label:'Premissa',key:'detalhe'},{label:'Valor Mensal Previsto',align:'r',fmt:r=>fmt(r.valorMensal)}],
-      {exportName:'Projecao_DespesaPrevista',noFilters:true});
+      {exportName:'Projecao_DespesaPrevista',noFilters:true,sortKey:'valorMensal'});
   }else if(tipo==='necessidade'){
     openDetailModal('Saldo Projetado Mês a Mês — onde o caixa fica mais apertado',_projMensalCache,
       [{label:'Mês',key:'mesNome'},{label:'Faturamento',align:'r',fmt:r=>fmt(r.fat)},{label:'Despesa',align:'r',fmt:r=>fmt(r.desp)},{label:'Afetação',align:'r',fmt:r=>fmt(r.afet)},{label:'Resultado',align:'r',fmt:r=>fmtSgn(r.resultado)},{label:'Saldo Acumulado',align:'r',fmt:r=>fmtSgn(r.saldoAcum)}],
-      {exportName:'Projecao_SaldoMensal',noFilters:true});
+      {exportName:'Projecao_SaldoMensal',noFilters:true,noSort:true});
   }
 }
 function abrirProjCelulaModal(el){
@@ -1609,7 +1642,7 @@ function abrirProjCelulaModal(el){
     const rows=ccsRef.map(c=>{const i=_projDespInfoCache[c]||{};return{cc:c,fonte:i.fonte||'—',detalhe:i.detalhe||'—',valorMensal:i.valorMensal||0};});
     openDetailModal('Despesa Prevista — '+tituloCc+' — '+tituloMes,rows,
       [{label:'Centro de Custo',key:'cc'},{label:'Fonte',key:'fonte'},{label:'Premissa',key:'detalhe'},{label:'Valor Mensal Previsto',align:'r',fmt:r=>fmt(r.valorMensal)}],
-      {exportName:'Projecao_Desp_'+(cc||'Consolidado')+'_'+MESES_ABR[mes]+ano,noFilters:true});
+      {exportName:'Projecao_Desp_'+(cc||'Consolidado')+'_'+MESES_ABR[mes]+ano,noFilters:true,sortKey:'valorMensal'});
   }else if(tipo==='AFET'){
     const k=ano*100+mes;
     const rows=ccsRef.filter(c=>projTemAfetacao(c)).map(c=>{
@@ -1628,7 +1661,7 @@ function abrirProjCelulaModal(el){
     const rows=[{item:'Faturamento Previsto',valor:fatTot},{item:'Despesa Prevista',valor:-despTot},{item:'Afetação Prevista (4% Fat.)',valor:-afetTot},{item:'Resultado do Mês',valor:fatTot-despTot-afetTot}];
     openDetailModal('Resultado Previsto — '+tituloCc+' — '+tituloMes,rows,
       [{label:'Item',key:'item'},{label:'Valor',align:'r',fmt:r=>fmtSgn(r.valor)}],
-      {exportName:'Projecao_Result_'+(cc||'Consolidado')+'_'+MESES_ABR[mes]+ano,noFilters:true});
+      {exportName:'Projecao_Result_'+(cc||'Consolidado')+'_'+MESES_ABR[mes]+ano,noFilters:true,noSort:true});
   }
 }
 function renderProjecao(){
@@ -1857,7 +1890,7 @@ let _estoqueCache=[];
 function abrirEstoqueModal(){
   openDetailModal('Unidades — Total (VGV)',_estoqueCache,
     [{label:'Obra',key:'obra'},{label:'Unidade',key:'unidade'},{label:'Status',key:'status'},{label:'Área (m²)',align:'r',fmt:r=>r.area?r.area.toLocaleString('pt-BR',{minimumFractionDigits:2}):'—'},{label:'Valor',align:'r',fmt:r=>fmt(r.venda||0)}],
-    {exportName:'Estoque_VGV',noFilters:true});
+    {exportName:'Estoque_VGV',noFilters:true,sortKey:'venda'});
 }
 function exportarEstoque(){
   const fObra=document.getElementById('fe-obra')?.value||'';
