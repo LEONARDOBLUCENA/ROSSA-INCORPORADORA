@@ -302,9 +302,9 @@ tbody td.c{text-align:center}
     <div class="tbl-head"><div class="tbl-title">Resumo Mensal</div><span class="tbl-badge">Saídas e Entradas de Caixa por mês</span></div>
     <div style="overflow-x:auto;font-size:12px">
       <table style="width:100%;border-collapse:collapse;min-width:700px">
-        <colgroup><col style="width:90px"><col style="width:150px"><col style="width:150px"><col style="width:190px"><col style="width:190px"></colgroup>
-        <thead><tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px">Mês</th><th class="r" style="padding:8px 12px">Saídas (banco)</th><th class="r" style="padding:8px 12px">Entradas em Caixa</th><th class="r" style="padding:8px 12px">Entradas Não-Caixa (permuta/bens)</th><th class="r" style="padding:8px 12px">Resultado de Caixa (Entrada − Saída)</th></tr></thead>
-        <tbody id="dash-resumo-mensal"><tr><td colspan="5"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody>
+        <colgroup><col style="width:90px"><col style="width:150px"><col style="width:170px"><col style="width:150px"><col style="width:190px"><col style="width:190px"></colgroup>
+        <thead><tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px">Mês</th><th class="r" style="padding:8px 12px">Saídas (banco)</th><th class="r" style="padding:8px 12px">Saídas Não-Caixa (permuta/bens)</th><th class="r" style="padding:8px 12px">Entradas em Caixa</th><th class="r" style="padding:8px 12px">Entradas Não-Caixa (permuta/bens)</th><th class="r" style="padding:8px 12px">Resultado de Caixa (Entrada − Saída)</th></tr></thead>
+        <tbody id="dash-resumo-mensal"><tr><td colspan="6"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1304,9 +1304,10 @@ function renderDash(){
   const sortedKeys=[...keys].sort();const labels=sortedKeys.map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100));
   const rmTbody=document.getElementById('dash-resumo-mensal');
   if(rmTbody){
-    if(!sortedKeys.length){rmTbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr>';}
+    if(!sortedKeys.length){rmTbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr>';}
     else{
       const mSaiBanco=sortedKeys.map(k=>{const ano=Math.floor(k/100),mes=k%100;return saidas.filter(r=>r.movCaixa!==false&&r.data&&r.data.getFullYear()===ano&&r.data.getMonth()===mes).reduce((s,r)=>s+Math.abs(r.valor),0);});
+      const mSaiNaoCaixa=sortedKeys.map(k=>{const ano=Math.floor(k/100),mes=k%100;return saidas.filter(r=>r.movCaixa===false&&r.data&&r.data.getFullYear()===ano&&r.data.getMonth()===mes).reduce((s,r)=>s+Math.abs(r.valor),0);});
       const mEntCaixa=sortedKeys.map(k=>{const ano=Math.floor(k/100),mes=k%100;return entradas.filter(r=>r.movCaixa===true&&r.data&&r.data.getFullYear()===ano&&r.data.getMonth()===mes).reduce((s,r)=>s+Math.abs(r.valor),0);});
       const mEntNaoCaixa=sortedKeys.map(k=>{const ano=Math.floor(k/100),mes=k%100;return entradas.filter(r=>r.movCaixa===false&&r.data&&r.data.getFullYear()===ano&&r.data.getMonth()===mes).reduce((s,r)=>s+Math.abs(r.valor),0);});
       let rmH='';
@@ -1314,13 +1315,15 @@ function renderDash(){
         const res=mEntCaixa[i]-mSaiBanco[i];
         rmH+='<tr><td style="padding:6px 12px">'+labels[i]+'</td>'
           +'<td class="r" style="padding:6px 12px;color:#C0392B">-'+fmt(mSaiBanco[i])+'</td>'
+          +'<td class="r" style="padding:6px 12px;color:#B7950B">'+(mSaiNaoCaixa[i]?'-'+fmt(mSaiNaoCaixa[i]):fmt(0))+'</td>'
           +'<td class="r" style="padding:6px 12px;color:#1B6B35">'+fmt(mEntCaixa[i])+'</td>'
           +'<td class="r" style="padding:6px 12px;color:#7D3C98">'+fmt(mEntNaoCaixa[i])+'</td>'
           +'<td class="r" style="padding:6px 12px;font-weight:700;color:'+(res>=0?'#1B6B35':'#C0392B')+'">'+(res>=0?'':'-')+fmt(Math.abs(res))+'</td></tr>';
       });
-      const tSaiBanco=mSaiBanco.reduce((s,v)=>s+v,0),tEntCaixa=mEntCaixa.reduce((s,v)=>s+v,0),tEntNaoCaixa=mEntNaoCaixa.reduce((s,v)=>s+v,0),tRes=tEntCaixa-tSaiBanco;
+      const tSaiBanco=mSaiBanco.reduce((s,v)=>s+v,0),tSaiNaoCaixa=mSaiNaoCaixa.reduce((s,v)=>s+v,0),tEntCaixa=mEntCaixa.reduce((s,v)=>s+v,0),tEntNaoCaixa=mEntNaoCaixa.reduce((s,v)=>s+v,0),tRes=tEntCaixa-tSaiBanco;
       rmH+='<tr style="background:#f0f0f0;font-weight:700;border-top:2px solid #bbb"><td style="padding:6px 12px">TOTAL</td>'
         +'<td class="r" style="padding:6px 12px;color:#C0392B">-'+fmt(tSaiBanco)+'</td>'
+        +'<td class="r" style="padding:6px 12px;color:#B7950B">'+(tSaiNaoCaixa?'-'+fmt(tSaiNaoCaixa):fmt(0))+'</td>'
         +'<td class="r" style="padding:6px 12px;color:#1B6B35">'+fmt(tEntCaixa)+'</td>'
         +'<td class="r" style="padding:6px 12px;color:#7D3C98">'+fmt(tEntNaoCaixa)+'</td>'
         +'<td class="r" style="padding:6px 12px;color:'+(tRes>=0?'#1B6B35':'#C0392B')+'">'+(tRes>=0?'':'-')+fmt(Math.abs(tRes))+'</td></tr>';
