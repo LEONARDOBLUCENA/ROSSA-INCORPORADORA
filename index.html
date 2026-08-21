@@ -214,6 +214,7 @@ tbody td.c{text-align:center}
     <button class="nav-btn" onclick="backupJSON()" title="Backup">⬇ Backup</button>
     <button class="nav-btn" onclick="document.getElementById('restore-input').click()" title="Restaurar">⬆ Restaurar</button>
     <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreJSON(this)">
+    <button class="nav-btn" onclick="removerDuplicadosExistentes()" title="Verificar e remover lançamentos duplicados em Contas Pagas, Entradas e A Receber">🧹 Remover Duplicados</button>
     <div class="sienge-nav-wrap">
       <button class="nav-btn" onclick="toggleSiengePanel(event)" title="Sync Sienge">🔌 Sync Sienge</button>
       <div class="sienge-dropdown" id="sienge-dropdown" onclick="event.stopPropagation()">
@@ -1011,6 +1012,56 @@ async function sienceSyncAll(){
   renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();renderDash();renderFluxo();renderProjecao();autoSave();
 }
 
+// ── DEDUPLICAÇÃO NO COLAR (paste-import) ────────────────────────────────────
+// Colar (Contas Pagas, Entradas e Entradas A Receber) não tem ID único do ERP como
+// a sync automática do Sienge tem (que já deduplica por siengeId). Se o mesmo relatório
+// for colado duas vezes, cada linha entrava duplicada. Esta camada evita isso: monta uma
+// chave por lançamento e ignora qualquer "novo" registro cuja chave já exista — tanto nos
+// dados já carregados quanto dentro do próprio texto colado (colar o mesmo texto 2x seguidas).
+function dedupNovos(existing,novos,keyFn){
+  const seen=new Set(existing.map(keyFn));
+  const out=[];let dup=0;
+  novos.forEach(r=>{
+    const k=keyFn(r);
+    if(seen.has(k)){dup++;return;}
+    seen.add(k);out.push(r);
+  });
+  return{out,dup};
+}
+function dedupKeyCsv(r){return[r.data?r.data.getTime():'',r.complemento||'',r.conta||'',r.valor,r.cc||'',r.contaCorrente||''].join('|');}
+function dedupKeyFat(r){return[r.data?r.data.getTime():'',r.cliente||'',r.numeroTitulo||'',r.conta||'',r.valor,r.tipoBaixa||''].join('|');}
+function dedupKeyArec(r){return[r.data?r.data.getTime():'',r.cliente||'',r.nuTitulo||'',r.valor].join('|');}
+function statusComDup(n,dup,total,label){return'+'+n+' registros'+(dup?' ('+dup+' duplicado'+(dup!==1?'s':'')+' ignorado'+(dup!==1?'s':'')+')':'')+' — total: '+total+'.';}
+// Remove duplicados que já estão nos dados carregados (ex.: mesmo relatório colado 2x antes desta
+// proteção existir). Mantém a 1ª ocorrência de cada chave e remove as repetições, em Contas Pagas,
+// Entradas e Entradas A Receber. Não mexe em registros vindos da sync automática do Sienge
+// (siengeId) porque esses já são deduplicados na própria sync.
+function removerDuplicadosNoArray(arr,keyFn){
+  const seen=new Set();const manter=[];let removidos=0;
+  arr.forEach(r=>{
+    const k=keyFn(r);
+    if(seen.has(k)){removidos++;return;}
+    seen.add(k);manter.push(r);
+  });
+  return{manter,removidos};
+}
+function removerDuplicadosExistentes(){
+  const csvR=removerDuplicadosNoArray(DATA.csv,dedupKeyCsv);
+  const fatR=removerDuplicadosNoArray(DATA.fat,dedupKeyFat);
+  const arecR=removerDuplicadosNoArray(DATA.arec,dedupKeyArec);
+  const total=csvR.removidos+fatR.removidos+arecR.removidos;
+  if(!total){alert('Nenhum lançamento duplicado encontrado em Contas Pagas, Entradas ou Entradas A Receber.');return;}
+  const resumo='Contas Pagas: '+csvR.removidos+' duplicado'+(csvR.removidos!==1?'s':'')+'\n'
+    +'Entradas: '+fatR.removidos+' duplicado'+(fatR.removidos!==1?'s':'')+'\n'
+    +'Entradas A Receber: '+arecR.removidos+' duplicado'+(arecR.removidos!==1?'s':'')+'\n\n'
+    +'Total: '+total+' lançamento'+(total!==1?'s':'')+' duplicado'+(total!==1?'s':'')+' encontrado'+(total!==1?'s':'')+'.\n\n'
+    +'Remover agora? Fica mantida a 1ª ocorrência de cada um; as repetições são excluídas.';
+  if(!confirm(resumo))return;
+  DATA.csv=csvR.manter;DATA.fat=fatR.manter;DATA.arec=arecR.manter;
+  renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();
+  autoSave();
+  alert(total+' lançamento'+(total!==1?'s':'')+' duplicado'+(total!==1?'s':'')+' removido'+(total!==1?'s':'')+' com sucesso.');
+}
 function processCSVText(txt){
   // Corrigir double-encoding Latin-1 → UTF-8
   txt=fixEncoding(txt);
@@ -1044,8 +1095,9 @@ function processCSVText(txt){
     const movCaixa=!contaCorrente.toUpperCase().includes('REAPROPFIN');
     return{data,complemento:credor,valor,cc,conta,contaCod,tipo:'PAGAMENTO',movCaixa,contaCorrente,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(r=>r.valor!==0||r.cc);
-  DATA.csv=[...DATA.csv,...novos];
-  setStatus('status-csv','+'+novos.length+' registros — total: '+DATA.csv.length+'.',true);
+  const{out:novosUnicos,dup}=dedupNovos(DATA.csv,novos,dedupKeyCsv);
+  DATA.csv=[...DATA.csv,...novosUnicos];
+  setStatus('status-csv',statusComDup(novosUnicos.length,dup,DATA.csv.length),true);
   renderCSVTable();renderDash();renderFluxo();renderProjecao();autoSave();
 }
 function limparCSV(){DATA.csv=[];renderCSVTable();renderDash();renderFluxo();renderCaixaInicialCampos();setStatus('status-csv','',null);const d=document.getElementById('diag-csv');if(d){d.style.display='none';d.innerHTML='';}autoSave();}
@@ -1072,8 +1124,9 @@ function processFatText(txt){
     const movCaixa=tipoBaixa.toUpperCase()==='RECEBIMENTO';
     return{data,cliente,cc,conta,contaCod,contaCorrente,numeroTitulo,tipoBaixa,valor,movCaixa,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(r=>r&&(r.valor!==0||r.cc));
-  DATA.fat=[...DATA.fat,...novos];
-  setStatus('status-fat','+'+novos.length+' registros — total: '+DATA.fat.length+'.',true);
+  const{out:novosUnicos,dup}=dedupNovos(DATA.fat,novos,dedupKeyFat);
+  DATA.fat=[...DATA.fat,...novosUnicos];
+  setStatus('status-fat',statusComDup(novosUnicos.length,dup,DATA.fat.length),true);
   renderFatTable();renderArecTable();autoSave();
 }
 function limparFat(){DATA.fat=[];renderFatTable();renderArecTable();setStatus('status-fat','',null);autoSave();}
@@ -1182,8 +1235,9 @@ function processArecText(txt){
     if(!data&&!cliente&&!valor&&!nuTitulo)return null;
     return{data,cliente,valor,nuTitulo,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(Boolean);
-  DATA.arec=[...DATA.arec,...novos];
-  setStatus('status-arec','+'+novos.length+' registros — total: '+DATA.arec.length+'.',true);
+  const{out:novosUnicos,dup}=dedupNovos(DATA.arec,novos,dedupKeyArec);
+  DATA.arec=[...DATA.arec,...novosUnicos];
+  setStatus('status-arec',statusComDup(novosUnicos.length,dup,DATA.arec.length),true);
   renderArecTable();autoSave();
 }
 function limparArec(){DATA.arec=[];renderArecTable();setStatus('status-arec','',null);autoSave();}
