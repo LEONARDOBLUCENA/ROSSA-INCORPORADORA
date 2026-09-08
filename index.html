@@ -1987,11 +1987,34 @@ async function ghubSave(){
   }catch(e){console.error('ghubSave:',e);setJbinStatus('error');}
   _ghubSaving=false;if(_ghubDirty)ghubSave();
 }
+function b64ToUtf8(b64){return decodeURIComponent(atob(b64).split('').map(c=>'%'+('0'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));}
 async function jbinLoad(){
   setJbinStatus('loading');
   try{
-    const r=await fetch(GHUB.raw+'?t='+Date.now());if(!r.ok)throw new Error(r.status);
-    const d=await r.json();if(!d)return setJbinStatus('empty');
+    // Correção (08/09/2026): antes buscava direto de raw.githubusercontent.com, que é servido por um
+    // CDN (Varnish) com cache de 5 minutos por PATH — a query string de cache-busting (?t=...) era
+    // ignorada pelo CDN (confirmado: dois pedidos com querystrings diferentes voltam com o mesmo
+    // source-age, ou seja, o mesmo objeto em cache). Resultado: dar F5 logo depois de salvar podia
+    // trazer de volta os dados antigos por até 5 minutos, mesmo com o salvamento já confirmado.
+    // Agora usa a Contents API (mesma usada por ghubSave para o SHA), que reflete o commit mais
+    // recente sem essa camada de cache.
+    const r=await fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file+'?ref=main&t='+Date.now(),{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi','Cache-Control':'no-cache'}});
+    if(!r.ok)throw new Error(r.status);
+    const meta=await r.json();
+    _ghubSha=meta.sha;
+    let rawText=null;
+    if(meta.content){
+      rawText=b64ToUtf8(meta.content.replace(/\n/g,''));
+    }else if(meta.sha){
+      // Arquivo >1MB: a Contents API não devolve o conteúdo inline nesse caso — busca via
+      // Git Blobs API (também reflete o commit mais recente, sem cache de CDN).
+      const br=await fetch('https://api.github.com/repos/'+GHUB.repo+'/git/blobs/'+meta.sha,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}});
+      if(!br.ok)throw new Error('blob:'+br.status);
+      const blob=await br.json();
+      rawText=blob.content?b64ToUtf8(blob.content.replace(/\n/g,'')):null;
+    }
+    const d=rawText?JSON.parse(rawText):null;
+    if(!d)return setJbinStatus('empty');
     DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.fat=(d.fat||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.arec=(d.arec||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
@@ -2016,7 +2039,6 @@ async function jbinLoad(){
     }
     renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();setJbinStatus('ok');
     if(seedNovos)autoSave();
-    fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}}).then(r=>r.json()).then(j=>{_ghubSha=j.sha;}).catch(()=>{});
   }catch(e){console.error(e);setJbinStatus('error');}
 }
 function setJbinStatus(s){const el=document.getElementById('jbin-status');if(!el)return;const map={loading:['⟳ Carregando...','#888'],saving:['⟳ Salvando...','#888'],ok:['✓ Sincronizado','#1B6B35'],error:['✕ Erro','#C0392B'],empty:['— Sem dados','#888']};const[txt,col]=map[s]||['','#888'];el.textContent=txt;el.style.color=col;}
