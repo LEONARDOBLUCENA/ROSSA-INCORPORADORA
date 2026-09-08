@@ -1988,30 +1988,42 @@ async function ghubSave(){
   _ghubSaving=false;if(_ghubDirty)ghubSave();
 }
 function b64ToUtf8(b64){return decodeURIComponent(atob(b64).split('').map(c=>'%'+('0'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));}
+// Correção (08/09/2026): jbinLoad() buscava direto de raw.githubusercontent.com, que é servido por
+// um CDN (Varnish) com cache de 5 minutos por PATH — a query string de cache-busting (?t=...) era
+// ignorada pelo CDN (confirmado: dois pedidos com querystrings diferentes voltam com o mesmo
+// source-age, ou seja, o mesmo objeto em cache). Resultado: dar F5 logo depois de salvar podia
+// trazer de volta os dados antigos por até 5 minutos, mesmo com o salvamento já confirmado.
+// Tenta primeiro a Contents API (mesma usada por ghubSave para o SHA — sem essa camada de cache);
+// se por qualquer motivo essa chamada falhar (rate limit, instabilidade da API, etc.), cai para o
+// método antigo (raw.githubusercontent.com) em vez de travar o carregamento com erro.
+async function jbinFetchViaContentsApi(){
+  const r=await fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file+'?ref=main',{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}});
+  if(!r.ok)throw new Error('contents:'+r.status);
+  const meta=await r.json();
+  _ghubSha=meta.sha;
+  if(meta.content)return b64ToUtf8(meta.content.replace(/\n/g,''));
+  if(!meta.sha)return null;
+  // Arquivo >1MB: a Contents API não devolve o conteúdo inline nesse caso — busca via Git Blobs API
+  // (também reflete o commit mais recente, sem cache de CDN).
+  const br=await fetch('https://api.github.com/repos/'+GHUB.repo+'/git/blobs/'+meta.sha,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}});
+  if(!br.ok)throw new Error('blob:'+br.status);
+  const blob=await br.json();
+  return blob.content?b64ToUtf8(blob.content.replace(/\n/g,'')):null;
+}
+async function jbinFetchViaRawFallback(){
+  const r=await fetch(GHUB.raw+'?t='+Date.now());
+  if(!r.ok)throw new Error('raw:'+r.status);
+  return r.text();
+}
 async function jbinLoad(){
   setJbinStatus('loading');
   try{
-    // Correção (08/09/2026): antes buscava direto de raw.githubusercontent.com, que é servido por um
-    // CDN (Varnish) com cache de 5 minutos por PATH — a query string de cache-busting (?t=...) era
-    // ignorada pelo CDN (confirmado: dois pedidos com querystrings diferentes voltam com o mesmo
-    // source-age, ou seja, o mesmo objeto em cache). Resultado: dar F5 logo depois de salvar podia
-    // trazer de volta os dados antigos por até 5 minutos, mesmo com o salvamento já confirmado.
-    // Agora usa a Contents API (mesma usada por ghubSave para o SHA), que reflete o commit mais
-    // recente sem essa camada de cache.
-    const r=await fetch('https://api.github.com/repos/'+GHUB.repo+'/contents/'+GHUB.file+'?ref=main&t='+Date.now(),{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi','Cache-Control':'no-cache'}});
-    if(!r.ok)throw new Error(r.status);
-    const meta=await r.json();
-    _ghubSha=meta.sha;
     let rawText=null;
-    if(meta.content){
-      rawText=b64ToUtf8(meta.content.replace(/\n/g,''));
-    }else if(meta.sha){
-      // Arquivo >1MB: a Contents API não devolve o conteúdo inline nesse caso — busca via
-      // Git Blobs API (também reflete o commit mais recente, sem cache de CDN).
-      const br=await fetch('https://api.github.com/repos/'+GHUB.repo+'/git/blobs/'+meta.sha,{headers:{'Authorization':'token '+GHUB.token,'User-Agent':'rossa-bi'}});
-      if(!br.ok)throw new Error('blob:'+br.status);
-      const blob=await br.json();
-      rawText=blob.content?b64ToUtf8(blob.content.replace(/\n/g,'')):null;
+    try{
+      rawText=await jbinFetchViaContentsApi();
+    }catch(apiErr){
+      console.warn('jbinLoad: Contents API falhou, usando raw.githubusercontent.com como fallback (pode trazer versão de até 5min atrás):',apiErr);
+      rawText=await jbinFetchViaRawFallback();
     }
     const d=rawText?JSON.parse(rawText):null;
     if(!d)return setJbinStatus('empty');
