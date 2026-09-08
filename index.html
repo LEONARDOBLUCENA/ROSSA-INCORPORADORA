@@ -518,7 +518,7 @@ tbody td.c{text-align:center}
         <span class="paste-status" id="status-fat"></span>
       </div>
     </div>
-    <div class="tbl-wrap"><table><thead><tr><th>Data Baixa</th><th>Cliente</th><th>Centro de Custo</th><th>Plano Financeiro</th><th>Conta Corrente</th><th>Nº Título</th><th>Tipo Baixa</th><th>Mov. Caixa</th><th class="r">Valor (R$)</th></tr></thead><tbody id="body-fat"><tr><td colspan="9"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Data Baixa</th><th>Cliente</th><th>Centro de Custo</th><th>Plano Financeiro</th><th>Conta Corrente</th><th>Nº Título</th><th>Parcela</th><th>Tipo Baixa</th><th>Mov. Caixa</th><th class="r">Valor (R$)</th></tr></thead><tbody id="body-fat"><tr><td colspan="10"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
   </div>
 </div>
 
@@ -1029,7 +1029,7 @@ function dedupNovos(existing,novos,keyFn){
   return{out,dup};
 }
 function dedupKeyCsv(r){return[r.data?r.data.getTime():'',r.complemento||'',r.conta||'',r.valor,r.cc||'',r.contaCorrente||''].join('|');}
-function dedupKeyFat(r){return[r.data?r.data.getTime():'',r.cliente||'',r.numeroTitulo||'',r.conta||'',r.valor,r.tipoBaixa||''].join('|');}
+function dedupKeyFat(r){return[r.data?r.data.getTime():'',r.cliente||'',r.numeroTitulo||'',r.parcela||'',r.conta||'',r.valor,r.tipoBaixa||''].join('|');}
 function dedupKeyArec(r){return[r.data?r.data.getTime():'',r.cliente||'',r.nuTitulo||'',r.valor].join('|');}
 function statusComDup(n,dup,total,label){return'+'+n+' registros'+(dup?' ('+dup+' duplicado'+(dup!==1?'s':'')+' ignorado'+(dup!==1?'s':'')+')':'')+' — total: '+total+'.';}
 // Remove duplicados que já estão nos dados carregados (ex.: mesmo relatório colado 2x antes desta
@@ -1119,10 +1119,14 @@ function processFatText(txt){
     const contaCod=fixEncoding(findColKey(r,['CodigoDoPlanoFinanceiro','Codigo Plano Financeiro','codplanofinanceiro','codigoplanofinanceiro']).value);
     const conta=(contaCod&&!contaDesc.startsWith(contaCod))?(contaCod+' - '+contaDesc):contaDesc;
     const contaCorrente=fixEncoding(findColKey(r,['NumeroDaContaCorrente','Conta corrente','contacorrente']).value);
-    const numeroTitulo=fixEncoding(findColKey(r,['NumeroDoTitulo','Numero Titulo','numerotitulo','nuTitulo']).value);
+    const numeroTitulo=fixEncoding(findColKey(r,['NumeroDoTitulo','Numero Titulo','numerotitulo','nuTitulo','Titulo']).value);
+    // Nº do título é compartilhado por todas as parcelas de um mesmo contrato — sem capturar a
+    // parcela, títulos com várias parcelas de valor igual pagas no mesmo dia (comum) ficavam com
+    // a mesma chave de duplicidade e eram descartados indevidamente. Ver correção de 08/09/2026.
+    const parcela=fixEncoding(findColKey(r,['NumeroDaParcela','Numero Parcela','NumeroParcela','Parcela','Parc']).value);
     const valor=Math.abs(parseBRNum(findColKey(r,['ValorLiquido','Liquido','Líquido','valorliquido']).value));
     const movCaixa=tipoBaixa.toUpperCase()==='RECEBIMENTO';
-    return{data,cliente,cc,conta,contaCod,contaCorrente,numeroTitulo,tipoBaixa,valor,movCaixa,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
+    return{data,cliente,cc,conta,contaCod,contaCorrente,numeroTitulo,parcela,tipoBaixa,valor,movCaixa,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(r=>r&&(r.valor!==0||r.cc));
   const{out:novosUnicos,dup}=dedupNovos(DATA.fat,novos,dedupKeyFat);
   DATA.fat=[...DATA.fat,...novosUnicos];
@@ -1151,7 +1155,7 @@ function renderFatTable(){
   _fatCaixaCache=caixaR.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—',movStr:'Caixa'}));
   _fatOutroCache=outroR.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—',movStr:'Outro'}));
   const tbody=document.getElementById('body-fat');
-  if(!fil.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
+  if(!fil.length){tbody.innerHTML='<tr><td colspan="10"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
   tbody.innerHTML=fil.map(r=>{
     const mc=r.movCaixa?'<span class="badge bg-green">Caixa</span>':'<span class="badge bg-gold">Outro</span>';
     return'<tr>'
@@ -1161,6 +1165,7 @@ function renderFatTable(){
       +'<td>'+(r.conta||'—')+'</td>'
       +'<td>'+(r.contaCorrente||'—')+'</td>'
       +'<td>'+(r.numeroTitulo||'—')+'</td>'
+      +'<td>'+(r.parcela||'—')+'</td>'
       +'<td>'+(r.tipoBaixa||'—')+'</td>'
       +'<td>'+mc+'</td>'
       +'<td class="r val-pos">'+fmt(r.valor)+'</td>'
@@ -1209,7 +1214,7 @@ function abrirCsvDetalheModal(tipo){
 function exportExcelCSV(){if(!DATA.csv.length){alert('Nenhum dado.');return;}const rows=DATA.csv.map(r=>({'Data':r.data?r.data.toLocaleDateString('pt-BR'):'','Complemento':r.complemento||'','CC':r.cc||'','Conta':r.conta||'','Tipo':r.tipo||'','Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}));const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});XLSX.utils.book_append_sheet(wb,ws,'CSV');XLSX.writeFile(wb,'Rossa_CSV_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');}
 function exportarFat(){
   if(!DATA.fat.length){alert('Nenhum dado.');return;}
-  const rows=DATA.fat.map(r=>({'Data Baixa':r.data?r.data.toLocaleDateString('pt-BR'):'','Cliente':r.cliente||'','Centro de Custo':r.cc||'','Plano Financeiro':r.conta||'','Conta Corrente':r.contaCorrente||'','Nº Título':r.numeroTitulo||'','Tipo Baixa':r.tipoBaixa||'','Mov. Caixa':r.movCaixa?'Caixa':'Outro','Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}));
+  const rows=DATA.fat.map(r=>({'Data Baixa':r.data?r.data.toLocaleDateString('pt-BR'):'','Cliente':r.cliente||'','Centro de Custo':r.cc||'','Plano Financeiro':r.conta||'','Conta Corrente':r.contaCorrente||'','Nº Título':r.numeroTitulo||'','Parcela':r.parcela||'','Tipo Baixa':r.tipoBaixa||'','Mov. Caixa':r.movCaixa?'Caixa':'Outro','Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}));
   const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});
   XLSX.utils.book_append_sheet(wb,ws,'Faturamento');
   XLSX.writeFile(wb,'Rossa_Faturamento_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
