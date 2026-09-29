@@ -364,11 +364,6 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-blue"><div class="kpi-label">Saldo em Aberto</div><div class="kpi-val" id="dabp-saldo">—</div><div class="kpi-sub">A Receber − A Pagar</div></div>
     <div class="kpi-card c-gold clickable" onclick="abrirDashAbertosModal('venc')"><div class="kpi-label">Vencidos</div><div class="kpi-val" id="dabp-venc">—</div><div class="kpi-sub" id="dabp-venc-sub">—</div></div>
   </div>
-  <div class="chart-card" style="margin-bottom:14px">
-    <div class="chart-title">A Receber × A Pagar por Mês de Vencimento</div>
-    <div class="chart-subtitle">Barras: valores em aberto no mês · Linha: saldo do mês (receber − pagar) · clique numa barra para ver os títulos</div>
-    <canvas id="dabp-ch-mes" height="90"></canvas>
-  </div>
   <div class="tbl-card">
     <div class="tbl-head"><div class="tbl-title">Em Aberto por Centro de Custo</div><span class="tbl-badge" id="dabp-cc-badge">—</span></div>
     <div class="tbl-wrap"><table><thead><tr><th>Centro de Custo</th><th class="r">A Receber (R$)</th><th class="r">A Pagar (R$)</th><th class="r">Saldo (R$)</th><th class="r">Vencido a Receber</th><th class="r">Vencido a Pagar</th></tr></thead><tbody id="body-dabp-cc"><tr><td colspan="6"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
@@ -474,7 +469,7 @@ tbody td.c{text-align:center}
 
 <div class="page" id="page-fluxo">
   <div class="sec-title">Fluxo de Caixa Geral</div>
-  <div class="sec-sub">Realizado até o mês atual + A Receber e A Pagar por vencimento (colunas marcadas <span style="background:#FFF3CD;padding:0 5px;border-radius:3px;color:#8a6d00;font-weight:600">proj.</span>) — títulos vencidos e ainda em aberto entram no mês atual</div>
+  <div class="sec-sub">Realizado até o mês atual + A Receber e A Pagar por vencimento (colunas marcadas <span style="background:#E9ECEF;padding:0 5px;border-radius:3px;color:#5D6D7E;font-weight:600">proj.</span>) — títulos vencidos e ainda em aberto entram no mês atual</div>
   <div class="filters-bar">
     <span class="filter-label">Filtrar</span>
     <select class="filter-select" id="fc-obra" onchange="renderFluxo()" style="min-width:150px"><option value="">Todas as obras</option></select>
@@ -1826,11 +1821,11 @@ function renderFluxo(){
     const ci2=colKeys.indexOf(x.k);linhas[id].vals[ci2]+=x.valor;cellAdd(id+'|'+x.k,x);cellAdd('G:'+grupo+'|'+x.k,x);cellAdd('T:'+x.sec+'|'+x.k,x);});
   const soma=arr=>arr.reduce((s,v)=>s+v,0);
   const SD='position:sticky;left:0;z-index:2;background:';
-  const PROJ_BG='background-image:linear-gradient(rgba(255,193,7,.13),rgba(255,193,7,.13));';
+  const PROJ_BG='background-image:linear-gradient(rgba(90,100,110,.06),rgba(90,100,110,.06));';
   const cg=document.getElementById('colgroup-fluxo');
   const colsHtml='<col style="width:280px">'+colKeys.map(()=>'<col style="width:84px">').join('')+'<col style="width:92px">';
   if(cg)cg.innerHTML=colsHtml;
-  const thCols=(top)=>colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;font-size:10px;'+(top?'position:sticky;top:0;':'')+'background:'+(isProj[i]?'#FFF3CD':'#f5f5f5')+(isProj[i]?';color:#8a6d00':'')+'">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+(isProj[i]?'<div style="font-size:8px;font-weight:600;letter-spacing:.05em">PROJ.</div>':'')+'</th>').join('');
+  const thCols=(top)=>colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;font-size:10px;'+(top?'position:sticky;top:0;':'')+'background:'+(isProj[i]?'#E9ECEF':'#f5f5f5')+(isProj[i]?';color:#5D6D7E':'')+'">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+(isProj[i]?'<div style="font-size:8px;font-weight:600;letter-spacing:.05em">PROJ.</div>':'')+'</th>').join('');
   thead.innerHTML='<tr><th style="text-align:left;padding:8px 12px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Conta</th>'+thCols(true)+'<th class="r" style="padding:5px 9px;position:sticky;top:0;background:#ececec">Total</th></tr>';
   const tdS=bg=>'style="'+SD+bg+';padding:5px 6px 5px 12px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"';
   const tdSB=bg=>'style="'+SD+bg+';padding:5px 12px;font-size:11px;font-weight:700"';
