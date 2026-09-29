@@ -322,6 +322,38 @@ tbody td.c{text-align:center}
     <div class="chart-card"><div class="chart-title">Entradas por Conta</div><div class="chart-subtitle">Composição do faturamento por conta</div><canvas id="dash-ch-entradas-conta"></canvas></div>
     <div class="chart-card"><div class="chart-title">Saídas por Conta</div><div class="chart-subtitle">Para onde está indo o dinheiro (top contas)</div><canvas id="dash-ch-saidas-conta"></canvas></div>
   </div>
+  <!-- ===== A RECEBER × A PAGAR (em aberto) — filtros independentes ===== -->
+  <div class="sec-title" style="margin-top:34px">A Receber × A Pagar</div>
+  <div class="sec-sub">Títulos em aberto por data de vencimento — filtros independentes dos filtros acima</div>
+  <div class="filters-bar">
+    <span class="filter-label">Filtrar</span>
+    <select class="filter-select" id="dabp-cc" onchange="renderDashAbertos()" style="min-width:160px"><option value="">Todas as obras</option></select>
+    <select class="filter-select" id="dabp-ano" onchange="renderDashAbertos()"><option value="">Todos os anos</option></select>
+    <div class="mes-picker" id="dabp-mes-picker-wrap">
+      <button class="mes-picker-btn" id="dabp-mes-picker-btn" onclick="toggleMesPickerFor('dabp',event)">Todos os meses</button>
+      <div class="mes-picker-dropdown" id="dabp-mes-picker-dropdown" onclick="event.stopPropagation()">
+        <div id="dabp-mes-picker-items"></div>
+        <div class="mes-picker-actions"><button onclick="selecionarTodosMesesFor('dabp')">Todos</button><button onclick="limparMesesFor('dabp')">Limpar</button></div>
+      </div>
+    </div>
+    <select class="filter-select" id="dabp-status" onchange="renderDashAbertos()"><option value="">Vencidos e a vencer</option><option value="Vencido">Só vencidos</option><option value="Em dia">Só a vencer</option></select>
+    <button class="btn-ghost" onclick="document.getElementById('dabp-cc').value='';document.getElementById('dabp-ano').value='';document.getElementById('dabp-status').value='';_mesSel.dabp=new Set();renderDashAbertos()">✕ Limpar</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+    <div class="kpi-card c-green clickable" onclick="abrirDashAbertosModal('rec')"><div class="kpi-label">A Receber</div><div class="kpi-val pos" id="dabp-rec">—</div><div class="kpi-sub" id="dabp-rec-n">0 títulos</div></div>
+    <div class="kpi-card c-red clickable" onclick="abrirDashAbertosModal('pag')"><div class="kpi-label">A Pagar</div><div class="kpi-val neg" id="dabp-pag">—</div><div class="kpi-sub" id="dabp-pag-n">0 títulos</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Saldo em Aberto</div><div class="kpi-val" id="dabp-saldo">—</div><div class="kpi-sub">A Receber − A Pagar</div></div>
+    <div class="kpi-card c-gold clickable" onclick="abrirDashAbertosModal('venc')"><div class="kpi-label">Vencidos</div><div class="kpi-val" id="dabp-venc">—</div><div class="kpi-sub" id="dabp-venc-sub">—</div></div>
+  </div>
+  <div class="chart-card" style="margin-bottom:14px">
+    <div class="chart-title">A Receber × A Pagar por Mês de Vencimento</div>
+    <div class="chart-subtitle">Barras: valores em aberto no mês · Linha: saldo do mês (receber − pagar) · clique numa barra para ver os títulos</div>
+    <canvas id="dabp-ch-mes" height="90"></canvas>
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-head"><div class="tbl-title">Em Aberto por Centro de Custo</div><span class="tbl-badge" id="dabp-cc-badge">—</span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Centro de Custo</th><th class="r">A Receber (R$)</th><th class="r">A Pagar (R$)</th><th class="r">Saldo (R$)</th><th class="r">Vencido a Receber</th><th class="r">Vencido a Pagar</th></tr></thead><tbody id="body-dabp-cc"><tr><td colspan="6"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
+  </div>
 </div>
 
 <!-- ===================== CSV ANALÍTICO ===================== -->
@@ -442,6 +474,17 @@ tbody td.c{text-align:center}
         <colgroup id="colgroup-fc-resumo"></colgroup>
         <thead id="thead-fc-resumo"></thead>
         <tbody id="tbody-fc-resumo"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="tbl-card" id="fc-aberto-card">
+    <div class="tbl-head"><div class="tbl-title">Em Aberto — A Receber × A Pagar</div><span class="tbl-badge" id="fc-aberto-badge">Por mês de vencimento · segue os filtros Obra e Ano</span></div>
+    <div style="padding:6px 16px 4px;color:var(--text3);font-size:11px">Não entra no fluxo realizado acima. "Vencidos" reúne títulos com vencimento antes do mês atual. O Saldo Projetado parte do Saldo de Caixa atual e soma o saldo em aberto mês a mês — clique em um valor para ver os títulos.</div>
+    <div style="overflow-x:auto;font-size:12px">
+      <table style="width:100%;border-collapse:collapse;min-width:900px;table-layout:fixed">
+        <colgroup id="colgroup-fc-aberto"></colgroup>
+        <thead id="thead-fc-aberto"></thead>
+        <tbody id="tbody-fc-aberto"><tr><td><div class="empty-state"><p>Nenhum título em aberto</p></div></td></tr></tbody>
       </table>
     </div>
   </div>
@@ -695,7 +738,7 @@ const MESES_ABR=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','No
 const PAL=['#1B6B35','#1A5276','#B7950B','#7D3C98','#C0392B','#784212','#1A6161','#2E4057'];
 
 // ── UTILITÁRIOS ───────────────────────────────────────────────────────────────
-function goTab(btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));document.getElementById('page-'+btn.dataset.tab).classList.add('active');btn.classList.add('active');}
+function goTab(btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));document.getElementById('page-'+btn.dataset.tab).classList.add('active');btn.classList.add('active');if(btn.dataset.tab==='dash')renderDashAbertos();else if(btn.dataset.tab==='fluxo')renderFluxo();}
 (function syncFluxoScroll(){
   const a=document.getElementById('fc-resumo-scroll'),b=document.getElementById('fc-fluxo-scroll');
   if(!a||!b)return;
@@ -1485,6 +1528,108 @@ function exportarPagar(){
   XLSX.writeFile(wb,'Rossa_APagar_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
 }
 
+
+// ── EM ABERTO: A RECEBER × A PAGAR (Resumo + Fluxo de Caixa Geral) ───────────
+// Base comum: DATA.arec (cliente) e DATA.pagar (fornecedor), com a mesma regra de status
+// das abas de origem (vencimento anterior ao mês atual = vencido) e o CC do A Receber
+// completado pela classificação manual (ccPorTitulo), igual à aba Entradas A Receber.
+function _abertosBase(){
+  const hoje=new Date(),refKey=hoje.getFullYear()*100+hoje.getMonth();
+  const st=r=>(r.data&&(r.data.getFullYear()*100+r.data.getMonth())<refKey)?'Vencido':'Em dia';
+  const mk=(r,tipo,nome)=>({...r,tipo,nome,status:st(r),dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'});
+  return{refKey,
+    rec:DATA.arec.map(r=>mk({...r,cc:r.cc||ccPorTitulo(r.nuTitulo)},'A Receber',r.cliente||'')),
+    pag:DATA.pagar.map(r=>mk(r,'A Pagar',r.credor||''))};
+}
+const COLS_ABERTOS_MODAL=[{label:'Tipo',key:'tipo'},{label:'Vencimento',key:'dataStr'},{label:'Cliente / Credor',key:'nome'},{label:'Nº Título',key:'nuTitulo'},{label:'Centro de Custo',key:'cc'},{label:'Status',key:'status'},{label:'Valor',align:'r',fmt:r=>fmt(r.valor)}];
+let _dabpRecCache=[],_dabpPagCache=[];
+function renderDashAbertos(){
+  if(!document.getElementById('dabp-rec'))return;
+  const{rec,pag}=_abertosBase();const todos=[...rec,...pag];
+  fillSelect('dabp-cc',[...new Set(todos.map(r=>r.cc).filter(Boolean))].sort(),v=>v,v=>v);
+  fillSelect('dabp-ano',[...new Set(todos.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
+  buildMesPickerFor('dabp',new Set(todos.map(r=>r.mes).filter(x=>x!=null)));
+  const fC=document.getElementById('dabp-cc').value,fA=document.getElementById('dabp-ano').value,fS=document.getElementById('dabp-status').value,fM=[..._mesSel.dabp];
+  const ok=r=>(!fC||ccMatch(r.cc||'',fC))&&(!fA||String(r.ano)===fA)&&(!fM.length||fM.includes(r.mes))&&(!fS||r.status===fS);
+  const R=rec.filter(ok),P=pag.filter(ok);
+  const sum=a=>a.reduce((s,r)=>s+(r.valor||0),0);
+  const tR=sum(R),tP=sum(P),vR=sum(R.filter(r=>r.status==='Vencido')),vP=sum(P.filter(r=>r.status==='Vencido'));
+  const pl=n=>n+' título'+(n!==1?'s':'');
+  set('dabp-rec',fmt(tR));set('dabp-rec-n',pl(R.length));
+  set('dabp-pag',fmt(tP));set('dabp-pag-n',pl(P.length));
+  const sEl=document.getElementById('dabp-saldo');if(sEl){sEl.textContent=(tR-tP<0?'− ':'')+fmt(tR-tP);sEl.className='kpi-val '+(tR-tP>=0?'pos':'neg');}
+  set('dabp-venc',fmt(vR+vP));set('dabp-venc-sub','Receber '+fmt(vR)+' · Pagar '+fmt(vP));
+  _dabpRecCache=R;_dabpPagCache=P;
+  // Gráfico mensal
+  destroyChart('dabp-ch-mes');
+  const el=document.getElementById('dabp-ch-mes');
+  const keys=[...new Set([...R,...P].filter(r=>r.ano!=null&&r.mes!=null).map(r=>r.ano*100+r.mes))].sort((a,b)=>a-b);
+  if(el&&keys.length){
+    const byK=(arr,k)=>arr.filter(r=>r.ano*100+r.mes===k).reduce((s,r)=>s+(r.valor||0),0);
+    const vr=keys.map(k=>byK(R,k)),vp=keys.map(k=>byK(P,k));
+    CHARTS['dabp-ch-mes']=new Chart(el,{data:{labels:keys.map(k=>MESES_ABR[k%100]+'/'+String(Math.floor(k/100)).slice(2)),datasets:[
+      {type:'line',label:'Saldo do mês',data:vr.map((v,i)=>v-vp[i]),borderColor:'#1A5276',backgroundColor:'#1A5276',pointRadius:2,borderWidth:2,tension:0,order:0},
+      {type:'bar',label:'A Receber',data:vr,backgroundColor:'#1A7A3C',borderRadius:3,order:1},
+      {type:'bar',label:'A Pagar',data:vp,backgroundColor:'#C0392B',borderRadius:3,order:1}]},
+      options:{responsive:true,interaction:{mode:'index',intersect:false},
+        onClick:(evt,els)=>{if(!els.length)return;const k=keys[els[0].index];const rows=[...R,...P].filter(r=>r.ano*100+r.mes===k);openDetailModal('Em aberto — '+MESES_PT[k%100]+'/'+Math.floor(k/100),rows,COLS_ABERTOS_MODAL,{exportName:'EmAberto_'+Math.floor(k/100)+'_'+(k%100+1)});},
+        plugins:{legend:{display:true,position:'bottom'},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+(ctx.raw<0?'− ':'')+fmt(ctx.raw)}}},
+        scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}});
+  }
+  // Tabela por CC
+  const tb=document.getElementById('body-dabp-cc');if(!tb)return;
+  const ccs={};
+  R.forEach(r=>{const c=r.cc||'(Sem CC)';ccs[c]=ccs[c]||{r:0,p:0,vr:0,vp:0};ccs[c].r+=r.valor||0;if(r.status==='Vencido')ccs[c].vr+=r.valor||0;});
+  P.forEach(r=>{const c=r.cc||'(Sem CC)';ccs[c]=ccs[c]||{r:0,p:0,vr:0,vp:0};ccs[c].p+=r.valor||0;if(r.status==='Vencido')ccs[c].vp+=r.valor||0;});
+  const nomes=Object.keys(ccs).sort((a,b)=>(ccs[b].r+ccs[b].p)-(ccs[a].r+ccs[a].p));
+  set('dabp-cc-badge',nomes.length+' centro'+(nomes.length!==1?'s':'')+' de custo');
+  if(!nomes.length){tb.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhum título em aberto para os filtros</p></div></td></tr>';return;}
+  const sv=v=>'<span class="'+(v>=0?'val-pos':'val-neg')+'">'+(v<0?'− ':'')+fmt(v)+'</span>';
+  tb.innerHTML=nomes.map(c=>{const x=ccs[c];return'<tr><td>'+c+'</td><td class="r">'+fmt(x.r)+'</td><td class="r">'+fmt(x.p)+'</td><td class="r">'+sv(x.r-x.p)+'</td><td class="r">'+(x.vr?fmt(x.vr):'—')+'</td><td class="r">'+(x.vp?fmt(x.vp):'—')+'</td></tr>';}).join('')
+    +'<tr style="font-weight:700;background:#f5f5f5"><td>Total</td><td class="r">'+fmt(tR)+'</td><td class="r">'+fmt(tP)+'</td><td class="r">'+sv(tR-tP)+'</td><td class="r">'+fmt(vR)+'</td><td class="r">'+fmt(vP)+'</td></tr>';
+}
+function abrirDashAbertosModal(tipo){
+  if(tipo==='rec')openDetailModal('Em aberto — A Receber',_dabpRecCache,COLS_ABERTOS_MODAL,{exportName:'EmAberto_AReceber'});
+  else if(tipo==='pag')openDetailModal('Em aberto — A Pagar',_dabpPagCache,COLS_ABERTOS_MODAL,{exportName:'EmAberto_APagar'});
+  else openDetailModal('Em aberto — Vencidos',[..._dabpRecCache,..._dabpPagCache].filter(r=>r.status==='Vencido'),COLS_ABERTOS_MODAL,{exportName:'EmAberto_Vencidos'});
+}
+let _fcAbertoCells={};
+function renderFluxoAbertos(saldoAtual,obraSel,anoSel){
+  const th=document.getElementById('thead-fc-aberto'),tb=document.getElementById('tbody-fc-aberto'),cg=document.getElementById('colgroup-fc-aberto');
+  if(!th||!tb)return;
+  const{refKey,rec,pag}=_abertosBase();
+  const ok=r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel);
+  const R=rec.filter(ok),P=pag.filter(ok);
+  // Colunas: "Vencidos" (tudo antes do mês atual) + cada mês a partir do atual
+  const futKeys=[...new Set([...R,...P].filter(r=>r.ano!=null&&r.mes!=null&&r.ano*100+r.mes>=refKey).map(r=>r.ano*100+r.mes))].sort((a,b)=>a-b);
+  const temVenc=[...R,...P].some(r=>r.status==='Vencido');
+  const cols=(temVenc?['V']:[]).concat(futKeys);
+  _fcAbertoCells={};
+  if(!cols.length){th.innerHTML='';if(cg)cg.innerHTML='';tb.innerHTML='<tr><td><div class="empty-state"><p>Nenhum título em aberto para os filtros</p></div></td></tr>';return;}
+  const colOf=r=>r.status==='Vencido'?'V':(r.ano*100+r.mes);
+  const agg=(arr,tag)=>cols.map(c=>{const rows=arr.filter(r=>colOf(r)===c);_fcAbertoCells[tag+'|'+c]=rows;return rows.reduce((s,r)=>s+(r.valor||0),0);});
+  const vR=agg(R,'R'),vP=agg(P,'P'),vS=vR.map((v,i)=>v-vP[i]);
+  cols.forEach(c=>{_fcAbertoCells['S|'+c]=[...(_fcAbertoCells['R|'+c]||[]),...(_fcAbertoCells['P|'+c]||[])];});
+  const proj=[];let acc=saldoAtual||0;vS.forEach(v=>{acc+=v;proj.push(acc);});
+  const tot=a=>a.reduce((s,v)=>s+v,0);
+  const SD='position:sticky;left:0;z-index:2;background:';
+  if(cg)cg.innerHTML='<col style="width:280px">'+cols.map(()=>'<col style="width:78px">').join('')+'<col style="width:88px">';
+  th.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;'+SD+'#f5f5f5">Em aberto</th>'+cols.map(c=>'<th class="r" style="padding:5px 7px;font-size:10px'+(c==='V'?';color:#C0392B':'')+'">'+(c==='V'?'Vencidos':MESES_ABR[c%100]+'/'+Math.floor(c/100))+'</th>').join('')+'<th class="r" style="padding:5px 9px;background:#ececec">Total</th></tr>';
+  const cell=(tag,c,v)=>'<td class="r" data-k="'+tag+'|'+c+'" onclick="abrirFluxoAbertoModal(this)" style="padding:4px 6px;font-size:10px;cursor:pointer">'+f2(v)+'</td>';
+  const linha=(nome,bg,cor,tag,vals)=>'<tr style="background:'+bg+'"><td style="'+SD+bg+';padding:5px 12px;font-size:11px;font-weight:600;color:'+cor+'">'+nome+'</td>'+vals.map((v,i)=>cell(tag,cols[i],v)).join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tot(vals))+'</td></tr>';
+  tb.innerHTML=
+    linha('A Receber','#D5F5E3','#1B6B35','R',vR)+
+    linha('A Pagar','#FADBD8','#C0392B','P',vP.map(v=>-v))+
+    '<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Saldo em Aberto</td>'+vS.map((v,i)=>cell('S',cols[i],v)).join('')+'<td class="r" style="padding:4px 7px">'+f2(tot(vS))+'</td></tr>'+
+    '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Saldo de Caixa Atual</td>'+cols.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(saldoAtual||0):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(saldoAtual||0)+'</td></tr>'+
+    '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa Projetado</td>'+proj.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(proj[proj.length-1]>=0?'#A9DFBF':'#F1948A')+'">'+f2(proj[proj.length-1])+'</td></tr>';
+}
+function abrirFluxoAbertoModal(td){
+  const k=td.dataset.k,[tag,c]=k.split('|');const rows=_fcAbertoCells[k]||[];
+  const nome={R:'A Receber',P:'A Pagar',S:'A Receber e A Pagar'}[tag];
+  const per=c==='V'?'Vencidos':MESES_PT[+c%100]+'/'+Math.floor(+c/100);
+  openDetailModal('Em aberto — '+nome+' — '+per,rows,COLS_ABERTOS_MODAL,{exportName:'EmAberto_'+nome.replace(/ /g,'')+'_'+per.replace('/','-')});
+}
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDash(){
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
@@ -1596,6 +1741,7 @@ function renderDash(){
   };
   mkContaChart('dash-ch-saidas-conta',saidasStr,'Saídas','#C0392B',COLS_SAIDA,'Saidas');
   mkContaChart('dash-ch-entradas-conta',entradasStr,'Entradas','#1A7A3C',COLS_ENTRADA,'Entradas');
+  renderDashAbertos();
 }
 let _dashEntradasCache=[],_dashSaidasCache=[],_dashSaldoCache=[];
 function abrirDashModal(tipo){
@@ -1653,8 +1799,8 @@ document.addEventListener('click',()=>{const d=document.getElementById('mes-pick
 
 // ── MULTISELECT MESES — versão genérica reaproveitada em Entradas, Contas Pagas e A Receber
 // (padronizando com o seletor de mês do Resumo, que já era multi-select) ──
-const _mesSel={fcsv:new Set(),ffat:new Set(),farec:new Set(),fpagar:new Set()};
-function _renderNs(ns){if(ns==='fcsv')renderCSVTable();else if(ns==='ffat')renderFatTable();else if(ns==='farec')renderArecTable();else if(ns==='fpagar')renderPagarTable();}
+const _mesSel={fcsv:new Set(),ffat:new Set(),farec:new Set(),fpagar:new Set(),dabp:new Set()};
+function _renderNs(ns){if(ns==='fcsv')renderCSVTable();else if(ns==='ffat')renderFatTable();else if(ns==='farec')renderArecTable();else if(ns==='fpagar')renderPagarTable();else if(ns==='dabp')renderDashAbertos();}
 function buildMesPickerFor(ns,mesesDisponiveis){
   const container=document.getElementById(ns+'-mes-picker-items');if(!container)return;
   container.innerHTML=MESES_PT.map((n,i)=>{
@@ -1668,7 +1814,7 @@ function atualizarBtnMesFor(ns){const btn=document.getElementById(ns+'-mes-picke
 function toggleMesPickerFor(ns,e){e.stopPropagation();const d=document.getElementById(ns+'-mes-picker-dropdown');if(d)d.classList.toggle('open');}
 function selecionarTodosMesesFor(ns){_mesSel[ns]=new Set();document.querySelectorAll('#'+ns+'-mes-picker-items input').forEach(cb=>{if(!cb.disabled)cb.checked=false;});atualizarBtnMesFor(ns);_renderNs(ns);}
 function limparMesesFor(ns){_mesSel[ns]=new Set();document.querySelectorAll('#'+ns+'-mes-picker-items input').forEach(cb=>{cb.checked=false;});atualizarBtnMesFor(ns);_renderNs(ns);}
-document.addEventListener('click',()=>{['fcsv','ffat','farec','fpagar'].forEach(ns=>{const d=document.getElementById(ns+'-mes-picker-dropdown');if(d)d.classList.remove('open');});});
+document.addEventListener('click',()=>{['fcsv','ffat','farec','fpagar','dabp'].forEach(ns=>{const d=document.getElementById(ns+'-mes-picker-dropdown');if(d)d.classList.remove('open');});});
 
 function toggleSiengePanel(e){e.stopPropagation();const d=document.getElementById('sienge-dropdown');if(d)d.classList.toggle('open');}
 document.addEventListener('click',()=>{const d=document.getElementById('sienge-dropdown');if(d)d.classList.remove('open');});
@@ -1750,6 +1896,7 @@ function renderFluxo(){
   set('fc-kpi-ent',fmt(tFM.reduce((s,v)=>s+v,0)));
   set('fc-kpi-sai',fmt(Math.abs(tPM.reduce((s,v)=>s+v,0))));
   set('fc-kpi-saldo',fmt(saldo.length?saldo[saldo.length-1]:ci));
+  renderFluxoAbertos(saldo.length?saldo[saldo.length-1]:ci,obraSel,anoSel);
   _fluxoEntCache=[...dados.filter(r=>r.tipo==='FATURAMENTO'||r.tipo==='DESCONTO'),...dadosFat].map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
   _fluxoSaiCache=dados.filter(r=>r.tipo==='PAGAMENTO').map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
   renderCaixaInicialCampos();
