@@ -455,17 +455,22 @@ tbody td.c{text-align:center}
 
 <div class="page" id="page-fluxo">
   <div class="sec-title">Fluxo de Caixa Geral</div>
-  <div class="sec-sub">Receitas e despesas por conta, abertas mês a mês</div>
+  <div class="sec-sub">Realizado até o mês atual + A Receber e A Pagar por vencimento (colunas marcadas <span style="background:#FFF3CD;padding:0 5px;border-radius:3px;color:#8a6d00;font-weight:600">proj.</span>) — títulos vencidos e ainda em aberto entram no mês atual</div>
   <div class="filters-bar">
     <span class="filter-label">Filtrar</span>
     <select class="filter-select" id="fc-obra" onchange="renderFluxo()" style="min-width:150px"><option value="">Todas as obras</option></select>
     <select class="filter-select" id="fc-ano" onchange="renderFluxo()" style="min-width:100px"><option value="">Todos os anos</option></select>
-    <button class="btn-ghost" onclick="document.getElementById('fc-obra').value='';document.getElementById('fc-ano').value='';renderFluxo()">✕ Limpar</button>
+    <span class="filter-label">Em aberto</span>
+    <select class="filter-select" id="fc-aberto" onchange="renderFluxo()"><option value="1">Incluir A Receber e A Pagar</option><option value="0">Só realizado</option></select>
+    <span class="filter-label">Projetar</span>
+    <select class="filter-select" id="fc-horiz" onchange="renderFluxo()"><option value="6">6 meses</option><option value="12" selected>12 meses</option><option value="24">24 meses</option><option value="36">36 meses</option><option value="60">60 meses</option><option value="">Tudo</option></select>
+    <button class="btn-ghost" onclick="document.getElementById('fc-obra').value='';document.getElementById('fc-ano').value='';document.getElementById('fc-aberto').value='1';document.getElementById('fc-horiz').value='12';renderFluxo()">✕ Limpar</button>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
-    <div class="kpi-card c-green clickable" onclick="abrirFluxoKpiModal('ent')"><div class="kpi-label">Total Entradas</div><div class="kpi-val pos" id="fc-kpi-ent">—</div><div class="kpi-sub">Caixa, no período filtrado</div></div>
-    <div class="kpi-card c-red clickable" onclick="abrirFluxoKpiModal('sai')"><div class="kpi-label">Total Saídas</div><div class="kpi-val neg" id="fc-kpi-sai">—</div><div class="kpi-sub">Caixa, no período filtrado</div></div>
-    <div class="kpi-card c-blue"><div class="kpi-label">Saldo de Caixa Atual</div><div class="kpi-val" id="fc-kpi-saldo">—</div><div class="kpi-sub">Caixa Inicial + Entradas − Saídas</div></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+    <div class="kpi-card c-green clickable" onclick="abrirFluxoKpiModal('ent')"><div class="kpi-label">Total Entradas</div><div class="kpi-val pos" id="fc-kpi-ent">—</div><div class="kpi-sub">Realizado (caixa), no período filtrado</div></div>
+    <div class="kpi-card c-red clickable" onclick="abrirFluxoKpiModal('sai')"><div class="kpi-label">Total Saídas</div><div class="kpi-val neg" id="fc-kpi-sai">—</div><div class="kpi-sub">Realizado (caixa), no período filtrado</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Saldo de Caixa Atual</div><div class="kpi-val" id="fc-kpi-saldo">—</div><div class="kpi-sub">Caixa Inicial + Entradas − Saídas (realizado)</div></div>
+    <div class="kpi-card c-gold"><div class="kpi-label">Saldo Projetado</div><div class="kpi-val" id="fc-kpi-proj">—</div><div class="kpi-sub" id="fc-kpi-proj-sub">Fim do horizonte, com A Receber e A Pagar</div></div>
   </div>
   <div class="tbl-card" id="fc-resumo-card">
     <div class="tbl-head"><div class="tbl-title">Resumo</div><span class="tbl-badge">Entradas, Saídas e Saldo por mês</span></div>
@@ -474,17 +479,6 @@ tbody td.c{text-align:center}
         <colgroup id="colgroup-fc-resumo"></colgroup>
         <thead id="thead-fc-resumo"></thead>
         <tbody id="tbody-fc-resumo"></tbody>
-      </table>
-    </div>
-  </div>
-  <div class="tbl-card" id="fc-aberto-card">
-    <div class="tbl-head"><div class="tbl-title">Em Aberto — A Receber × A Pagar</div><span class="tbl-badge" id="fc-aberto-badge">Por mês de vencimento · segue os filtros Obra e Ano</span></div>
-    <div style="padding:6px 16px 4px;color:var(--text3);font-size:11px">Não entra no fluxo realizado acima. "Vencidos" reúne títulos com vencimento antes do mês atual. O Saldo Projetado parte do Saldo de Caixa atual e soma o saldo em aberto mês a mês — clique em um valor para ver os títulos.</div>
-    <div style="overflow-x:auto;font-size:12px">
-      <table style="width:100%;border-collapse:collapse;min-width:900px;table-layout:fixed">
-        <colgroup id="colgroup-fc-aberto"></colgroup>
-        <thead id="thead-fc-aberto"></thead>
-        <tbody id="tbody-fc-aberto"><tr><td><div class="empty-state"><p>Nenhum título em aberto</p></div></td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1100,12 +1094,15 @@ async function siengeSyncPagarCore(start,end){
     const saldo=bill.balanceAmount!=null?bill.balanceAmount:(bill.correctedBalanceAmount||0);
     if(!saldo)return; // já totalmente pago — não é "em aberto"
     const nuTitulo=bill.documentNumber||String(bill.billId)+'-'+String(bill.installmentId);
+    const cats0=bill.paymentsCategories||[];
+    const contaLabel=cats0.length?((cats0[0].financialCategoryId?cats0[0].financialCategoryId+' - ':'')+(cats0[0].financialCategoryName||'')):'';
+    const contaCod=cats0.length?(cats0[0].financialCategoryId||''):'';
     const buildings=bill.buildingsCosts||[];
     if(buildings.length){
       buildings.forEach((b,idx)=>{
         const siengeId='pg-'+bill.billId+'-'+bill.installmentId+'-bc'+idx;
         const valor=saldo*((b.rate!=null?b.rate:100)/100);
-        novos.push({data:dataVc,credor,valor:Math.abs(valor),nuTitulo,cc:normCC(b.buildingName||''),siengeId,mes:dataVc?dataVc.getMonth():null,ano:dataVc?dataVc.getFullYear():null});
+        novos.push({data:dataVc,credor,valor:Math.abs(valor),nuTitulo,cc:normCC(b.buildingName||''),conta:contaLabel,contaCod,siengeId,mes:dataVc?dataVc.getMonth():null,ano:dataVc?dataVc.getFullYear():null});
       });
     }else{
       const cats=bill.paymentsCategories||[];
@@ -1113,7 +1110,7 @@ async function siengeSyncPagarCore(start,end){
       base.forEach((pc,idx)=>{
         const siengeId='pg-'+bill.billId+'-'+bill.installmentId+'-pc'+idx;
         const valor=saldo*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
-        novos.push({data:dataVc,credor,valor:Math.abs(valor),nuTitulo,cc:normCC(pc.costCenterName||''),siengeId,mes:dataVc?dataVc.getMonth():null,ano:dataVc?dataVc.getFullYear():null});
+        novos.push({data:dataVc,credor,valor:Math.abs(valor),nuTitulo,cc:normCC(pc.costCenterName||''),conta:pc.financialCategoryId?(pc.financialCategoryId+' - '+(pc.financialCategoryName||'')):contaLabel,contaCod:pc.financialCategoryId||contaCod,siengeId,mes:dataVc?dataVc.getMonth():null,ano:dataVc?dataVc.getFullYear():null});
       });
     }
   });
@@ -1476,8 +1473,9 @@ function processPagarText(txt){
     const valor=Math.abs(parseBRNum(findColKey(r,['Valor','VlTotal','ValorTotal']).value));
     const nuTitulo=fixEncoding(findColKey(r,['Nº título','Numero titulo','nuTitulo','Titulo']).value);
     const cc=normCC(fixEncoding(findColKey(r,['Centro de custo','Centro de Custo','CentroCusto']).value));
+    const conta=fixEncoding(findColKey(r,['Plano financeiro','Desc plano fin','Plano Financeiro','Conta']).value||'');
     if(!data&&!credor&&!valor&&!nuTitulo)return null;
-    return{data,credor,valor,nuTitulo,cc,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
+    return{data,credor,valor,nuTitulo,cc,conta,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(Boolean);
   const{out:novosUnicos,dup}=dedupNovos(DATA.pagar,novos,dedupKeyPagar);
   DATA.pagar=[...DATA.pagar,...novosUnicos];
@@ -1592,43 +1590,6 @@ function abrirDashAbertosModal(tipo){
   if(tipo==='rec')openDetailModal('Em aberto — A Receber',_dabpRecCache,COLS_ABERTOS_MODAL,{exportName:'EmAberto_AReceber'});
   else if(tipo==='pag')openDetailModal('Em aberto — A Pagar',_dabpPagCache,COLS_ABERTOS_MODAL,{exportName:'EmAberto_APagar'});
   else openDetailModal('Em aberto — Vencidos',[..._dabpRecCache,..._dabpPagCache].filter(r=>r.status==='Vencido'),COLS_ABERTOS_MODAL,{exportName:'EmAberto_Vencidos'});
-}
-let _fcAbertoCells={};
-function renderFluxoAbertos(saldoAtual,obraSel,anoSel){
-  const th=document.getElementById('thead-fc-aberto'),tb=document.getElementById('tbody-fc-aberto'),cg=document.getElementById('colgroup-fc-aberto');
-  if(!th||!tb)return;
-  const{refKey,rec,pag}=_abertosBase();
-  const ok=r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel);
-  const R=rec.filter(ok),P=pag.filter(ok);
-  // Colunas: "Vencidos" (tudo antes do mês atual) + cada mês a partir do atual
-  const futKeys=[...new Set([...R,...P].filter(r=>r.ano!=null&&r.mes!=null&&r.ano*100+r.mes>=refKey).map(r=>r.ano*100+r.mes))].sort((a,b)=>a-b);
-  const temVenc=[...R,...P].some(r=>r.status==='Vencido');
-  const cols=(temVenc?['V']:[]).concat(futKeys);
-  _fcAbertoCells={};
-  if(!cols.length){th.innerHTML='';if(cg)cg.innerHTML='';tb.innerHTML='<tr><td><div class="empty-state"><p>Nenhum título em aberto para os filtros</p></div></td></tr>';return;}
-  const colOf=r=>r.status==='Vencido'?'V':(r.ano*100+r.mes);
-  const agg=(arr,tag)=>cols.map(c=>{const rows=arr.filter(r=>colOf(r)===c);_fcAbertoCells[tag+'|'+c]=rows;return rows.reduce((s,r)=>s+(r.valor||0),0);});
-  const vR=agg(R,'R'),vP=agg(P,'P'),vS=vR.map((v,i)=>v-vP[i]);
-  cols.forEach(c=>{_fcAbertoCells['S|'+c]=[...(_fcAbertoCells['R|'+c]||[]),...(_fcAbertoCells['P|'+c]||[])];});
-  const proj=[];let acc=saldoAtual||0;vS.forEach(v=>{acc+=v;proj.push(acc);});
-  const tot=a=>a.reduce((s,v)=>s+v,0);
-  const SD='position:sticky;left:0;z-index:2;background:';
-  if(cg)cg.innerHTML='<col style="width:280px">'+cols.map(()=>'<col style="width:78px">').join('')+'<col style="width:88px">';
-  th.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;'+SD+'#f5f5f5">Em aberto</th>'+cols.map(c=>'<th class="r" style="padding:5px 7px;font-size:10px'+(c==='V'?';color:#C0392B':'')+'">'+(c==='V'?'Vencidos':MESES_ABR[c%100]+'/'+Math.floor(c/100))+'</th>').join('')+'<th class="r" style="padding:5px 9px;background:#ececec">Total</th></tr>';
-  const cell=(tag,c,v)=>'<td class="r" data-k="'+tag+'|'+c+'" onclick="abrirFluxoAbertoModal(this)" style="padding:4px 6px;font-size:10px;cursor:pointer">'+f2(v)+'</td>';
-  const linha=(nome,bg,cor,tag,vals)=>'<tr style="background:'+bg+'"><td style="'+SD+bg+';padding:5px 12px;font-size:11px;font-weight:600;color:'+cor+'">'+nome+'</td>'+vals.map((v,i)=>cell(tag,cols[i],v)).join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tot(vals))+'</td></tr>';
-  tb.innerHTML=
-    linha('A Receber','#D5F5E3','#1B6B35','R',vR)+
-    linha('A Pagar','#FADBD8','#C0392B','P',vP.map(v=>-v))+
-    '<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Saldo em Aberto</td>'+vS.map((v,i)=>cell('S',cols[i],v)).join('')+'<td class="r" style="padding:4px 7px">'+f2(tot(vS))+'</td></tr>'+
-    '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Saldo de Caixa Atual</td>'+cols.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(saldoAtual||0):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(saldoAtual||0)+'</td></tr>'+
-    '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa Projetado</td>'+proj.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(proj[proj.length-1]>=0?'#A9DFBF':'#F1948A')+'">'+f2(proj[proj.length-1])+'</td></tr>';
-}
-function abrirFluxoAbertoModal(td){
-  const k=td.dataset.k,[tag,c]=k.split('|');const rows=_fcAbertoCells[k]||[];
-  const nome={R:'A Receber',P:'A Pagar',S:'A Receber e A Pagar'}[tag];
-  const per=c==='V'?'Vencidos':MESES_PT[+c%100]+'/'+Math.floor(+c/100);
-  openDetailModal('Em aberto — '+nome+' — '+per,rows,COLS_ABERTOS_MODAL,{exportName:'EmAberto_'+nome.replace(/ /g,'')+'_'+per.replace('/','-')});
 }
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDash(){
@@ -1824,82 +1785,166 @@ document.addEventListener('click',()=>{const d=document.getElementById('sienge-d
 function updateFluxoFilters(){
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
   fillSelect('fc-obra',obras,v=>v,v=>v);
-  fillSelect('fc-ano',[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
+  fillSelect('fc-ano',[...new Set([...DATA.csv,...DATA.fat,...DATA.arec,...DATA.pagar].map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
   fillSelect('est-obra',obras,v=>v,v=>v,'Selecione a obra');
   
   
 }
+// ── FLUXO DE CAIXA GERAL — realizado + projetado (A Receber / A Pagar) ───────
+// Grupos de saída pelo código do plano financeiro da Rossa (prefixo do "código - descrição").
+const FLUXO_GRUPOS=[
+  {id:'OBRA',nome:'Saídas de Obra'},
+  {id:'ADM',nome:'Despesas Administrativas'},
+  {id:'MKT',nome:'Marketing e Comercial'},
+  {id:'FIN',nome:'Despesas Financeiras'},
+  {id:'EMP',nome:'Empréstimos e Financiamentos'},
+  {id:'IMP',nome:'Impostos'},
+  {id:'OUT',nome:'Outras Saídas'}
+];
+function grupoSaida(conta){
+  const cod=(String(conta||'').match(/^\s*(\d+)/)||[])[1]||'';
+  if(!cod)return'OUT';                                   // tesouraria (Transferência, Saque, Aplicação...) e sem conta
+  if(cod==='2020224'||cod==='10610')return'EMP';          // Empréstimos/financiamentos, Consórcio
+  if(cod==='2020222')return'IMP';                         // IPTU
+  if(cod.startsWith('2010'))return'OBRA';
+  if(cod.startsWith('2020')||cod.startsWith('205'))return'ADM';
+  if(cod.startsWith('206'))return'MKT';
+  if(cod.startsWith('203'))return'FIN';
+  if(cod.startsWith('204')||cod.startsWith('2900'))return'IMP';
+  return'OUT';                                            // ex.: 10199 Cancelamento de Contrato de Venda
+}
+const _codNum=c=>{const m=String(c).match(/^\s*(\d+)/);return m?m[1]:'999999999';};
+let _fluxoCells={};
 function renderFluxo(){
   const obraSel=document.getElementById('fc-obra')?.value||'';
   const anoSel=document.getElementById('fc-ano')?.value||'';
+  const incluirAberto=(document.getElementById('fc-aberto')?.value||'1')==='1';
+  const horizV=document.getElementById('fc-horiz')?.value;const horiz=horizV===''||horizV==null?null:parseInt(horizV);
   updateFluxoFilters();
   const thead=document.getElementById('thead-fluxo'),tbody=document.getElementById('tbody-fluxo'),tfoot=document.getElementById('tfoot-fluxo');
-  if(!thead||!tbody||!tfoot)return;
-  const dados=DATA.csv.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa!==false);
-  const dadosFat=DATA.fat.filter(r=>(!obraSel||ccMatch(r.cc||'',obraSel))&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa===true);
-  const colSet=new Set();
-  dados.forEach(r=>{if(r.ano!=null&&r.mes!=null)colSet.add(r.ano*100+r.mes);});
-  dadosFat.forEach(r=>{if(r.ano!=null&&r.mes!=null)colSet.add(r.ano*100+r.mes);});
-  const colKeys=[...colSet].sort();
-  const colAno=colKeys.map(k=>Math.floor(k/100));const colMes=colKeys.map(k=>k%100);const NC=colKeys.length;
-  const SD='position:sticky;left:0;z-index:2;background:';
-  const contas={};
-  dados.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;if(r.tipo==='FATURAMENTO')contas[c].FAT[ci]+=r.valor;else if(r.tipo==='DESCONTO')contas[c].DESC[ci]+=r.valor;else if(r.tipo==='PAGAMENTO')contas[c].PAG[ci]+=r.valor;});
-  dadosFat.forEach(r=>{const c=r.conta||'(Sem conta)';if(!contas[c])contas[c]={FAT:Array(NC).fill(0),DESC:Array(NC).fill(0),PAG:Array(NC).fill(0)};const ci=colKeys.indexOf(r.ano*100+r.mes);if(ci<0)return;contas[c].FAT[ci]+=r.valor;});
-  const nomes=Object.keys(contas);
-  if(!nomes.length){thead.innerHTML='';tfoot.innerHTML='';tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado para o período</p></div></td></tr>';set('fc-badge','—');const tR=document.getElementById('thead-fc-resumo'),bR=document.getElementById('tbody-fc-resumo');if(tR)tR.innerHTML='';if(bR)bR.innerHTML='';set('fc-kpi-ent','—');set('fc-kpi-sai','—');set('fc-kpi-saldo',fmt(parseFloat(DATA.caixaInicial['_total']||0)||0));_fluxoEntCache=[];_fluxoSaiCache=[];return;}
-  const cg=document.getElementById('colgroup-fluxo');
-  if(cg)cg.innerHTML='<col style="width:280px">'+colKeys.map(()=>'<col style="width:78px">').join('')+'<col style="width:88px">';
-  thead.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;width:280px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Conta</th>'+colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;width:78px;font-size:10px;position:sticky;top:0;background:#f5f5f5">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+'</th>').join('')+'<th class="r" style="padding:5px 9px;width:88px;background:#ececec;position:sticky;top:0">Total</th></tr>';
-  const tdS=(bg)=>'style="'+SD+bg+';padding:5px 6px 5px 12px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"';
-  const tdSB=(bg)=>'style="'+SD+bg+';padding:5px 12px;font-size:11px;font-weight:700"';
-  let rows='';const tFM=Array(NC).fill(0),tPM=Array(NC).fill(0);
-  const fatN=nomes.filter(c=>contas[c].FAT.some(v=>v)||contas[c].DESC.some(v=>v)).sort();
-  const pagN=nomes.filter(c=>contas[c].PAG.some(v=>v)).sort();
-  const tdClick=(cAttr,i,secao)=>'data-conta="'+cAttr+'" data-ano="'+colAno[i]+'" data-mes="'+colMes[i]+'" data-secao="'+secao+'" onclick="abrirFluxoCelulaModal(this)" style="padding:4px 6px;font-size:10px;cursor:pointer"';
-  if(fatN.length){
-    rows+='<tr style="background:#D5F5E3"><td colspan="'+(NC+2)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#1B6B35;'+SD+'#D5F5E3">▶ ENTRADAS</td></tr>';
-    fatN.forEach(c=>{const vals=contas[c].FAT.map((v,i)=>v-contas[c].DESC[i]);const tot=vals.reduce((s,v)=>s+v,0);vals.forEach((v,i)=>tFM[i]+=v);const cAttr=c.replace(/"/g,'&quot;');rows+='<tr><td '+tdS('#fff')+' title="'+cAttr+'">'+c+'</td>'+vals.map((v,i)=>'<td class="r" '+tdClick(cAttr,i,'ENT')+'>'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(tot)+'</td></tr>';});
-    rows+='<tr style="background:#c8e6c9;font-weight:700"><td '+tdSB('#c8e6c9')+'>Total Entradas</td>'+tFM.map((v,i)=>'<td class="r" '+tdClick('',i,'ENT')+'>'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tFM.reduce((s,v)=>s+v,0))+'</td></tr>';
-  }
-  if(pagN.length){
-    rows+='<tr style="background:#FADBD8"><td colspan="'+(NC+2)+'" style="padding:5px 12px;font-weight:700;font-size:11px;color:#C0392B;'+SD+'#FADBD8">▶ SAÍDAS</td></tr>';
-    pagN.forEach(c=>{const vals=contas[c].PAG;const tot=vals.reduce((s,v)=>s+v,0);vals.forEach((v,i)=>tPM[i]+=v);const cAttr=c.replace(/"/g,'&quot;');rows+='<tr><td '+tdS('#fff')+' title="'+cAttr+'">'+c+'</td>'+vals.map((v,i)=>'<td class="r" '+tdClick(cAttr,i,'SAI')+'>'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-weight:600;background:#f4f4f4;font-size:10px">'+f2(tot)+'</td></tr>';});
-    rows+='<tr style="background:#ffcdd2;font-weight:700"><td '+tdSB('#ffcdd2')+'>Total Saídas</td>'+tPM.map((v,i)=>'<td class="r" '+tdClick('',i,'SAI')+'>'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tPM.reduce((s,v)=>s+v,0))+'</td></tr>';
-  }
-  const rv=tFM.map((v,i)=>v+tPM[i]),rt=rv.reduce((s,v)=>s+v,0);
-  const ci=parseFloat(DATA.caixaInicial['_total']||0)||0;
-  const saldo=[];let acc=ci;rv.forEach(v=>{acc+=v;saldo.push(acc);});
-  rows+=
-    '<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Resultado do Período</td>'+rv.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#1B6B35':'#C0392B')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(rt>=0?'#1B6B35':'#C0392B')+'">'+f2(rt)+'</td></tr>'+
-    '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Caixa Inicial</td>'+colKeys.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(ci):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(ci)+'</td></tr>'+
-    '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(saldo.length?saldo[saldo.length-1]>=0?'#A9DFBF':'#F1948A':'#fff')+'">'+f2(saldo.length?saldo[saldo.length-1]:ci)+'</td></tr>';
-  tbody.innerHTML=rows;
+  if(!thead||!tbody)return;
   if(tfoot)tfoot.innerHTML='';
-  // Previsto líquido (de DATA.previsto): previsto bruto - realizado contas 2010304 e 2010401
-  const prevKeys=Object.keys(DATA.previsto||{}).filter(k=>!obraSel||k.startsWith(obraSel+'_')||k.startsWith('_'));
-  const tPrevM=Array(NC).fill(0);
-  colKeys.forEach((ck,ci2)=>{const ano=Math.floor(ck/100),mes=ck%100;let bruto=0;const key=(obraSel||'_')+'_'+ano+'_'+mes;if(DATA.previsto[key]!==undefined)bruto=DATA.previsto[key];const real2010304=dados.filter(r=>r.conta&&r.conta.includes('2010304')&&r.ano===ano&&r.mes===mes).reduce((s,r)=>s+Math.abs(r.valor),0);const real2010401=dados.filter(r=>r.conta&&r.conta.includes('2010401')&&r.ano===ano&&r.mes===mes).reduce((s,r)=>s+Math.abs(r.valor),0);tPrevM[ci2]=bruto-real2010304-real2010401;});
-  set('fc-badge',nomes.length+(nomes.length===1?' conta':' contas'));
-  const theadR=document.getElementById('thead-fc-resumo'),tbodyR=document.getElementById('tbody-fc-resumo');
-  if(theadR&&tbodyR){
-    const cgR=document.getElementById('colgroup-fc-resumo');
-    if(cgR)cgR.innerHTML='<col style="width:280px">'+colKeys.map(()=>'<col style="width:78px">').join('')+'<col style="width:88px">';
-    theadR.innerHTML='<tr style="background:#f5f5f5"><th style="text-align:left;padding:8px 12px;width:280px;position:sticky;left:0;background:#f5f5f5">Resumo</th>'+colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;width:78px;font-size:10px">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+'</th>').join('')+'<th class="r" style="padding:5px 9px;width:88px;background:#ececec">Total</th></tr>';
-    const rSai=tPM.map(v=>Math.abs(v));const totSaiR=rSai.reduce((s,v)=>s+v,0);
-    const tdClickR=(i,secao)=>'data-conta="" data-ano="'+colAno[i]+'" data-mes="'+colMes[i]+'" data-secao="'+secao+'" onclick="abrirFluxoCelulaModal(this)" style="padding:4px 6px;font-size:10px;cursor:pointer"';
-    tbodyR.innerHTML=
-      '<tr style="background:#D5F5E3"><td style="'+SD+'#D5F5E3;padding:5px 12px;font-size:11px;font-weight:600;color:#1B6B35">Entradas</td>'+tFM.map((v,i)=>'<td class="r" '+tdClickR(i,'ENT')+'>'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(tFM.reduce((s,v)=>s+v,0))+'</td></tr>'+
-      '<tr style="background:#FADBD8"><td style="'+SD+'#FADBD8;padding:5px 12px;font-size:11px;font-weight:600;color:#C0392B">Saídas</td>'+rSai.map((v,i)=>'<td class="r" '+tdClickR(i,'SAI')+'>'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(totSaiR)+'</td></tr>'+
-      '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map(v=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#A9DFBF':'#F1948A')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+(saldo.length?saldo[saldo.length-1]>=0?'#A9DFBF':'#F1948A':'#fff')+'">'+f2(saldo.length?saldo[saldo.length-1]:ci)+'</td></tr>';
+  const hoje=new Date(),refKey=hoje.getFullYear()*100+hoje.getMonth();
+  const kIdx=k=>Math.floor(k/100)*12+k%100;
+  const limIdx=horiz?kIdx(refKey)+horiz-1:Infinity;
+  const obraOk=r=>!obraSel||ccMatch(r.cc||'',obraSel);
+  const anoOk=k=>!anoSel||String(Math.floor(k/100))===anoSel;
+  // Realizado
+  const dados=DATA.csv.filter(r=>obraOk(r)&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa!==false);
+  const dadosFat=DATA.fat.filter(r=>obraOk(r)&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa===true);
+  // Lançamentos unificados: {sec:'ENT'|'SAI', conta, k, valor(com sinal), rec(origem)}
+  const L=[];
+  const kOf=r=>(r.ano!=null&&r.mes!=null)?r.ano*100+r.mes:null;
+  dadosFat.forEach(r=>{const k=kOf(r);if(k!=null)L.push({sec:'ENT',conta:r.conta||'(Sem conta)',k,valor:r.valor,origem:'Realizado',r});});
+  dados.forEach(r=>{const k=kOf(r);if(k==null)return;
+    if(r.tipo==='FATURAMENTO')L.push({sec:'ENT',conta:r.conta||'(Sem conta)',k,valor:r.valor,origem:'Realizado',r});
+    else if(r.tipo==='DESCONTO')L.push({sec:'ENT',conta:r.conta||'(Sem conta)',k,valor:-Math.abs(r.valor),origem:'Realizado',r});
+    else if(r.tipo==='PAGAMENTO')L.push({sec:'SAI',conta:r.conta||'(Sem conta)',k,valor:r.valor,origem:'Realizado',r});});
+  // Em aberto: vencidos entram no mês atual; futuros no mês de vencimento, até o horizonte
+  let nAbertoFora=0;
+  if(incluirAberto){
+    const addAberto=(r,sec,conta,valor,origem)=>{let k=kOf(r);if(k==null)return;const venc=k<refKey;if(venc)k=refKey;
+      if(kIdx(k)>limIdx){nAbertoFora++;return;} if(!anoOk(k))return;
+      L.push({sec,conta,k,valor,origem:origem+(venc?' (vencido)':''),r,proj:true});};
+    DATA.arec.forEach(r0=>{const r={...r0,cc:r0.cc||ccPorTitulo(r0.nuTitulo)};if(!obraOk(r))return;addAberto(r,'ENT','A Receber — títulos em aberto',Math.abs(r.valor||0),'A Receber');});
+    DATA.pagar.forEach(r=>{if(!obraOk(r))return;addAberto(r,'SAI',r.conta||'(A Pagar sem conta — rode o Sync Sienge)',-Math.abs(r.valor||0),'A Pagar');});
   }
-  set('fc-kpi-ent',fmt(tFM.reduce((s,v)=>s+v,0)));
-  set('fc-kpi-sai',fmt(Math.abs(tPM.reduce((s,v)=>s+v,0))));
-  set('fc-kpi-saldo',fmt(saldo.length?saldo[saldo.length-1]:ci));
-  renderFluxoAbertos(saldo.length?saldo[saldo.length-1]:ci,obraSel,anoSel);
+  const colKeys=[...new Set(L.map(x=>x.k))].sort((a,b)=>a-b);
+  const NC=colKeys.length;
+  const colAno=colKeys.map(k=>Math.floor(k/100)),colMes=colKeys.map(k=>k%100);
+  const isProj=colKeys.map(k=>incluirAberto&&k>=refKey&&L.some(x=>x.proj&&x.k===k));
+  const ci=parseFloat(DATA.caixaInicial['_total']||0)||0;
+  const theadR=document.getElementById('thead-fc-resumo'),tbodyR=document.getElementById('tbody-fc-resumo');
+  // KPIs e caches do realizado (não mudam com a projeção)
+  const realEnt=L.filter(x=>!x.proj&&x.sec==='ENT'),realSai=L.filter(x=>!x.proj&&x.sec==='SAI');
+  const totRealEnt=realEnt.reduce((s,x)=>s+x.valor,0),totRealSai=realSai.reduce((s,x)=>s+x.valor,0);
+  set('fc-kpi-ent',fmt(totRealEnt));set('fc-kpi-sai',fmt(Math.abs(totRealSai)));
+  const saldoReal=ci+totRealEnt+totRealSai;
+  const kS=document.getElementById('fc-kpi-saldo');if(kS){kS.textContent=(saldoReal<0?'− ':'')+fmt(saldoReal);kS.className='kpi-val '+(saldoReal>=0?'':'neg');}
   _fluxoEntCache=[...dados.filter(r=>r.tipo==='FATURAMENTO'||r.tipo==='DESCONTO'),...dadosFat].map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
   _fluxoSaiCache=dados.filter(r=>r.tipo==='PAGAMENTO').map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
+  if(!NC){thead.innerHTML='';tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado para o período</p></div></td></tr>';set('fc-badge','—');if(theadR)theadR.innerHTML='';if(tbodyR)tbodyR.innerHTML='';set('fc-kpi-proj','—');renderCaixaInicialCampos();return;}
+  // Agregação por linha
+  _fluxoCells={};
+  const cellAdd=(key,x)=>{(_fluxoCells[key]=_fluxoCells[key]||[]).push(x);};
+  const linhas={};// id -> {sec,grupo,conta,vals}
+  L.forEach(x=>{const grupo=x.sec==='ENT'?'ENT':grupoSaida(x.conta);const id=x.sec+'|'+x.conta;
+    if(!linhas[id])linhas[id]={id,sec:x.sec,grupo,conta:x.conta,vals:Array(NC).fill(0)};
+    const ci2=colKeys.indexOf(x.k);linhas[id].vals[ci2]+=x.valor;cellAdd(id+'|'+x.k,x);cellAdd('G:'+grupo+'|'+x.k,x);cellAdd('T:'+x.sec+'|'+x.k,x);});
+  const soma=arr=>arr.reduce((s,v)=>s+v,0);
+  const SD='position:sticky;left:0;z-index:2;background:';
+  const PROJ_BG='background-image:linear-gradient(rgba(255,193,7,.13),rgba(255,193,7,.13));';
+  const cg=document.getElementById('colgroup-fluxo');
+  const colsHtml='<col style="width:280px">'+colKeys.map(()=>'<col style="width:84px">').join('')+'<col style="width:92px">';
+  if(cg)cg.innerHTML=colsHtml;
+  const thCols=(top)=>colKeys.map((_,i)=>'<th class="r" style="padding:5px 7px;font-size:10px;'+(top?'position:sticky;top:0;':'')+'background:'+(isProj[i]?'#FFF3CD':'#f5f5f5')+(isProj[i]?';color:#8a6d00':'')+'">'+MESES_ABR[colMes[i]]+'/'+colAno[i]+(isProj[i]?'<div style="font-size:8px;font-weight:600;letter-spacing:.05em">PROJ.</div>':'')+'</th>').join('');
+  thead.innerHTML='<tr><th style="text-align:left;padding:8px 12px;position:sticky;left:0;top:0;z-index:3;background:#f5f5f5">Conta</th>'+thCols(true)+'<th class="r" style="padding:5px 9px;position:sticky;top:0;background:#ececec">Total</th></tr>';
+  const tdS=bg=>'style="'+SD+bg+';padding:5px 6px 5px 12px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"';
+  const tdSB=bg=>'style="'+SD+bg+';padding:5px 12px;font-size:11px;font-weight:700"';
+  const cell=(key,i,v,extra)=>'<td class="r" data-k="'+String(key).replace(/"/g,'&quot;')+'|'+colKeys[i]+'" onclick="abrirFluxoCelula(this)" style="padding:4px 6px;font-size:10px;cursor:pointer;'+(isProj[i]?PROJ_BG:'')+(extra||'')+'">'+f2(v)+'</td>';
+  const totCell=(v,bg)=>'<td class="r" style="padding:4px 7px;font-weight:600;font-size:10px;background:'+(bg||'#f4f4f4')+'">'+f2(v)+'</td>';
+  const header=(txt,bg,cor)=>'<tr style="background:'+bg+'"><td style="padding:5px 12px;font-weight:700;font-size:11px;white-space:nowrap;color:'+cor+';'+SD+bg+'">▶ '+txt+'</td><td colspan="'+(NC+1)+'" style="background:'+bg+'"></td></tr>';
+  const spacer='<tr><td colspan="'+(NC+2)+'" style="height:8px;padding:0;background:#fff;border:none"></td></tr>';
+  const linhaConta=l=>{const c=l.conta.replace(/"/g,'&quot;');const destaque=l.conta.startsWith('A Receber')||l.conta.startsWith('(A Pagar');
+    return'<tr><td '+tdS('#fff')+' title="'+c+'">'+(destaque?'<em>'+l.conta+'</em>':l.conta)+'</td>'+l.vals.map((v,i)=>cell(l.id,i,v)).join('')+totCell(soma(l.vals))+'</tr>';};
+  const ordena=(a,b)=>{const ca=_codNum(a.conta),cb=_codNum(b.conta);return ca===cb?a.conta.localeCompare(b.conta):(ca<cb?-1:1);};
+  let rows='';
+  // ENTRADAS
+  const entL=Object.values(linhas).filter(l=>l.sec==='ENT').sort((a,b)=>(a.conta.startsWith('A Receber')?1:0)-(b.conta.startsWith('A Receber')?1:0)||ordena(a,b));
+  const tEnt=Array(NC).fill(0);entL.forEach(l=>l.vals.forEach((v,i)=>tEnt[i]+=v));
+  if(entL.length){
+    rows+=header('ENTRADAS','#D5F5E3','#1B6B35')+entL.map(linhaConta).join('');
+    rows+='<tr style="background:#c8e6c9;font-weight:700"><td '+tdSB('#c8e6c9')+'>Total Entradas</td>'+tEnt.map((v,i)=>cell('T:ENT',i,v)).join('')+totCell(soma(tEnt))+'</tr>';
+  }
+  // SAÍDAS por grupo
+  const tSai=Array(NC).fill(0);const totGrupo={};
+  FLUXO_GRUPOS.forEach(g=>{
+    const gl=Object.values(linhas).filter(l=>l.sec==='SAI'&&l.grupo===g.id).sort((a,b)=>(a.conta.startsWith('(A Pagar')?1:0)-(b.conta.startsWith('(A Pagar')?1:0)||ordena(a,b));
+    if(!gl.length)return;
+    const tg=Array(NC).fill(0);gl.forEach(l=>l.vals.forEach((v,i)=>{tg[i]+=v;tSai[i]+=v;}));totGrupo[g.id]=tg;
+    rows+=spacer+header(g.nome.toUpperCase(),'#FADBD8','#C0392B')+gl.map(linhaConta).join('');
+    rows+='<tr style="background:#ffcdd2;font-weight:700"><td '+tdSB('#ffcdd2')+'>Total '+g.nome+'</td>'+tg.map((v,i)=>cell('G:'+g.id,i,v)).join('')+totCell(soma(tg))+'</tr>';
+  });
+  if(Object.keys(totGrupo).length>0)rows+=spacer+'<tr style="background:#f8b4b4;font-weight:700"><td '+tdSB('#f8b4b4')+'>Total Saídas</td>'+tSai.map((v,i)=>cell('T:SAI',i,v)).join('')+totCell(soma(tSai),'#f8b4b4')+'</tr>';
+  const rv=tEnt.map((v,i)=>v+tSai[i]),rt=soma(rv);
+  const saldo=[];let acc=ci;rv.forEach(v=>{acc+=v;saldo.push(acc);});
+  const cor=v=>v>=0?'#1B6B35':'#C0392B',corS=v=>v>=0?'#A9DFBF':'#F1948A';
+  rows+=
+    '<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Resultado do Período</td>'+rv.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+cor(v)+';'+(isProj[i]?PROJ_BG:'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+cor(rt)+'">'+f2(rt)+'</td></tr>'+
+    '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Caixa Inicial</td>'+colKeys.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(ci):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(ci)+'</td></tr>'+
+    '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+corS(v)+';'+(isProj[i]?'background:#22618c':'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+corS(saldo[saldo.length-1])+'">'+f2(saldo[saldo.length-1])+'</td></tr>';
+  tbody.innerHTML=rows;
+  set('fc-badge',Object.keys(linhas).length+' linhas'+(nAbertoFora?' · '+nAbertoFora+' títulos em aberto além do horizonte':''));
+  // Card Resumo (mesmas colunas)
+  if(theadR&&tbodyR){
+    const cgR=document.getElementById('colgroup-fc-resumo');if(cgR)cgR.innerHTML=colsHtml;
+    theadR.innerHTML='<tr><th style="text-align:left;padding:8px 12px;position:sticky;left:0;background:#f5f5f5">Resumo</th>'+thCols(false)+'<th class="r" style="padding:5px 9px;background:#ececec">Total</th></tr>';
+    const rSai=tSai.map(v=>Math.abs(v));
+    tbodyR.innerHTML=
+      '<tr style="background:#D5F5E3"><td style="'+SD+'#D5F5E3;padding:5px 12px;font-size:11px;font-weight:600;color:#1B6B35">Entradas</td>'+tEnt.map((v,i)=>cell('T:ENT',i,v)).join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(soma(tEnt))+'</td></tr>'+
+      '<tr style="background:#FADBD8"><td style="'+SD+'#FADBD8;padding:5px 12px;font-size:11px;font-weight:600;color:#C0392B">Saídas</td>'+rSai.map((v,i)=>cell('T:SAI',i,v)).join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(soma(rSai))+'</td></tr>'+
+      '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+corS(v)+';'+(isProj[i]?'background:#22618c':'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+corS(saldo[saldo.length-1])+'">'+f2(saldo[saldo.length-1])+'</td></tr>';
+  }
+  // KPI Saldo Projetado
+  const temProj=isProj.some(Boolean);
+  const sp=saldo[saldo.length-1];const kP=document.getElementById('fc-kpi-proj');
+  if(kP){kP.textContent=temProj?((sp<0?'− ':'')+fmt(sp)):'—';kP.className='kpi-val '+(temProj&&sp<0?'neg':'');}
+  let minI=-1;saldo.forEach((v,i)=>{if(isProj[i]&&(minI<0||v<saldo[minI]))minI=i;});
+  set('fc-kpi-proj-sub',temProj?('Em '+MESES_ABR[colMes[NC-1]]+'/'+colAno[NC-1]+' · menor saldo: '+(saldo[minI]<0?'− ':'')+fmt(saldo[minI])+' ('+MESES_ABR[colMes[minI]]+'/'+colAno[minI]+')'):'Sem títulos em aberto no período');
   renderCaixaInicialCampos();
+}
+function abrirFluxoCelula(td){
+  const k=td.dataset.k||'';const cut=k.lastIndexOf('|');const key=k.slice(0,cut),ck=parseInt(k.slice(cut+1));
+  const itens=_fluxoCells[k]||[];
+  const rows=itens.map(x=>({origem:x.origem,dataStr:x.r.data?x.r.data.toLocaleDateString('pt-BR'):'—',nome:x.r.cliente||x.r.credor||x.r.complemento||'—',nuTitulo:x.r.nuTitulo||x.r.numeroTitulo||'',cc:x.r.cc||'',conta:x.conta,valor:x.valor}));
+  let nome;
+  if(key.startsWith('T:'))nome=key==='T:ENT'?'Total Entradas':'Total Saídas';
+  else if(key.startsWith('G:')){const g=FLUXO_GRUPOS.find(g=>g.id===key.slice(2));nome='Total '+(g?g.nome:'');}
+  else nome=key.slice(key.indexOf('|')+1);
+  const per=MESES_PT[ck%100]+'/'+Math.floor(ck/100);
+  openDetailModal(nome+' — '+per,rows,
+    [{label:'Origem',key:'origem'},{label:'Data / Venc.',key:'dataStr'},{label:'Cliente / Credor',key:'nome'},{label:'Nº Título',key:'nuTitulo'},{label:'Centro de Custo',key:'cc'},{label:'Conta',key:'conta'},{label:'Valor',align:'r',fmt:r=>(r.valor<0?'− ':'')+fmt(r.valor)}],
+    {exportName:'Fluxo_'+nome.replace(/[^\wÀ-ú]+/g,'_').slice(0,40)+'_'+MESES_ABR[ck%100]+Math.floor(ck/100)});
 }
 let _fluxoEntCache=[],_fluxoSaiCache=[];
 function abrirFluxoKpiModal(tipo){
