@@ -475,6 +475,23 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-blue"><div class="kpi-label">Saldo de Caixa Atual</div><div class="kpi-val" id="fc-kpi-saldo">—</div><div class="kpi-sub">Caixa Inicial + Entradas − Saídas (realizado)</div></div>
     <div class="kpi-card c-gold"><div class="kpi-label">Saldo Projetado</div><div class="kpi-val" id="fc-kpi-proj">—</div><div class="kpi-sub" id="fc-kpi-proj-sub">Fim do horizonte, com A Receber e A Pagar</div></div>
   </div>
+  <div class="tbl-card" id="fc-prov-card">
+    <div class="tbl-head" style="flex-wrap:wrap;gap:10px">
+      <div class="tbl-title">Provisão no Período — A Receber × A Pagar</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px">
+        <span class="filter-label">De</span><input type="date" id="prov-ini" class="filter-select" style="min-width:0;padding:5px 8px" onchange="renderProvisao()">
+        <span class="filter-label">Até</span><input type="date" id="prov-fim" class="filter-select" style="min-width:0;padding:5px 8px" onchange="renderProvisao()">
+        <label style="display:flex;align-items:center;gap:5px;color:var(--text2);cursor:pointer"><input type="checkbox" id="prov-venc" onchange="renderProvisao()"> incluir vencidos em aberto antes de "De"</label>
+      </div>
+    </div>
+    <div style="padding:6px 16px 0;color:var(--text3);font-size:11px">Títulos em aberto com vencimento no período (segue o filtro de Obra da aba). Clique em qualquer valor para ver os títulos.</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:12px 16px">
+      <div class="kpi-card c-green clickable" onclick="abrirProvisao('REC')" style="padding:12px 16px"><div class="kpi-label">A Receber no período</div><div class="kpi-val pos" id="prov-rec" style="font-size:22px">—</div><div class="kpi-sub" id="prov-rec-n">—</div></div>
+      <div class="kpi-card c-red clickable" onclick="abrirProvisao('PAG')" style="padding:12px 16px"><div class="kpi-label">A Pagar no período</div><div class="kpi-val neg" id="prov-pag" style="font-size:22px">—</div><div class="kpi-sub" id="prov-pag-n">—</div></div>
+      <div class="kpi-card c-blue" style="padding:12px 16px"><div class="kpi-label">Saldo do período</div><div class="kpi-val" id="prov-saldo" style="font-size:22px">—</div><div class="kpi-sub">A Receber − A Pagar</div></div>
+    </div>
+    <div class="tbl-wrap" style="padding:0 16px 14px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left">Tipo / Conta</th><th class="r" style="width:110px">Títulos</th><th class="r" style="width:160px">Valor (R$)</th><th class="r" style="width:90px">% do grupo</th></tr></thead><tbody id="body-prov"></tbody></table></div>
+  </div>
   <div class="tbl-card" id="fc-resumo-card">
     <div class="tbl-head"><div class="tbl-title">Resumo</div><span class="tbl-badge">Entradas, Saídas e Saldo por mês</span></div>
     <div style="overflow-x:auto;font-size:12px" id="fc-resumo-scroll">
@@ -1707,14 +1724,27 @@ function updateFluxoFilters(){
 // ── FLUXO DE CAIXA GERAL — realizado + projetado (A Receber / A Pagar) ───────
 // Grupos de saída pelo código do plano financeiro da Rossa (prefixo do "código - descrição").
 const FLUXO_GRUPOS=[
-  {id:'OBRA',nome:'Saídas de Obra'},
-  {id:'ADM',nome:'Despesas Administrativas'},
-  {id:'MKT',nome:'Marketing e Comercial'},
-  {id:'FIN',nome:'Despesas Financeiras'},
-  {id:'EMP',nome:'Empréstimos e Financiamentos'},
-  {id:'IMP',nome:'Impostos'},
-  {id:'OUT',nome:'Outras Saídas'}
+  {id:'OBRA',nome:'Saídas de Obra',bg:'#FDEBD0',tot:'#F8C99A',cor:'#A04000',faixa:'#E67E22'},
+  {id:'ADM',nome:'Despesas Administrativas',bg:'#D6EAF8',tot:'#AED6F1',cor:'#1F4E79',faixa:'#2E86C1'},
+  {id:'MKT',nome:'Marketing e Comercial',bg:'#E8DAEF',tot:'#D2B4DE',cor:'#6C3483',faixa:'#8E44AD'},
+  {id:'FIN',nome:'Despesas Financeiras',bg:'#D0ECE7',tot:'#A2D9CE',cor:'#0E6655',faixa:'#16A085'},
+  {id:'EMP',nome:'Empréstimos e Financiamentos',bg:'#FCF3CF',tot:'#F7DC6F',cor:'#7D6608',faixa:'#D4AC0D'},
+  {id:'IMP',nome:'Impostos',bg:'#FADBD8',tot:'#F5B7B1',cor:'#922B21',faixa:'#C0392B'},
+  {id:'OUT',nome:'Outras Saídas',bg:'#EAECEE',tot:'#D5D8DC',cor:'#424949',faixa:'#7F8C8D'}
 ];
+const FLUXO_ENT_COR={bg:'#D5F5E3',tot:'#c8e6c9',cor:'#1B6B35',faixa:'#1E8449'};
+const _grpCor=id=>id==='ENT'?FLUXO_ENT_COR:(FLUXO_GRUPOS.find(g=>g.id===id)||FLUXO_GRUPOS[FLUXO_GRUPOS.length-1]);
+// Conta de cada título em aberto: 1) a que veio do Sienge; 2) A Pagar → conta das parcelas já pagas do mesmo
+// título Sienge (billId, via siengeId de Saídas); A Receber → conta do mesmo nº de título em Entradas.
+function _contaResolver(){
+  const maisFreq=cnt=>{let best='',n=0;for(const k in cnt)if(cnt[k]>n){n=cnt[k];best=k;}return best;};
+  const contaBill={};DATA.csv.forEach(r=>{const sid=r.siengeId||'';if(!/^\d/.test(sid)||!r.conta)return;const b=sid.split('-')[0];(contaBill[b]=contaBill[b]||{})[r.conta]=(contaBill[b][r.conta]||0)+1;});
+  const contaTit={};DATA.fat.forEach(r=>{if(!r.numeroTitulo||!r.conta)return;const t=String(r.numeroTitulo);(contaTit[t]=contaTit[t]||{})[r.conta]=(contaTit[t][r.conta]||0)+1;});
+  return{
+    contaPagar:r=>{if(r.conta)return r.conta;const m=/^pg-(\d+)-/.exec(r.siengeId||'');return(m&&contaBill[m[1]])?maisFreq(contaBill[m[1]]):'(A Pagar sem conta — rode o Sync Sienge)';},
+    contaArec:r=>{if(r.conta)return String(r.conta);const t=String(r.nuTitulo||'');return contaTit[t]?maisFreq(contaTit[t]):'(A Receber sem conta — rode o Sync Sienge)';}
+  };
+}
 function grupoSaida(conta){
   const cod=(String(conta||'').match(/^\s*(\d+)/)||[])[1]||'';
   if(!cod)return'OUT';                                   // tesouraria (Transferência, Saque, Aplicação...) e sem conta
@@ -1760,13 +1790,7 @@ function renderFluxo(){
     const addAberto=(r,sec,conta,valor,origem)=>{let k=kOf(r);if(k==null)return;const venc=k<refKey;if(venc)k=refKey;
       if(kIdx(k)>limIdx){nAbertoFora++;return;} if(!anoOk(k))return;
       L.push({sec,conta,k,valor,origem:origem+(venc?' (vencido)':''),r,proj:true});};
-    // Conta de cada título em aberto: 1) a que veio do Sienge; 2) A Pagar → conta das parcelas já pagas do
-    // mesmo título Sienge (billId, via siengeId de Contas Pagas); A Receber → conta do mesmo nº de título em Entradas.
-    const maisFreq=cnt=>{let best='',n=0;for(const k in cnt)if(cnt[k]>n){n=cnt[k];best=k;}return best;};
-    const contaBill={};DATA.csv.forEach(r=>{const sid=r.siengeId||'';if(!/^\d/.test(sid)||!r.conta)return;const b=sid.split('-')[0];(contaBill[b]=contaBill[b]||{})[r.conta]=(contaBill[b][r.conta]||0)+1;});
-    const contaTit={};DATA.fat.forEach(r=>{if(!r.numeroTitulo||!r.conta)return;const t=String(r.numeroTitulo);(contaTit[t]=contaTit[t]||{})[r.conta]=(contaTit[t][r.conta]||0)+1;});
-    const contaPagar=r=>{if(r.conta)return r.conta;const m=/^pg-(\d+)-/.exec(r.siengeId||'');return(m&&contaBill[m[1]])?maisFreq(contaBill[m[1]]):'(A Pagar sem conta — rode o Sync Sienge)';};
-    const contaArec=r=>{if(r.conta)return r.conta;const t=String(r.nuTitulo||'');return contaTit[t]?maisFreq(contaTit[t]):'(A Receber sem conta — rode o Sync Sienge)';};
+    const{contaPagar,contaArec}=_contaResolver();
     DATA.arec.forEach(r0=>{const r={...r0,cc:r0.cc||ccPorTitulo(r0.nuTitulo)};if(!obraOk(r))return;addAberto(r,'ENT',contaArec(r),Math.abs(r.valor||0),'A Receber');});
     DATA.pagar.forEach(r=>{if(!obraOk(r))return;addAberto(r,'SAI',contaPagar(r),-Math.abs(r.valor||0),'A Pagar');});
   }
@@ -1784,7 +1808,7 @@ function renderFluxo(){
   const kS=document.getElementById('fc-kpi-saldo');if(kS){kS.textContent=(saldoReal<0?'− ':'')+fmt(saldoReal);kS.className='kpi-val '+(saldoReal>=0?'':'neg');}
   _fluxoEntCache=[...dados.filter(r=>r.tipo==='FATURAMENTO'||r.tipo==='DESCONTO'),...dadosFat].map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
   _fluxoSaiCache=dados.filter(r=>r.tipo==='PAGAMENTO').map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
-  if(!NC){thead.innerHTML='';tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado para o período</p></div></td></tr>';set('fc-badge','—');if(theadR)theadR.innerHTML='';if(tbodyR)tbodyR.innerHTML='';set('fc-kpi-proj','—');renderCaixaInicialCampos();return;}
+  if(!NC){thead.innerHTML='';tbody.innerHTML='<tr><td colspan="3"><div class="empty-state"><p>Nenhum dado para o período</p></div></td></tr>';set('fc-badge','—');if(theadR)theadR.innerHTML='';if(tbodyR)tbodyR.innerHTML='';set('fc-kpi-proj','—');renderProvisao();renderCaixaInicialCampos();return;}
   // Agregação por linha
   _fluxoCells={};
   const cellAdd=(key,x)=>{(_fluxoCells[key]=_fluxoCells[key]||[]).push(x);};
@@ -1807,15 +1831,15 @@ function renderFluxo(){
   const header=(txt,bg,cor)=>'<tr style="background:'+bg+'"><td style="padding:5px 12px;font-weight:700;font-size:11px;white-space:nowrap;color:'+cor+';'+SD+bg+'">▶ '+txt+'</td><td colspan="'+(NC+1)+'" style="background:'+bg+'"></td></tr>';
   const spacer='<tr><td colspan="'+(NC+2)+'" style="height:8px;padding:0;background:#fff;border:none"></td></tr>';
   const linhaConta=l=>{const c=l.conta.replace(/"/g,'&quot;');const destaque=l.conta.startsWith('(A ');
-    return'<tr><td '+tdS('#fff')+' title="'+c+'">'+(destaque?'<em>'+l.conta+'</em>':l.conta)+'</td>'+l.vals.map((v,i)=>cell(l.id,i,v)).join('')+totCell(soma(l.vals))+'</tr>';};
+    return'<tr><td '+tdS('#fff').replace('style="','style="box-shadow:inset 4px 0 0 '+_grpCor(l.grupo).faixa+';')+' title="'+c+'">'+(destaque?'<em>'+l.conta+'</em>':l.conta)+'</td>'+l.vals.map((v,i)=>cell(l.id,i,v)).join('')+totCell(soma(l.vals))+'</tr>';};
   const ordena=(a,b)=>{const ca=_codNum(a.conta),cb=_codNum(b.conta);return ca===cb?a.conta.localeCompare(b.conta):(ca<cb?-1:1);};
   let rows='';
   // ENTRADAS
   const entL=Object.values(linhas).filter(l=>l.sec==='ENT').sort((a,b)=>(a.conta.startsWith('(A ')?1:0)-(b.conta.startsWith('(A ')?1:0)||ordena(a,b));
   const tEnt=Array(NC).fill(0);entL.forEach(l=>l.vals.forEach((v,i)=>tEnt[i]+=v));
   if(entL.length){
-    rows+=header('ENTRADAS','#D5F5E3','#1B6B35')+entL.map(linhaConta).join('');
-    rows+='<tr style="background:#c8e6c9;font-weight:700"><td '+tdSB('#c8e6c9')+'>Total Entradas</td>'+tEnt.map((v,i)=>cell('T:ENT',i,v)).join('')+totCell(soma(tEnt))+'</tr>';
+    rows+=header('ENTRADAS',FLUXO_ENT_COR.bg,FLUXO_ENT_COR.cor)+entL.map(linhaConta).join('');
+    rows+='<tr style="background:'+FLUXO_ENT_COR.tot+';font-weight:700"><td '+tdSB(FLUXO_ENT_COR.tot)+'>Total Entradas</td>'+tEnt.map((v,i)=>cell('T:ENT',i,v)).join('')+totCell(soma(tEnt))+'</tr>';
   }
   // SAÍDAS por grupo
   const tSai=Array(NC).fill(0);const totGrupo={};
@@ -1823,8 +1847,8 @@ function renderFluxo(){
     const gl=Object.values(linhas).filter(l=>l.sec==='SAI'&&l.grupo===g.id).sort((a,b)=>(a.conta.startsWith('(A ')?1:0)-(b.conta.startsWith('(A ')?1:0)||ordena(a,b));
     if(!gl.length)return;
     const tg=Array(NC).fill(0);gl.forEach(l=>l.vals.forEach((v,i)=>{tg[i]+=v;tSai[i]+=v;}));totGrupo[g.id]=tg;
-    rows+=spacer+header(g.nome.toUpperCase(),'#FADBD8','#C0392B')+gl.map(linhaConta).join('');
-    rows+='<tr style="background:#ffcdd2;font-weight:700"><td '+tdSB('#ffcdd2')+'>Total '+g.nome+'</td>'+tg.map((v,i)=>cell('G:'+g.id,i,v)).join('')+totCell(soma(tg))+'</tr>';
+    rows+=spacer+header(g.nome.toUpperCase(),g.bg,g.cor)+gl.map(linhaConta).join('');
+    rows+='<tr style="background:'+g.tot+';font-weight:700;color:'+g.cor+'"><td '+tdSB(g.tot)+'>Total '+g.nome+'</td>'+tg.map((v,i)=>cell('G:'+g.id,i,v)).join('')+totCell(soma(tg))+'</tr>';
   });
   if(Object.keys(totGrupo).length>0)rows+=spacer+'<tr style="background:#f8b4b4;font-weight:700"><td '+tdSB('#f8b4b4')+'>Total Saídas</td>'+tSai.map((v,i)=>cell('T:SAI',i,v)).join('')+totCell(soma(tSai),'#f8b4b4')+'</tr>';
   const rv=tEnt.map((v,i)=>v+tSai[i]),rt=soma(rv);
@@ -1846,6 +1870,7 @@ function renderFluxo(){
       '<tr style="background:#FADBD8"><td style="'+SD+'#FADBD8;padding:5px 12px;font-size:11px;font-weight:600;color:#C0392B">Saídas</td>'+rSai.map((v,i)=>cell('T:SAI',i,v)).join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(soma(rSai))+'</td></tr>'+
       '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+corS(v)+';'+(isProj[i]?'background:#22618c':'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+corS(saldo[saldo.length-1])+'">'+f2(saldo[saldo.length-1])+'</td></tr>';
   }
+  renderProvisao();
   // KPI Saldo Projetado
   const temProj=isProj.some(Boolean);
   const sp=saldo[saldo.length-1];const kP=document.getElementById('fc-kpi-proj');
@@ -1853,6 +1878,55 @@ function renderFluxo(){
   let minI=-1;saldo.forEach((v,i)=>{if(isProj[i]&&(minI<0||v<saldo[minI]))minI=i;});
   set('fc-kpi-proj-sub',temProj?('Em '+MESES_ABR[colMes[NC-1]]+'/'+colAno[NC-1]+' · menor saldo: '+(saldo[minI]<0?'− ':'')+fmt(saldo[minI])+' ('+MESES_ABR[colMes[minI]]+'/'+colAno[minI]+')'):'Sem títulos em aberto no período');
   renderCaixaInicialCampos();
+}
+// ── PROVISÃO NO PERÍODO (A Receber × A Pagar em aberto, por vencimento) ─────
+let _provCells={};
+function renderProvisao(){
+  const tb=document.getElementById('body-prov');if(!tb)return;
+  const iniEl=document.getElementById('prov-ini'),fimEl=document.getElementById('prov-fim');
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(!iniEl.value){const h=new Date();iniEl.value=iso(h);}
+  if(!fimEl.value){const f=new Date();f.setDate(f.getDate()+30);fimEl.value=iso(f);}
+  const ini=new Date(iniEl.value+'T00:00:00'),fim=new Date(fimEl.value+'T23:59:59');
+  const incVenc=document.getElementById('prov-venc')?.checked;
+  const obraSel=document.getElementById('fc-obra')?.value||'';
+  const noPer=r=>r.data&&Math.abs(r.valor||0)>0.004&&(r.data<=fim)&&(r.data>=ini||incVenc);
+  const obraOk=r=>!obraSel||ccMatch(r.cc||'',obraSel);
+  const{contaPagar,contaArec}=_contaResolver();
+  const dt=r=>r.data?r.data.toLocaleDateString('pt-BR'):'—';
+  const rec=DATA.arec.map(r=>({...r,cc:r.cc||ccPorTitulo(r.nuTitulo)})).filter(r=>obraOk(r)&&noPer(r))
+    .map(r=>({tipo:'A Receber',dataStr:dt(r),nome:r.cliente||'',nuTitulo:r.nuTitulo||'',cc:r.cc||'',conta:contaArec(r).replace(/^\s*\d+\s*-\s*/,''),grupo:'ENT',valor:Math.abs(r.valor||0),vencido:r.data<ini}));
+  const pag=DATA.pagar.filter(r=>obraOk(r)&&noPer(r))
+    .map(r=>{const conta=contaPagar(r);return{tipo:'A Pagar',dataStr:dt(r),nome:r.credor||'',nuTitulo:r.nuTitulo||'',cc:r.cc||'',conta,grupo:grupoSaida(conta),valor:Math.abs(r.valor||0),vencido:r.data<ini};});
+  const soma=a=>a.reduce((s,r)=>s+r.valor,0);
+  const tR=soma(rec),tP=soma(pag);
+  const pl=n=>n+' título'+(n!==1?'s':'');
+  set('prov-rec',fmt(tR));set('prov-rec-n',pl(rec.length));set('prov-pag',fmt(tP));set('prov-pag-n',pl(pag.length));
+  const sEl=document.getElementById('prov-saldo');if(sEl){sEl.textContent=(tR-tP<0?'− ':'')+fmt(tR-tP);sEl.className='kpi-val '+(tR-tP>=0?'pos':'neg');}
+  _provCells={REC:rec,PAG:pag};
+  const porConta=(arr)=>{const m={};arr.forEach(r=>{(m[r.conta]=m[r.conta]||[]).push(r);});return Object.keys(m).sort((a,b)=>soma(m[b])-soma(m[a])).map(c=>[c,m[c]]);};
+  const clk=(key,txt)=>'<span data-k="'+key.replace(/"/g,'&quot;')+'" onclick="abrirProvisao(this.dataset.k)" style="cursor:pointer;border-bottom:1px dotted currentColor">'+txt+'</span>';
+  const linhaGrupo=(key,nome,arr,c,tot)=>{_provCells[key]=arr;const v=soma(arr);return'<tr style="background:'+c.bg+';font-weight:700;color:'+c.cor+'"><td style="padding:6px 10px;box-shadow:inset 4px 0 0 '+c.faixa+'">'+nome+'</td><td class="r">'+arr.length+'</td><td class="r">'+clk(key,fmt(v))+'</td><td class="r">'+(tot?(v/tot*100).toFixed(1)+'%':'—')+'</td></tr>';};
+  const linhasConta=(prefix,arr,c)=>{const tg=soma(arr);return porConta(arr).map(([conta,rs])=>{const key=prefix+'|'+conta;_provCells[key]=rs;const v=soma(rs);
+    return'<tr><td style="padding:4px 10px 4px 22px;box-shadow:inset 4px 0 0 '+c.faixa+'">'+(conta.startsWith('(A ')?'<em>'+conta+'</em>':conta)+'</td><td class="r">'+rs.length+'</td><td class="r">'+clk(key,fmt(v))+'</td><td class="r" style="color:var(--text3)">'+(tg?(v/tg*100).toFixed(1)+'%':'—')+'</td></tr>';}).join('');};
+  let h='';
+  h+=linhaGrupo('REC','A RECEBER',rec,FLUXO_ENT_COR,tR)+linhasConta('REC',rec,FLUXO_ENT_COR);
+  h+='<tr><td colspan="4" style="height:10px;border:none"></td></tr>';
+  h+='<tr style="background:#f5f5f5;font-weight:700"><td style="padding:6px 10px">A PAGAR</td><td class="r">'+pag.length+'</td><td class="r">'+clk('PAG',fmt(tP))+'</td><td class="r">100%</td></tr>';
+  FLUXO_GRUPOS.forEach(g=>{const arr=pag.filter(r=>r.grupo===g.id);if(!arr.length)return;h+=linhaGrupo('G:'+g.id,g.nome,arr,g,tP)+linhasConta('G:'+g.id,arr,g);});
+  h+='<tr><td colspan="4" style="height:10px;border:none"></td></tr>';
+  h+='<tr style="background:#1a5276;color:#fff;font-weight:700"><td style="padding:7px 10px">Saldo do período (A Receber − A Pagar)</td><td></td><td class="r" style="color:'+(tR-tP>=0?'#A9DFBF':'#F1948A')+'">'+(tR-tP<0?'− ':'')+fmt(tR-tP)+'</td><td></td></tr>';
+  if(!rec.length&&!pag.length)h='<tr><td colspan="4"><div class="empty-state"><p>Nenhum título em aberto no período</p></div></td></tr>';
+  tb.innerHTML=h;
+}
+function abrirProvisao(key){
+  const rows=_provCells[key]||[];
+  const ini=document.getElementById('prov-ini').value.split('-').reverse().join('/'),fim=document.getElementById('prov-fim').value.split('-').reverse().join('/');
+  let nome=key==='REC'?'A Receber':key==='PAG'?'A Pagar':key.startsWith('G:')?((FLUXO_GRUPOS.find(g=>g.id===key.slice(2,key.indexOf('|')>0?key.indexOf('|'):undefined))||{}).nome||''):'';
+  if(key.includes('|'))nome=key.slice(key.indexOf('|')+1);
+  openDetailModal('Provisão '+ini+' a '+fim+' — '+nome,rows.map(r=>({...r,status:r.vencido?'Vencido':'No período'})),
+    [{label:'Tipo',key:'tipo'},{label:'Vencimento',key:'dataStr'},{label:'Cliente / Credor',key:'nome'},{label:'Nº Título',key:'nuTitulo'},{label:'Centro de Custo',key:'cc'},{label:'Conta',key:'conta'},{label:'Situação',key:'status'},{label:'Valor',align:'r',fmt:r=>fmt(r.valor)}],
+    {exportName:'Provisao_'+nome.replace(/[^\wÀ-ú]+/g,'_').slice(0,40)});
 }
 function abrirFluxoCelula(td){
   const k=td.dataset.k||'';const cut=k.lastIndexOf('|');const key=k.slice(0,cut),ck=parseInt(k.slice(cut+1));
