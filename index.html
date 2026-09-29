@@ -33,6 +33,7 @@ nav{background:var(--text);display:flex;align-items:center;height:56px;padding:0
 .app-body{display:flex;align-items:flex-start}
 .sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;padding:14px 0}
 .nav-tabs{display:flex;flex-direction:column}
+.nav-sep{height:1px;background:var(--border);margin:8px 18px;flex-shrink:0}
 .nav-tab{background:none;border:none;border-left:3px solid transparent;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;padding:11px 20px;cursor:pointer;text-align:left;transition:all .15s;white-space:normal}
 .nav-tab:hover{background:var(--bg);color:var(--text)}
 .nav-tab.active{color:var(--brand);border-left-color:var(--brand);background:var(--brand-light);font-weight:600}
@@ -178,6 +179,7 @@ tbody td.c{text-align:center}
   .app-body{flex-direction:column}
   .sidebar{width:100%;height:auto;position:static;border-right:none;border-bottom:1px solid var(--border);padding:6px 0}
   .nav-tabs{flex-direction:row;overflow-x:auto}
+  .nav-sep{width:1px;height:auto;margin:8px 4px}
   .nav-tab{border-left:none;border-bottom:3px solid transparent;padding:10px 14px;white-space:nowrap}
   .nav-tab.active{border-left-color:transparent;border-bottom-color:var(--brand)}
   .prev-summary{grid-template-columns:1fr 1fr}
@@ -263,13 +265,14 @@ tbody td.c{text-align:center}
   <aside class="sidebar">
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="dash" onclick="goTab(this)">Resumo</button>
+      <div class="nav-sep"></div>
       <button class="nav-tab" data-tab="fat" onclick="goTab(this)">Entradas</button>
-      <button class="nav-tab" data-tab="arec" onclick="goTab(this)">Entradas A Receber</button>
-      <button class="nav-tab" data-tab="csv" onclick="goTab(this)">Contas Pagas</button>
-      <button class="nav-tab" data-tab="pagar" onclick="goTab(this)">Contas a Pagar</button>
+      <button class="nav-tab" data-tab="arec" onclick="goTab(this)">Entradas a Receber</button>
+      <div class="nav-sep"></div>
+      <button class="nav-tab" data-tab="csv" onclick="goTab(this)">Saídas</button>
+      <button class="nav-tab" data-tab="pagar" onclick="goTab(this)">Saídas a Pagar</button>
+      <div class="nav-sep"></div>
       <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
-      <button class="nav-tab" data-tab="projecao" onclick="goTab(this)">Projeção de Fluxo de Caixa</button>
-      <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
     </div>
   </aside>
   <main class="main-content">
@@ -358,7 +361,7 @@ tbody td.c{text-align:center}
 
 <!-- ===================== CSV ANALÍTICO ===================== -->
 <div class="page" id="page-csv">
-  <div class="sec-title">Contas Pagas</div>
+  <div class="sec-title">Saídas</div>
   <div class="sec-sub">Cole aqui os dados do relatório analítico exportado do ERP</div>
   <div class="filters-bar">
     <span class="filter-label">Filtrar</span>
@@ -403,7 +406,7 @@ tbody td.c{text-align:center}
 <!-- ===================== FLUXO DE CAIXA ===================== -->
 <!-- ===================== CONTAS A PAGAR ===================== -->
 <div class="page" id="page-pagar">
-  <div class="sec-title">Contas a Pagar</div>
+  <div class="sec-title">Saídas a Pagar</div>
   <div class="sec-sub">Títulos de fornecedor em aberto — status Vencido quando o vencimento é anterior ao mês atual</div>
   <div class="filters-bar">
     <span class="filter-label">Ano</span>
@@ -506,64 +509,6 @@ tbody td.c{text-align:center}
   </div>
 </div>
 
-<!-- ===================== PROJEÇÃO DE FLUXO DE CAIXA ===================== -->
-<div class="page" id="page-projecao">
-  <div class="sec-title">Projeção de Fluxo de Caixa</div>
-  <div class="sec-sub">Faturamento previsto (Entradas A Receber) e despesas previstas (orçamento de obra ou média histórica), por centro de custo</div>
-  <div class="filters-bar">
-    <span class="filter-label">Projetar</span>
-    <select class="filter-select" id="proj-meses" onchange="renderProjecao()">
-      <option value="6">6 meses</option>
-      <option value="12" selected>12 meses</option>
-      <option value="24">24 meses</option>
-      <option value="36">36 meses</option>
-      <option value="48">48 meses</option>
-      <option value="60">60 meses</option>
-      <option value="72">72 meses</option>
-      <option value="100">100 meses</option>
-    </select>
-    <span class="filter-label">Base (média) p/ obras sem orçamento</span>
-    <select class="filter-select" id="proj-base" onchange="renderProjecao()">
-      <option value="3" selected>Últimos 3 meses</option>
-      <option value="6">Últimos 6 meses</option>
-      <option value="12">Últimos 12 meses</option>
-    </select>
-    <span class="filter-label">Caixa Inicial</span>
-    <div id="proj-caixa-campos"></div>
-    <span class="filter-label">Centro de Custo</span>
-    <div class="mes-picker" id="proj-cc-picker-wrap">
-      <button class="mes-picker-btn" id="proj-cc-picker-btn" onclick="toggleProjCcPicker(event)">Todos os CCs</button>
-      <div class="mes-picker-dropdown" id="proj-cc-picker-dropdown" onclick="event.stopPropagation()">
-        <div id="proj-cc-picker-items"></div>
-        <div class="mes-picker-actions">
-          <button onclick="selecionarTodosProjCC()">Todos</button>
-          <button onclick="limparProjCC()">Limpar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
-    <div class="kpi-card c-green clickable" onclick="abrirProjKpiModal('fat')"><div class="kpi-label">Faturamento Previsto</div><div class="kpi-val pos" id="proj-kpi-fat">—</div><div class="kpi-sub">Soma do período projetado</div></div>
-    <div class="kpi-card c-red clickable" onclick="abrirProjKpiModal('desp')"><div class="kpi-label">Despesa Prevista</div><div class="kpi-val neg" id="proj-kpi-desp">—</div><div class="kpi-sub">Soma do período projetado</div></div>
-    <div class="kpi-card c-blue"><div class="kpi-label">Saldo Final Projetado</div><div class="kpi-val" id="proj-kpi-saldofinal">—</div><div class="kpi-sub" id="proj-kpi-saldofinal-n">—</div></div>
-    <div class="kpi-card c-gold clickable" onclick="abrirProjKpiModal('necessidade')"><div class="kpi-label">Necessidade Máxima de Capital</div><div class="kpi-val" id="proj-kpi-necessidade">—</div><div class="kpi-sub" id="proj-kpi-necessidade-n">—</div></div>
-  </div>
-  <div class="tbl-card" style="margin-bottom:14px">
-    <div class="tbl-head"><div class="tbl-title">Orçamento de Obra por Centro de Custo</div><span class="tbl-badge" id="proj-orc-badge">—</span></div>
-    <div style="padding:6px 16px 4px;color:var(--text3);font-size:11px">Preenchendo Valor Orçado + Prazo + Data de Início, a despesa prevista da obra passa a ser distribuída linearmente nesses meses. Sem preenchimento, usa a média histórica (filtro "Base" acima).</div>
-    <div class="tbl-wrap"><table><thead><tr><th>Centro de Custo</th><th class="r">Valor Orçado (R$)</th><th class="r">Valor Permutas (R$)</th><th class="r">Prazo (meses)</th><th>Início</th><th>Fonte da Despesa</th></tr></thead><tbody id="body-proj-orcamento"><tr><td colspan="6"><div class="empty-state"><p>Nenhum centro de custo identificado ainda</p></div></td></tr></tbody></table></div>
-  </div>
-  <div class="tbl-card">
-    <div class="tbl-head"><div class="tbl-title">Projeção por Centro de Custo</div><span class="tbl-badge" id="proj-badge">—</span></div>
-    <div style="overflow-x:auto;overflow-y:auto;max-height:65vh;font-size:12px" id="proj-scroll">
-      <table style="width:100%;border-collapse:collapse;min-width:900px">
-        <thead id="thead-proj"></thead>
-        <tbody id="tbody-proj"><tr><td colspan="3"><div class="empty-state"><p>Carregue dados nas abas Entradas, Contas Pagas e Entradas A Receber para visualizar</p></div></td></tr></tbody>
-        <tfoot id="tfoot-proj"></tfoot>
-      </table>
-    </div>
-  </div>
-</div>
 
 <!-- ===================== FATURAMENTO ===================== -->
 <div class="page" id="page-fat">
@@ -614,7 +559,7 @@ tbody td.c{text-align:center}
 
 <!-- ===================== ENTRADAS A RECEBER ===================== -->
 <div class="page" id="page-arec">
-  <div class="sec-title">Entradas A Receber</div>
+  <div class="sec-title">Entradas a Receber</div>
   <div class="sec-sub">Títulos em aberto — status Inadimplente quando o vencimento é anterior ao mês atual</div>
   <div class="filters-bar">
     <span class="filter-label">Ano</span>
@@ -678,39 +623,6 @@ tbody td.c{text-align:center}
   </div>
 </div>
 
-<!-- ===================== ESTOQUE ===================== -->
-<div class="page" id="page-estoque">
-  <div class="sec-title">Estoque</div>
-  <div class="sec-sub">Cadastre as unidades disponíveis por obra</div>
-  <div style="display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:20px;max-width:340px">
-    <div class="kpi-card c-blue clickable" onclick="abrirEstoqueModal()"><div class="kpi-label">Total (VGV)</div><div class="kpi-val" id="est-vgv-total">—</div><div class="kpi-sub" id="est-un-total">0 unidades</div></div>
-  </div>
-  <div class="estoque-form">
-    <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:600;margin-bottom:14px">Adicionar Unidade</div>
-    <div class="form-row">
-      <div class="form-group"><label>Obra</label><select class="form-input" id="est-obra" style="min-width:200px"><option value="">Selecione a obra</option></select></div>
-      <div class="form-group"><label>Unidade</label><input class="form-input" id="est-unidade" placeholder="Ex: Apto 101"></div>
-      <div class="form-group"><label>Status</label><select class="form-input" id="est-status"><option value="Disponível">Disponível</option><option value="Vendido">Vendido</option><option value="Permuta">Permuta</option></select></div>
-      <div class="form-group"><label>Área (m²)</label><input class="form-input" id="est-area" placeholder="Ex: 65" type="text" style="max-width:100px"></div>
-      <div class="form-group"><label>Valor (R$)</label><input class="form-input" id="est-venda" placeholder="Ex: 450000" type="text"></div>
-      <div class="form-group" style="justify-content:flex-end"><button class="btn-primary" onclick="adicionarEstoque()">+ Adicionar</button></div>
-    </div>
-  </div>
-  <div class="tbl-card">
-    <div class="tbl-head">
-      <div class="tbl-title">Unidades em Estoque</div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span class="tbl-badge" id="count-estoque">0 unidades</span>
-        <span class="tbl-badge" id="total-estoque" style="background:var(--brand-light);color:var(--brand)">R$ 0,00</span>
-        <button class="btn-export" onclick="exportarEstoque()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
-      </div>
-    </div>
-    <div style="padding:8px 16px 0;border-bottom:1px solid var(--border)">
-      <div class="inline-filters"><span class="filter-label">Filtrar</span><select class="filter-select" id="fe-obra" onchange="renderEstoqueTable()"><option value="">Todas as obras</option></select><button class="btn-ghost" onclick="document.getElementById('fe-obra').value='';renderEstoqueTable()">✕</button></div>
-    </div>
-    <div class="tbl-wrap"><table><thead><tr><th>Obra</th><th>Unidade</th><th>Status</th><th class="r">Área (m²)</th><th class="r">Valor (R$)</th><th class="c">Ação</th></tr></thead><tbody id="body-estoque"><tr><td colspan="6"><div class="empty-state"><p>Nenhuma unidade cadastrada</p></div></td></tr></tbody></table></div>
-  </div>
-</div>
 
   </main>
 </div>
@@ -1125,18 +1037,18 @@ async function sienceSyncAll(){
   const start=startEl?.value,end=endEl?.value;
   if(!start||!end){alert('Preencha as datas de início e fim.');return;}
   const box=document.getElementById('dash-sienge-result'),badge=document.getElementById('dash-sienge-badge');
-  box.style.display='block';box.textContent='Sincronizando Contas Pagas...';
+  box.style.display='block';box.textContent='Sincronizando com o Sienge...';
   if(badge)badge.textContent='Sincronizando...';
   let linhas=[];
   try{
     const r=await siengeSyncOutcomeCore(start,end);
-    if(r.error){linhas.push('❌ Contas Pagas: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
-    else{linhas.push('✅ Contas Pagas: '+r.billsCount+' títulos recebidos, '+r.novosCount+' movimentos novos importados.');}
+    if(r.error){linhas.push('❌ Saídas: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
+    else{linhas.push('✅ Saídas: '+r.billsCount+' títulos recebidos, '+r.novosCount+' movimentos novos importados.');}
   }catch(e){linhas.push('❌ Contas Pagas: falha — '+e.message);}
   try{
     const r=await siengeSyncIncomeCore(start,end);
-    if(r.error){linhas.push('❌ Entradas A Receber: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
-    else{linhas.push('✅ Entradas A Receber: '+r.billsCount+' parcelas em aberto recebidas, '+r.novosCount+' registros novos importados.');}
+    if(r.error){linhas.push('❌ Entradas a Receber: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
+    else{linhas.push('✅ Entradas a Receber: '+r.billsCount+' parcelas em aberto recebidas, '+r.novosCount+' registros novos importados.');}
   }catch(e){linhas.push('❌ Entradas A Receber: falha — '+e.message);}
   try{
     const r=await siengeSyncBankMovementCore(start,end);
@@ -1145,8 +1057,8 @@ async function sienceSyncAll(){
   }catch(e){linhas.push('❌ Movimentos Bancários Avulsos: falha — '+e.message);}
   try{
     const r=await siengeSyncPagarCore(start,end);
-    if(r.error){linhas.push('❌ Contas a Pagar: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
-    else{linhas.push('✅ Contas a Pagar: '+r.billsCount+' títulos recebidos, '+r.novosCount+' registros novos importados.');}
+    if(r.error){linhas.push('❌ Saídas a Pagar: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
+    else{linhas.push('✅ Saídas a Pagar: '+r.billsCount+' títulos recebidos, '+r.novosCount+' registros novos importados.');}
   }catch(e){linhas.push('❌ Contas a Pagar: falha — '+e.message);}
   box.textContent=linhas.join('\n');
   if(badge)badge.textContent='Última sync: '+new Date().toLocaleString('pt-BR');
@@ -2098,6 +2010,7 @@ function abrirProjCelulaModal(el){
   }
 }
 function renderProjecao(){
+  if(!document.getElementById('page-projecao'))return; // aba removida
   const nMeses=parseInt(document.getElementById('proj-meses')?.value||'12');
   const nBase=parseInt(document.getElementById('proj-base')?.value||'3');
   const theadEl=document.getElementById('thead-proj'),tbodyEl=document.getElementById('tbody-proj'),tfootEl=document.getElementById('tfoot-proj');
@@ -2305,6 +2218,7 @@ function adicionarEstoque(){
   renderEstoqueTable();autoSave();
 }
 function renderEstoqueTable(){
+  if(!document.getElementById('page-estoque'))return; // aba removida
   // Filtro de obra baseado nas obras do próprio estoque (não do CSV)
   fillSelect('fe-obra',[...new Set(DATA.estoque.map(u=>u.obra).filter(Boolean))].sort(),v=>v,v=>v);
   const fObra=document.getElementById('fe-obra')?.value||'';
