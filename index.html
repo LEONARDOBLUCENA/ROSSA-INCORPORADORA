@@ -247,6 +247,22 @@ tbody td.c{text-align:center}
 </div>
 
 <!-- MODAL DE DETALHE (tabelas clicáveis: KPIs e gráficos por ano) -->
+<div class="modal-overlay" id="modal-prov" style="z-index:450" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box" style="max-width:920px">
+    <button class="modal-close" onclick="document.getElementById('modal-prov').classList.remove('open')">✕</button>
+    <div class="modal-title" id="prov-titulo">Provisão no Período</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;color:var(--text3);font-size:11px;margin:-8px 0 4px">
+      <span>Títulos em aberto com vencimento no período (segue o filtro de Obra da aba). Clique em um valor para ver os títulos.</span>
+      <label style="display:flex;align-items:center;gap:5px;color:var(--text2);cursor:pointer"><input type="checkbox" id="prov-venc" onchange="renderProvisao()"> incluir vencidos em aberto antes da data inicial</label>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:12px 0">
+      <div class="kpi-card c-green clickable" onclick="abrirProvisao('REC')" style="padding:12px 16px"><div class="kpi-label">A Receber no período</div><div class="kpi-val pos" id="prov-rec" style="font-size:22px">—</div><div class="kpi-sub" id="prov-rec-n">—</div></div>
+      <div class="kpi-card c-red clickable" onclick="abrirProvisao('PAG')" style="padding:12px 16px"><div class="kpi-label">A Pagar no período</div><div class="kpi-val neg" id="prov-pag" style="font-size:22px">—</div><div class="kpi-sub" id="prov-pag-n">—</div></div>
+      <div class="kpi-card c-blue" style="padding:12px 16px"><div class="kpi-label">Saldo do período</div><div class="kpi-val" id="prov-saldo" style="font-size:22px">—</div><div class="kpi-sub">A Receber − A Pagar</div></div>
+    </div>
+    <div class="tbl-wrap" style="padding:0"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left">Tipo / Conta</th><th class="r" style="width:110px">Títulos</th><th class="r" style="width:160px">Valor (R$)</th><th class="r" style="width:90px">% do grupo</th></tr></thead><tbody id="body-prov"></tbody></table></div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)closeDetailModal()">
   <div class="modal-box" style="max-width:1040px">
     <button class="modal-close" onclick="closeDetailModal()">✕</button>
@@ -475,22 +491,14 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-blue"><div class="kpi-label">Saldo de Caixa Atual</div><div class="kpi-val" id="fc-kpi-saldo">—</div><div class="kpi-sub">Caixa Inicial + Entradas − Saídas (realizado)</div></div>
     <div class="kpi-card c-gold"><div class="kpi-label">Saldo Projetado</div><div class="kpi-val" id="fc-kpi-proj">—</div><div class="kpi-sub" id="fc-kpi-proj-sub">Fim do horizonte, com A Receber e A Pagar</div></div>
   </div>
-  <div class="tbl-card" id="fc-prov-card">
-    <div class="tbl-head" style="flex-wrap:wrap;gap:10px">
-      <div class="tbl-title">Provisão no Período — A Receber × A Pagar</div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px">
-        <span class="filter-label">De</span><input type="date" id="prov-ini" class="filter-select" style="min-width:0;padding:5px 8px" onchange="renderProvisao()">
-        <span class="filter-label">Até</span><input type="date" id="prov-fim" class="filter-select" style="min-width:0;padding:5px 8px" onchange="renderProvisao()">
-        <label style="display:flex;align-items:center;gap:5px;color:var(--text2);cursor:pointer"><input type="checkbox" id="prov-venc" onchange="renderProvisao()"> incluir vencidos em aberto antes de "De"</label>
-      </div>
+  <div class="tbl-card" id="fc-prov-card" style="padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px">
+      <div class="tbl-title" style="font-size:15px">Provisão no Período</div>
+      <div style="color:var(--text3);font-size:12px;margin-top:2px">Veja o total a receber e a pagar num período, por tipo de despesa</div>
     </div>
-    <div style="padding:6px 16px 0;color:var(--text3);font-size:11px">Títulos em aberto com vencimento no período (segue o filtro de Obra da aba). Clique em qualquer valor para ver os títulos.</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:12px 16px">
-      <div class="kpi-card c-green clickable" onclick="abrirProvisao('REC')" style="padding:12px 16px"><div class="kpi-label">A Receber no período</div><div class="kpi-val pos" id="prov-rec" style="font-size:22px">—</div><div class="kpi-sub" id="prov-rec-n">—</div></div>
-      <div class="kpi-card c-red clickable" onclick="abrirProvisao('PAG')" style="padding:12px 16px"><div class="kpi-label">A Pagar no período</div><div class="kpi-val neg" id="prov-pag" style="font-size:22px">—</div><div class="kpi-sub" id="prov-pag-n">—</div></div>
-      <div class="kpi-card c-blue" style="padding:12px 16px"><div class="kpi-label">Saldo do período</div><div class="kpi-val" id="prov-saldo" style="font-size:22px">—</div><div class="kpi-sub">A Receber − A Pagar</div></div>
-    </div>
-    <div class="tbl-wrap" style="padding:0 16px 14px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left">Tipo / Conta</th><th class="r" style="width:110px">Títulos</th><th class="r" style="width:160px">Valor (R$)</th><th class="r" style="width:90px">% do grupo</th></tr></thead><tbody id="body-prov"></tbody></table></div>
+    <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:11px;color:var(--text3)">Data Inicial</span><input type="date" id="prov-ini" class="filter-select" style="min-width:0;padding:6px 8px"></div>
+    <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:11px;color:var(--text3)">Data Final</span><input type="date" id="prov-fim" class="filter-select" style="min-width:0;padding:6px 8px"></div>
+    <button class="btn-primary" onclick="abrirProvisaoModal()" style="padding:9px 22px;align-self:flex-end">Buscar</button>
   </div>
   <div class="tbl-card" id="fc-resumo-card">
     <div class="tbl-head"><div class="tbl-title">Resumo</div><span class="tbl-badge">Entradas, Saídas e Saldo por mês</span></div>
@@ -1918,6 +1926,15 @@ function renderProvisao(){
   h+='<tr style="background:#1a5276;color:#fff;font-weight:700"><td style="padding:7px 10px">Saldo do período (A Receber − A Pagar)</td><td></td><td class="r" style="color:'+(tR-tP>=0?'#A9DFBF':'#F1948A')+'">'+(tR-tP<0?'− ':'')+fmt(tR-tP)+'</td><td></td></tr>';
   if(!rec.length&&!pag.length)h='<tr><td colspan="4"><div class="empty-state"><p>Nenhum título em aberto no período</p></div></td></tr>';
   tb.innerHTML=h;
+}
+function abrirProvisaoModal(){
+  const i=document.getElementById('prov-ini').value,f=document.getElementById('prov-fim').value;
+  if(i&&f&&i>f){alert('A Data Inicial é maior que a Data Final.');return;}
+  renderProvisao();
+  const br=v=>v.split('-').reverse().join('/');
+  const obra=document.getElementById('fc-obra')?.value||'';
+  document.getElementById('prov-titulo').textContent='Provisão de '+br(document.getElementById('prov-ini').value)+' a '+br(document.getElementById('prov-fim').value)+(obra?' — '+obra:'');
+  document.getElementById('modal-prov').classList.add('open');
 }
 function abrirProvisao(key){
   const rows=_provCells[key]||[];
