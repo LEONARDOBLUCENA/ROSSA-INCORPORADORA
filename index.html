@@ -266,6 +266,7 @@ tbody td.c{text-align:center}
       <button class="nav-tab" data-tab="fat" onclick="goTab(this)">Entradas</button>
       <button class="nav-tab" data-tab="arec" onclick="goTab(this)">Entradas A Receber</button>
       <button class="nav-tab" data-tab="csv" onclick="goTab(this)">Contas Pagas</button>
+      <button class="nav-tab" data-tab="pagar" onclick="goTab(this)">Contas a Pagar</button>
       <button class="nav-tab" data-tab="fluxo" onclick="goTab(this)">Fluxo de Caixa Geral</button>
       <button class="nav-tab" data-tab="projecao" onclick="goTab(this)">Projeção de Fluxo de Caixa</button>
       <button class="nav-tab" data-tab="estoque" onclick="goTab(this)">Estoque</button>
@@ -368,6 +369,58 @@ tbody td.c{text-align:center}
 </div>
 
 <!-- ===================== FLUXO DE CAIXA ===================== -->
+<!-- ===================== CONTAS A PAGAR ===================== -->
+<div class="page" id="page-pagar">
+  <div class="sec-title">Contas a Pagar</div>
+  <div class="sec-sub">Títulos de fornecedor em aberto — status Vencido quando o vencimento é anterior ao mês atual</div>
+  <div class="filters-bar">
+    <span class="filter-label">Ano</span>
+    <select class="filter-select" id="fpagar-ano" onchange="renderPagarTable()" style="min-width:100px"><option value="">Todos</option></select>
+    <span class="filter-label">Mês</span>
+    <div class="mes-picker" id="fpagar-mes-picker-wrap">
+      <button class="mes-picker-btn" id="fpagar-mes-picker-btn" onclick="toggleMesPickerFor('fpagar',event)">Todos os meses</button>
+      <div class="mes-picker-dropdown" id="fpagar-mes-picker-dropdown" onclick="event.stopPropagation()">
+        <div id="fpagar-mes-picker-items"></div>
+        <div class="mes-picker-actions"><button onclick="selecionarTodosMesesFor('fpagar')">Todos</button><button onclick="limparMesesFor('fpagar')">Limpar</button></div>
+      </div>
+    </div>
+    <span class="filter-label">CC</span>
+    <select class="filter-select" id="fpagar-cc" onchange="renderPagarTable()" style="min-width:160px"><option value="">Todos</option></select>
+    <span class="filter-label">Status</span>
+    <select class="filter-select" id="fpagar-status" onchange="renderPagarTable()" style="min-width:140px"><option value="">Todos</option><option value="Vencido">Vencido</option><option value="Em dia">Em dia</option></select>
+    <button class="btn-ghost" onclick="document.getElementById('fpagar-ano').value='';_mesSel.fpagar=new Set();document.getElementById('fpagar-cc').value='';document.getElementById('fpagar-status').value='';renderPagarTable()">✕ Limpar</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+    <div class="kpi-card c-blue clickable" onclick="abrirPagarModal('total')"><div class="kpi-label">Total A Pagar</div><div class="kpi-val" id="pagar-total">—</div><div class="kpi-sub" id="pagar-total-n">0 títulos</div></div>
+    <div class="kpi-card c-red clickable" onclick="abrirPagarModal('venc')"><div class="kpi-label">Vencido</div><div class="kpi-val neg" id="pagar-venc">—</div><div class="kpi-sub" id="pagar-venc-n">0 títulos</div></div>
+    <div class="kpi-card c-green clickable" onclick="abrirPagarModal('emdia')"><div class="kpi-label">Em Dia</div><div class="kpi-val pos" id="pagar-emdia">—</div><div class="kpi-sub" id="pagar-emdia-n">0 títulos</div></div>
+  </div>
+  <div class="chart-card" style="margin-bottom:20px">
+    <div class="chart-title">Pagamento (A Pagar) por Ano</div>
+    <div class="chart-subtitle">Clique em uma barra para ver o detalhamento mensal do ano</div>
+    <canvas id="pagar-ch-ano" height="90"></canvas>
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div class="tbl-title">Títulos A Pagar</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="tbl-badge" id="count-pagar">—</span>
+        <button class="btn-export" onclick="exportarPagar()" style="padding:5px 12px;font-size:11px">⬇ Excel</button>
+        <button class="btn-ghost" onclick="limparPagar()">✕ Limpar dados</button>
+      </div>
+    </div>
+    <div class="paste-section">
+      <div class="paste-instructions"><strong>Como usar:</strong> Cole aqui os títulos de fornecedor em aberto (fallback manual — o normal é vir automático pelo Sync Sienge).<br>Colunas utilizadas: <strong>Data de vencimento · Nome credor/fornecedor · Nº título · Centro de custo · Valor</strong></div>
+      <textarea class="paste-box" id="paste-pagar" placeholder="Clique aqui e cole com Ctrl+V — os dados são processados automaticamente"></textarea>
+      <div class="paste-actions">
+        <button class="btn-secondary" onclick="limparPagar()">✕ Limpar</button>
+        <span class="paste-status" id="status-pagar"></span>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Vencimento</th><th>Credor</th><th>Nº Título</th><th>Centro de Custo</th><th>Status</th><th class="r">Valor (R$)</th></tr></thead><tbody id="body-pagar"><tr><td colspan="6"><div class="empty-state"><p>Nenhum dado ainda</p></div></td></tr></tbody></table></div>
+  </div>
+</div>
+
 <div class="page" id="page-fluxo">
   <div class="sec-title">Fluxo de Caixa Geral</div>
   <div class="sec-sub">Receitas e despesas por conta, abertas mês a mês</div>
@@ -626,7 +679,7 @@ tbody td.c{text-align:center}
 </div>
 
 <script>
-const DATA={csv:[],fat:[],arec:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{},titCC:{},orcamentoObra:{}};
+const DATA={csv:[],fat:[],arec:[],pagar:[],estoque:[],orcamentoMensal:{},caixaInicial:{},previsto:{},titCC:{},orcamentoObra:{}};
 // Classificação manual de títulos sem centro de custo vinculado (semeada uma vez; entradas do usuário via UI têm prioridade)
 const SEED_TITCC={
   '143':'Rossa Boulevard','182':'Palazzo Dell Rossa','96':'Palazzo Dell Rossa','92':'Palazzo Dell Rossa',
@@ -798,6 +851,7 @@ window.addEventListener('load',()=>{
   wirePaste('paste-csv',processCSVText,'status-csv');
   wirePaste('paste-fat',processFatText,'status-fat');
   wirePaste('paste-arec',processArecText,'status-arec');
+  wirePaste('paste-pagar',processPagarText,'status-pagar');
   wirePaste('paste-titcc',processTitCCText,'status-titcc');
 });
 
@@ -979,6 +1033,49 @@ async function siengeSyncBankMovementCore(start,end){
   return{movsCount:movs.length,novosCount:novos.length};
 }
 
+// ── SIENGE — Contas a Pagar em aberto (/sienge/payable) ─────────────────────
+// Espelha siengeSyncIncomeCore (títulos de cliente em aberto via selectionType=D),
+// mas do lado fornecedor: usa o saldo em aberto (balanceAmount) e aloca por
+// buildingsCosts (obra) quando disponível, senão por paymentsCategories (CC/plano fin).
+async function siengeSyncPagarCore(start,end){
+  const url=SIENGE.proxy+'/sienge/payable?start='+start+'&end='+end;
+  const resp=await fetch(url);
+  const data=await resp.json();
+  if(data.error)return{error:true,hint:data.hint,upstreamStatus:data.upstreamStatus};
+  const bills=Array.isArray(data)?data:(data.data||[]);
+  window._siengeRawPayable=bills;
+  const startD=new Date(start+'T00:00:00'),endD=new Date(end+'T23:59:59');
+  const OP_ACEITA=[1,2,10,11];
+  const novos=[];
+  bills.forEach(bill=>{
+    const pays=bill.payments||[];
+    if(pays.length&&!pays.some(p=>OP_ACEITA.includes(p.operationTypeId)))return;
+    const credor=bill.creditorName||'';
+    const dataVc=bill.dueDate?new Date(bill.dueDate+'T12:00:00'):null;
+    const saldo=bill.balanceAmount!=null?bill.balanceAmount:(bill.correctedBalanceAmount||0);
+    if(!saldo)return; // já totalmente pago — não é "em aberto"
+    const nuTitulo=bill.documentNumber||String(bill.billId)+'-'+String(bill.installmentId);
+    const buildings=bill.buildingsCosts||[];
+    if(buildings.length){
+      buildings.forEach((b,idx)=>{
+        const siengeId='pg-'+bill.billId+'-'+bill.installmentId+'-bc'+idx;
+        const valor=saldo*((b.rate!=null?b.rate:100)/100);
+        novos.push({data:dataVc,credor,valor:Math.abs(valor),nuTitulo,cc:normCC(b.buildingName||''),siengeId,mes:dataVc?dataVc.getMonth():null,ano:dataVc?dataVc.getFullYear():null});
+      });
+    }else{
+      const cats=bill.paymentsCategories||[];
+      const base=cats.length?cats:[{costCenterName:'',financialCategoryRate:100}];
+      base.forEach((pc,idx)=>{
+        const siengeId='pg-'+bill.billId+'-'+bill.installmentId+'-pc'+idx;
+        const valor=saldo*((pc.financialCategoryRate!=null?pc.financialCategoryRate:100)/100);
+        novos.push({data:dataVc,credor,valor:Math.abs(valor),nuTitulo,cc:normCC(pc.costCenterName||''),siengeId,mes:dataVc?dataVc.getMonth():null,ano:dataVc?dataVc.getFullYear():null});
+      });
+    }
+  });
+  DATA.pagar=DATA.pagar.filter(r=>!(r.siengeId&&r.data&&r.data>=startD&&r.data<=endD));
+  DATA.pagar=[...DATA.pagar,...novos];
+  return{billsCount:bills.length,novosCount:novos.length};
+}
 async function sienceSyncAll(){
   const startEl=document.getElementById('dash-sienge-start'),endEl=document.getElementById('dash-sienge-end');
   const start=startEl?.value,end=endEl?.value;
@@ -1002,6 +1099,11 @@ async function sienceSyncAll(){
     if(r.error){linhas.push('❌ Movimentos Bancários Avulsos: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
     else{linhas.push('✅ Movimentos Bancários Avulsos (tarifas, etc): '+r.movsCount+' movimentos recebidos, '+r.novosCount+' registros novos importados.');}
   }catch(e){linhas.push('❌ Movimentos Bancários Avulsos: falha — '+e.message);}
+  try{
+    const r=await siengeSyncPagarCore(start,end);
+    if(r.error){linhas.push('❌ Contas a Pagar: '+(r.hint||'erro')+(r.upstreamStatus?' (HTTP '+r.upstreamStatus+')':''));}
+    else{linhas.push('✅ Contas a Pagar: '+r.billsCount+' títulos recebidos, '+r.novosCount+' registros novos importados.');}
+  }catch(e){linhas.push('❌ Contas a Pagar: falha — '+e.message);}
   box.textContent=linhas.join('\n');
   if(badge)badge.textContent='Última sync: '+new Date().toLocaleString('pt-BR');
   // Atualiza também os campos de data nas abas individuais, pra ficar tudo consistente
@@ -1009,7 +1111,7 @@ async function sienceSyncAll(){
   if(csvS)csvS.value=start;if(csvE)csvE.value=end;
   const arecS=document.getElementById('sienge-arec-start'),arecE=document.getElementById('sienge-arec-end');
   if(arecS)arecS.value=start;if(arecE)arecE.value=end;
-  renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();renderDash();renderFluxo();renderProjecao();autoSave();
+  renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();renderDash();renderFluxo();renderProjecao();autoSave();
 }
 
 // ── DEDUPLICAÇÃO NO COLAR (paste-import) ────────────────────────────────────
@@ -1031,6 +1133,7 @@ function dedupNovos(existing,novos,keyFn){
 function dedupKeyCsv(r){return[r.data?r.data.getTime():'',r.complemento||'',r.conta||'',r.valor,r.cc||'',r.contaCorrente||''].join('|');}
 function dedupKeyFat(r){return[r.data?r.data.getTime():'',r.cliente||'',r.numeroTitulo||'',r.parcela||'',r.conta||'',r.valor,r.tipoBaixa||''].join('|');}
 function dedupKeyArec(r){return[r.data?r.data.getTime():'',r.cliente||'',r.nuTitulo||'',r.valor].join('|');}
+function dedupKeyPagar(r){return[r.data?r.data.getTime():'',r.credor||'',r.nuTitulo||'',r.valor].join('|');}
 function statusComDup(n,dup,total,label){return'+'+n+' registros'+(dup?' ('+dup+' duplicado'+(dup!==1?'s':'')+' ignorado'+(dup!==1?'s':'')+')':'')+' — total: '+total+'.';}
 // Remove duplicados que já estão nos dados carregados (ex.: mesmo relatório colado 2x antes desta
 // proteção existir). Mantém a 1ª ocorrência de cada chave e remove as repetições, em Contas Pagas,
@@ -1049,16 +1152,18 @@ function removerDuplicadosExistentes(){
   const csvR=removerDuplicadosNoArray(DATA.csv,dedupKeyCsv);
   const fatR=removerDuplicadosNoArray(DATA.fat,dedupKeyFat);
   const arecR=removerDuplicadosNoArray(DATA.arec,dedupKeyArec);
-  const total=csvR.removidos+fatR.removidos+arecR.removidos;
-  if(!total){alert('Nenhum lançamento duplicado encontrado em Contas Pagas, Entradas ou Entradas A Receber.');return;}
+  const pagarR=removerDuplicadosNoArray(DATA.pagar,dedupKeyPagar);
+  const total=csvR.removidos+fatR.removidos+arecR.removidos+pagarR.removidos;
+  if(!total){alert('Nenhum lançamento duplicado encontrado em Contas Pagas, Entradas, Entradas A Receber ou Contas a Pagar.');return;}
   const resumo='Contas Pagas: '+csvR.removidos+' duplicado'+(csvR.removidos!==1?'s':'')+'\n'
     +'Entradas: '+fatR.removidos+' duplicado'+(fatR.removidos!==1?'s':'')+'\n'
-    +'Entradas A Receber: '+arecR.removidos+' duplicado'+(arecR.removidos!==1?'s':'')+'\n\n'
+    +'Entradas A Receber: '+arecR.removidos+' duplicado'+(arecR.removidos!==1?'s':'')+'\n'
+    +'Contas a Pagar: '+pagarR.removidos+' duplicado'+(pagarR.removidos!==1?'s':'')+'\n\n'
     +'Total: '+total+' lançamento'+(total!==1?'s':'')+' duplicado'+(total!==1?'s':'')+' encontrado'+(total!==1?'s':'')+'.\n\n'
     +'Remover agora? Fica mantida a 1ª ocorrência de cada um; as repetições são excluídas.';
   if(!confirm(resumo))return;
-  DATA.csv=csvR.manter;DATA.fat=fatR.manter;DATA.arec=arecR.manter;
-  renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();
+  DATA.csv=csvR.manter;DATA.fat=fatR.manter;DATA.arec=arecR.manter;DATA.pagar=pagarR.manter;
+  renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();
   autoSave();
   alert(total+' lançamento'+(total!==1?'s':'')+' duplicado'+(total!==1?'s':'')+' removido'+(total!==1?'s':'')+' com sucesso.');
 }
@@ -1315,6 +1420,69 @@ function renderTitCCTable(){
 }
 
 
+// ── CONTAS A PAGAR ───────────────────────────────────────────────────────────
+function processPagarText(txt){
+  txt=fixEncoding(txt);
+  const rows=parseTSV(txt);
+  if(!rows.length){setStatus('status-pagar','Nenhum dado encontrado.',false);return;}
+  const novos=rows.map(r=>{
+    const data=parseDateBR(findColKey(r,['Data de vencimento','dtVencto','DataVencimento','Vencimento']).value);
+    const credor=fixEncoding(findColKey(r,['Nome credor','Nome fornecedor','nmCredor','Credor','Fornecedor']).value);
+    const valor=Math.abs(parseBRNum(findColKey(r,['Valor','VlTotal','ValorTotal']).value));
+    const nuTitulo=fixEncoding(findColKey(r,['Nº título','Numero titulo','nuTitulo','Titulo']).value);
+    const cc=normCC(fixEncoding(findColKey(r,['Centro de custo','Centro de Custo','CentroCusto']).value));
+    if(!data&&!credor&&!valor&&!nuTitulo)return null;
+    return{data,credor,valor,nuTitulo,cc,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
+  }).filter(Boolean);
+  const{out:novosUnicos,dup}=dedupNovos(DATA.pagar,novos,dedupKeyPagar);
+  DATA.pagar=[...DATA.pagar,...novosUnicos];
+  setStatus('status-pagar',statusComDup(novosUnicos.length,dup,DATA.pagar.length),true);
+  renderPagarTable();autoSave();
+}
+function limparPagar(){DATA.pagar=[];renderPagarTable();setStatus('status-pagar','',null);autoSave();}
+function renderPagarTable(){
+  const arr=DATA.pagar;
+  const hoje=new Date();const refKey=hoje.getFullYear()*100+hoje.getMonth();
+  arr.forEach(r=>{r.status=(r.data&&(r.data.getFullYear()*100+r.data.getMonth())<refKey)?'Vencido':'Em dia';});
+  fillSelect('fpagar-ano',[...new Set(arr.map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
+  buildMesPickerFor('fpagar',new Set(arr.map(r=>r.mes).filter(x=>x!=null)));
+  fillSelect('fpagar-cc',[...new Set(arr.map(r=>r.cc).filter(Boolean))].sort(),v=>v,v=>v);
+  const fA=document.getElementById('fpagar-ano')?.value||'',mesesSelPagar=[..._mesSel.fpagar];
+  const fC=document.getElementById('fpagar-cc')?.value||'',fS=document.getElementById('fpagar-status')?.value||'';
+  const fil=arr.filter(r=>(!fA||String(r.ano)===fA)&&(!mesesSelPagar.length||mesesSelPagar.includes(r.mes))&&(!fC||ccMatch(r.cc||'',fC))&&(!fS||r.status===fS));
+  document.getElementById('count-pagar').textContent=fil.length+' de '+arr.length+' registros';
+  const totVal=fil.reduce((s,r)=>s+r.valor,0);
+  const venc=fil.filter(r=>r.status==='Vencido'),emdia=fil.filter(r=>r.status==='Em dia');
+  set('pagar-total',fmt(totVal));set('pagar-total-n',fil.length+' título'+(fil.length!==1?'s':''));
+  set('pagar-venc',fmt(venc.reduce((s,r)=>s+r.valor,0)));set('pagar-venc-n',venc.length+' título'+(venc.length!==1?'s':''));
+  set('pagar-emdia',fmt(emdia.reduce((s,r)=>s+r.valor,0)));set('pagar-emdia-n',emdia.length+' título'+(emdia.length!==1?'s':''));
+  _pagarTotalCache=fil.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
+  _pagarVencCache=venc.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
+  _pagarEmdiaCache=emdia.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
+  const tbody=document.getElementById('body-pagar');if(!tbody)return;
+  renderYearDrillChart('pagar-ch-ano',fil,'valor',{label:'A Pagar',color:'#C0392B',modalTitle:'A Pagar Mensal'});
+  if(!fil.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
+  tbody.innerHTML=fil.map(r=>{
+    const badge=r.status==='Vencido'?'<span class="badge bg-red">Vencido</span>':'<span class="badge bg-green">Em dia</span>';
+    return'<tr><td>'+(r.data?r.data.toLocaleDateString('pt-BR'):'—')+'</td><td>'+(r.credor||'—')+'</td><td>'+(r.nuTitulo||'—')+'</td><td>'+(r.cc||'—')+'</td><td>'+badge+'</td><td class="r val-neg">'+fmt(r.valor)+'</td></tr>';
+  }).join('');
+}
+let _pagarTotalCache=[],_pagarVencCache=[],_pagarEmdiaCache=[];
+const COLS_PAGAR_MODAL=[{label:'Vencimento',key:'dataStr'},{label:'Credor',key:'credor'},{label:'Nº Título',key:'nuTitulo'},{label:'Centro de Custo',key:'cc'},{label:'Status',key:'status'},{label:'Valor',align:'r',fmt:r=>fmt(r.valor)}];
+function abrirPagarModal(tipo){
+  const map={total:['Contas a Pagar — Total',_pagarTotalCache,'ContasAPagar_Total'],venc:['Contas a Pagar — Vencidas',_pagarVencCache,'ContasAPagar_Vencidas'],emdia:['Contas a Pagar — Em Dia',_pagarEmdiaCache,'ContasAPagar_EmDia']};
+  const[title,rows,exportName]=map[tipo]||map.total;
+  openDetailModal(title,rows,COLS_PAGAR_MODAL,{exportName});
+}
+function exportarPagar(){
+  if(!DATA.pagar.length){alert('Nenhum dado.');return;}
+  const hoje=new Date();const refKey=hoje.getFullYear()*100+hoje.getMonth();
+  const rows=DATA.pagar.map(r=>{const status=(r.data&&(r.data.getFullYear()*100+r.data.getMonth())<refKey)?'Vencido':'Em dia';return{'Vencimento':r.data?r.data.toLocaleDateString('pt-BR'):'','Credor':r.credor||'','Nº Título':r.nuTitulo||'','Centro de Custo':r.cc||'','Status':status,'Valor':(r.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})};});
+  const wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(rows,{raw:false});
+  XLSX.utils.book_append_sheet(wb,ws,'A Pagar');
+  XLSX.writeFile(wb,'Rossa_APagar_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
+}
+
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDash(){
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
@@ -1483,8 +1651,8 @@ document.addEventListener('click',()=>{const d=document.getElementById('mes-pick
 
 // ── MULTISELECT MESES — versão genérica reaproveitada em Entradas, Contas Pagas e A Receber
 // (padronizando com o seletor de mês do Resumo, que já era multi-select) ──
-const _mesSel={fcsv:new Set(),ffat:new Set(),farec:new Set()};
-function _renderNs(ns){if(ns==='fcsv')renderCSVTable();else if(ns==='ffat')renderFatTable();else if(ns==='farec')renderArecTable();}
+const _mesSel={fcsv:new Set(),ffat:new Set(),farec:new Set(),fpagar:new Set()};
+function _renderNs(ns){if(ns==='fcsv')renderCSVTable();else if(ns==='ffat')renderFatTable();else if(ns==='farec')renderArecTable();else if(ns==='fpagar')renderPagarTable();}
 function buildMesPickerFor(ns,mesesDisponiveis){
   const container=document.getElementById(ns+'-mes-picker-items');if(!container)return;
   container.innerHTML=MESES_PT.map((n,i)=>{
@@ -1498,7 +1666,7 @@ function atualizarBtnMesFor(ns){const btn=document.getElementById(ns+'-mes-picke
 function toggleMesPickerFor(ns,e){e.stopPropagation();const d=document.getElementById(ns+'-mes-picker-dropdown');if(d)d.classList.toggle('open');}
 function selecionarTodosMesesFor(ns){_mesSel[ns]=new Set();document.querySelectorAll('#'+ns+'-mes-picker-items input').forEach(cb=>{if(!cb.disabled)cb.checked=false;});atualizarBtnMesFor(ns);_renderNs(ns);}
 function limparMesesFor(ns){_mesSel[ns]=new Set();document.querySelectorAll('#'+ns+'-mes-picker-items input').forEach(cb=>{cb.checked=false;});atualizarBtnMesFor(ns);_renderNs(ns);}
-document.addEventListener('click',()=>{['fcsv','ffat','farec'].forEach(ns=>{const d=document.getElementById(ns+'-mes-picker-dropdown');if(d)d.classList.remove('open');});});
+document.addEventListener('click',()=>{['fcsv','ffat','farec','fpagar'].forEach(ns=>{const d=document.getElementById(ns+'-mes-picker-dropdown');if(d)d.classList.remove('open');});});
 
 function toggleSiengePanel(e){e.stopPropagation();const d=document.getElementById('sienge-dropdown');if(d)d.classList.toggle('open');}
 document.addEventListener('click',()=>{const d=document.getElementById('sienge-dropdown');if(d)d.classList.remove('open');});
@@ -1971,7 +2139,7 @@ function apresentacaoFluxo(){
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fluxo de Caixa — Rossa</title><style>body{font-family:sans-serif;padding:32px;font-size:11px}h1{font-size:18px;margin-bottom:8px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:4px 8px}thead th{background:#f5f5f5}tfoot tr{font-weight:700}@media print{body{padding:0}}</style></head><body><h1>Fluxo de Caixa — Rossa Incorporadora</h1><p style="color:#888;font-size:11px;margin-bottom:16px">'+new Date().toLocaleDateString('pt-BR')+'</p><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></body></html>');
   win.document.close();setTimeout(()=>win.print(),400);
 }
-function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},titCC:DATA.titCC||{},orcamentoObra:DATA.orcamentoObra||{},_cleanup2025Done:DATA._cleanup2025Done||false});}
+function ghubPayload(){return JSON.stringify({csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),pagar:DATA.pagar.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto||{},titCC:DATA.titCC||{},orcamentoObra:DATA.orcamentoObra||{},_cleanup2025Done:DATA._cleanup2025Done||false});}
 const GHUB={token:['ghp_DMtc','LFDDPZIq7QGo','GgJvmTc1TbfSMf0H9mw1'].join(''),repo:'LEONARDOBLUCENA/ROSSA-INCORPORADORA',file:'data.json',raw:'https://raw.githubusercontent.com/LEONARDOBLUCENA/ROSSA-INCORPORADORA/main/data.json'};
 const SIENGE={proxy:'https://sienge-proxy-rossa-production.up.railway.app'};
 let _ghubSha=null,_ghubSaving=false,_ghubDirty=false;
@@ -2030,6 +2198,7 @@ async function jbinLoad(){
     DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.fat=(d.fat||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.arec=(d.arec||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
+    DATA.pagar=(d.pagar||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
     DATA.estoque=d.estoque||[];DATA.orcamentoMensal=d.orcamentoMensal||{};
     DATA.caixaInicial=d.caixaInicial||{};DATA.previsto=d.previsto||{};
     DATA.titCC=d.titCC||{};
@@ -2049,7 +2218,7 @@ async function jbinLoad(){
     }else{
       DATA._cleanup2025Done=true;
     }
-    renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();setJbinStatus('ok');
+    renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();setJbinStatus('ok');
     if(seedNovos)autoSave();
   }catch(e){console.error(e);setJbinStatus('error');}
 }
@@ -2069,6 +2238,7 @@ function restoreJSON(input){
       DATA.csv=(d.csv||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
       DATA.fat=(d.fat||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
       DATA.arec=(d.arec||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
+      DATA.pagar=(d.pagar||[]).map(r=>({...r,data:r.data?new Date(r.data):null}));
       DATA.estoque=d.estoque||[];
       DATA.orcamentoMensal=d.orcamentoMensal||{};
       DATA.caixaInicial=d.caixaInicial||{};
@@ -2076,9 +2246,9 @@ function restoreJSON(input){
       DATA.titCC=d.titCC||{};
       DATA.orcamentoObra=d.orcamentoObra||{};
       DATA._cleanup2025Done=d._cleanup2025Done||false;
-      renderCSVTable();renderFatTable();renderArecTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();
+      renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();
       autoSave();
-      alert('Backup restaurado: '+DATA.csv.length+' contas pagas, '+DATA.fat.length+' entradas, '+DATA.arec.length+' a receber, '+DATA.estoque.length+' unidades.');
+      alert('Backup restaurado: '+DATA.csv.length+' contas pagas, '+DATA.fat.length+' entradas, '+DATA.arec.length+' a receber, '+DATA.pagar.length+' a pagar, '+DATA.estoque.length+' unidades.');
     }catch(err){
       alert('Falha ao ler o arquivo de backup: '+err.message);
     }
@@ -2086,7 +2256,7 @@ function restoreJSON(input){
   };
   reader.readAsText(file);
 }
-function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto,titCC:DATA.titCC,orcamentoObra:DATA.orcamentoObra}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
+function backupJSON(){const payload={version:3,exportedAt:new Date().toISOString(),data:{csv:DATA.csv.map(r=>({...r,data:r.data?r.data.toISOString():null})),fat:DATA.fat.map(r=>({...r,data:r.data?r.data.toISOString():null})),arec:DATA.arec.map(r=>({...r,data:r.data?r.data.toISOString():null})),pagar:DATA.pagar.map(r=>({...r,data:r.data?r.data.toISOString():null})),estoque:DATA.estoque,orcamentoMensal:DATA.orcamentoMensal,caixaInicial:DATA.caixaInicial,previsto:DATA.previsto,titCC:DATA.titCC,orcamentoObra:DATA.orcamentoObra}};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RossaBI_Backup_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.json';a.click();URL.revokeObjectURL(a.href);}
 </script>
 </body>
 </html>
