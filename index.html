@@ -745,6 +745,10 @@ const SEED_TITCC={
   '161':'Rossa Commerciale'
 };
 const CHARTS={};
+// Movimentações entre contas da própria Rossa (tesouraria): Transferência, Resgate de Aplicação, Aplicação, Saque Bancário.
+// Não são despesa nem receita — só trocam o dinheiro de lugar (Caixa Inicial = conta corrente + aplicações).
+// Ficam fora de Entradas/Saídas, Resultado e Saldo; aparecem à parte (aba Saídas e bloco informativo no Fluxo).
+function isMovEntreContas(r){const c=String((r&&r.conta)||'').trim();if(!c||/^\d/.test(c))return false;return /^(transfer|resgate|aplica|saque)/i.test(c);}
 // Celular: encurta rótulos longos dos gráficos de barra deitada (ajusta a config antes de criar o gráfico)
 if(typeof Chart!=='undefined'&&!Chart.__rotuloCurto){const _Chart=Chart;window.Chart=class extends _Chart{constructor(el,cfg){
   try{if(window.innerWidth<=700&&cfg&&cfg.options&&cfg.options.indexAxis==='y'){
@@ -1360,18 +1364,20 @@ function renderCSVTable(){
   fillSelect('fcsv-conta',[...new Set(arr.map(r=>r.conta).filter(Boolean))].sort(),v=>v,v=>v);
   const fA=document.getElementById('fcsv-ano')?.value||'',mesesSelCsv=[..._mesSel.fcsv],fC=document.getElementById('fcsv-cc')?.value||'',fK=document.getElementById('fcsv-conta')?.value||'';
   const fil=arr.filter(r=>(!fA||String(r.ano)===fA)&&(!mesesSelCsv.length||mesesSelCsv.includes(r.mes))&&(!fC||ccMatch(r.cc||'',fC))&&(!fK||r.conta===fK));
-  document.getElementById('count-csv').textContent=fil.length+' de '+arr.length+' registros';
-  const totVal=fil.reduce((s,r)=>s+Math.abs(r.valor),0);
-  const caixaR=fil.filter(r=>r.movCaixa!==false),outroR=fil.filter(r=>r.movCaixa===false);
-  set('csv-total',fmt(totVal));set('csv-total-n',fil.length+' registro'+(fil.length!==1?'s':''));
+  const filInt=fil.filter(isMovEntreContas),filRes=fil.filter(r=>!isMovEntreContas(r));
+  document.getElementById('count-csv').textContent=fil.length+' de '+arr.length+' registros'+(filInt.length?' · '+filInt.length+' mov. entre contas ('+fmt(filInt.reduce((s,r)=>s+Math.abs(r.valor),0))+') fora dos totais':'');
+  const totVal=filRes.reduce((s,r)=>s+Math.abs(r.valor),0);
+  const caixaR=filRes.filter(r=>r.movCaixa!==false),outroR=filRes.filter(r=>r.movCaixa===false);
+  set('csv-total',fmt(totVal));set('csv-total-n',filRes.length+' registro'+(filRes.length!==1?'s':''));
   set('csv-caixa',fmt(caixaR.reduce((s,r)=>s+Math.abs(r.valor),0)));set('csv-caixa-n',caixaR.length+' registro'+(caixaR.length!==1?'s':''));
   set('csv-outro',fmt(outroR.reduce((s,r)=>s+Math.abs(r.valor),0)));set('csv-outro-n',outroR.length+' registro'+(outroR.length!==1?'s':''));
-  _csvTotalCache=fil.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
+  _csvTotalCache=filRes.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
   _csvCaixaCache=caixaR.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
   _csvOutroCache=outroR.map(r=>({...r,dataStr:r.data?r.data.toLocaleDateString('pt-BR'):'—'}));
   const tbody=document.getElementById('body-csv');
   if(!fil.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum registro</p></div></td></tr>';return;}
   tbody.innerHTML=fil.map(r=>{
+    if(isMovEntreContas(r))return'<tr style="color:#8a8f94;background:#fafafa"><td>'+(r.data?r.data.toLocaleDateString('pt-BR'):'—')+'</td><td>'+(r.complemento||'—')+'</td><td>'+(r.cc||'—')+'</td><td>'+(r.conta||'—')+'</td><td>'+(r.contaCorrente||'—')+'</td><td><span class="badge" style="background:#ECEFF1;color:#5D6D7E">Mov. entre contas</span></td><td class="r" style="color:#8a8f94">'+fmt(r.valor)+'</td></tr>';
     const tc=r.tipo==='FATURAMENTO'?'bg-green':r.tipo==='DESCONTO'?'bg-gold':r.tipo==='OUTROS'?'bg-blue':'bg-red';
     const vc=r.tipo==='FATURAMENTO'?'val-pos':r.tipo==='DESCONTO'?'val-gold':r.tipo==='OUTROS'?'val-blue':'val-neg';
     return'<tr><td>'+(r.data?r.data.toLocaleDateString('pt-BR'):'—')+'</td><td>'+(r.complemento||'—')+'</td><td>'+(r.cc||'—')+'</td><td>'+(r.conta||'—')+'</td><td>'+(r.contaCorrente||'—')+'</td><td><span class="badge '+tc+'">'+r.tipo+'</span></td><td class="r '+vc+'">'+fmt(r.valor)+'</td></tr>';
@@ -1658,7 +1664,7 @@ function abrirDashAbertosModal(tipo){
 function renderDash(){
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
   const anos=[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort();
-  const contas=[...new Set([...DATA.csv.map(r=>r.conta),...DATA.fat.map(r=>r.conta)].filter(Boolean))].sort();
+  const contas=[...new Set([...DATA.csv.filter(r=>!isMovEntreContas(r)).map(r=>r.conta),...DATA.fat.map(r=>r.conta)].filter(Boolean))].sort();
   fillSelect('dash-obra',obras,v=>v,v=>v);
   fillSelect('dash-ano',anos,v=>v,v=>String(v));
   fillSelect('dash-conta',contas,v=>v,v=>v);
@@ -1667,7 +1673,7 @@ function renderDash(){
   const anoF=document.getElementById('dash-ano')?.value||'';
   const contaF=document.getElementById('dash-conta')?.value||'';
   const mesesSel=getMesesSelecionados();
-  const data=DATA.csv.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!contaF||r.conta===contaF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
+  const data=DATA.csv.filter(r=>!isMovEntreContas(r)&&(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!contaF||r.conta===contaF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
   const fatData=DATA.fat.filter(r=>(!obraF||ccMatch(r.cc||'',obraF))&&(!anoF||String(r.ano)===anoF)&&(!contaF||r.conta===contaF)&&(!mesesSel.length||mesesSel.includes(r.mes)));
   const entradas=fatData;
   const saidas=data.filter(r=>r.tipo==='PAGAMENTO');
@@ -1920,7 +1926,9 @@ function renderFluxo(){
   const obraOk=r=>!obraSel||ccMatch(r.cc||'',obraSel);
   const anoOk=k=>!anoSel||String(Math.floor(k/100))===anoSel;
   // Realizado
-  const dados=DATA.csv.filter(r=>obraOk(r)&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa!==false);
+  const dadosTodos=DATA.csv.filter(r=>obraOk(r)&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa!==false);
+  const dados=dadosTodos.filter(r=>!isMovEntreContas(r));
+  const movInt=dadosTodos.filter(isMovEntreContas);
   const dadosFat=DATA.fat.filter(r=>obraOk(r)&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa===true);
   // Lançamentos unificados: {sec:'ENT'|'SAI', conta, k, valor(com sinal), rec(origem)}
   const L=[];
@@ -2014,6 +2022,16 @@ function renderFluxo(){
     '<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Resultado do Período</td>'+rv.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+cor(v)+';'+(isProj[i]?PROJ_BG:'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+cor(rt)+'">'+f2(rt)+'</td></tr>'+
     '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Caixa Inicial</td>'+colKeys.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(ci):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(ci)+'</td></tr>'+
     '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+corS(v)+';'+(isProj[i]?'background:#22618c':'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+corS(saldo[saldo.length-1])+'">'+f2(saldo[saldo.length-1])+'</td></tr>';
+  // Bloco informativo: movimentações entre contas (não somam em nada)
+  if(movInt.length){
+    const tipos={};movInt.forEach(r=>{const k=kOf(r);if(k==null)return;const ci3=colIdx[k+'R'];if(ci3==null)return;const t=r.conta;(tipos[t]=tipos[t]||Array(NC).fill(0))[ci3]+=r.valor;cellAdd('I|'+t+'|'+colKeys[ci3],{sec:'INT',conta:t,k,valor:r.valor,origem:'Mov. entre contas',r});});
+    const nomesT=Object.keys(tipos).sort();
+    if(nomesT.length){
+      const bgI='#F2F4F5';
+      rows+=spacer+'<tr style="background:'+bgI+'"><td style="padding:5px 12px;font-weight:700;font-size:11px;white-space:nowrap;color:#5D6D7E;'+SD+bgI+'">▶ MOVIMENTAÇÕES ENTRE CONTAS</td><td colspan="'+(NC+1)+'" style="background:'+bgI+';font-size:10px;color:#8a8f94;padding-left:8px">informativo — não entra no resultado nem no saldo</td></tr>';
+      nomesT.forEach(t=>{rows+='<tr style="color:#8a8f94"><td '+tdS('#fff').replace('style="','style="box-shadow:inset 4px 0 0 #B0B7BD;color:#5D6D7E;')+'>'+t+'</td>'+tipos[t].map((v,i)=>'<td class="r" data-k="'+('I|'+t).replace(/"/g,'&quot;')+'|'+colKeys[i]+'" onclick="abrirFluxoCelula(this)" style="padding:4px 6px;font-size:10px;cursor:pointer;color:#8a8f94">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-size:10px;background:#f4f4f4;color:#8a8f94">'+f2(tipos[t].reduce((s,v)=>s+v,0))+'</td></tr>';});
+    }
+  }
   tbody.innerHTML=rows;
   set('fc-badge',Object.keys(linhas).length+' linhas'+(nAbertoFora?' · '+nAbertoFora+' títulos além do horizonte':'')+(nVencFora?' · '+nVencFora+' vencidos de meses fechados fora da projeção':''));
   // Card Resumo (mesmas colunas)
@@ -2100,6 +2118,7 @@ function abrirFluxoCelula(td){
   let nome;
   if(key.startsWith('T:'))nome=key==='T:ENT'?'Total Entradas':'Total Saídas';
   else if(key.startsWith('G:')){const g=FLUXO_GRUPOS.find(g=>g.id===key.slice(2));nome='Total '+(g?g.nome:'');}
+  else if(key.startsWith('I|'))nome=key.slice(2)+' (mov. entre contas)';
   else nome=key.slice(key.indexOf('|')+1);
   const part=k.slice(-1);
   const per=MESES_PT[ck%100]+'/'+Math.floor(ck/100)+(part==='P'?' (Provisão)':part==='R'?' (Realizado)':'');
