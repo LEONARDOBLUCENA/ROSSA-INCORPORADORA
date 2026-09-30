@@ -82,6 +82,20 @@ nav{background:var(--text);display:flex;align-items:center;height:56px;padding:0
 .tbl-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:600}
 .tbl-badge{font-size:11px;color:var(--text3);background:var(--surface2);padding:3px 10px}
 .tbl-wrap{overflow-x:auto}
+.tb-mes-cc{border-collapse:collapse;min-width:100%}
+.seg{display:inline-flex;border:1px solid var(--border)}
+.seg button{background:#fff;border:none;padding:4px 12px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--text3);cursor:pointer}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button.on{background:var(--brand);color:#fff}
+.tb-mes-cc th,.tb-mes-cc td{padding:6px 10px;white-space:nowrap;border-bottom:1px solid var(--border)}
+.tb-mes-cc th{background:#f5f5f5;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);text-align:right}
+.tb-mes-cc th:first-child,.tb-mes-cc td:first-child{position:sticky;left:0;background:#fff;text-align:left;z-index:1;max-width:210px;overflow:hidden;text-overflow:ellipsis}
+.tb-mes-cc th:first-child{background:#f5f5f5}
+.tb-mes-cc td{text-align:right;font-size:11px}
+.tb-mes-cc td.clk{cursor:pointer}.tb-mes-cc td.clk:hover{background:#f3f6f4}
+.tb-mes-cc tr.tot td{font-weight:700;background:#f0f0f0;border-top:2px solid #bbb}
+.tb-mes-cc tr.tot td:first-child{background:#f0f0f0}
+.tb-mes-cc td.col-tot,.tb-mes-cc th.col-tot{background:#f4f4f4;font-weight:600}
 table{width:100%;border-collapse:collapse}
 thead th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);padding:8px 14px;background:var(--surface2);border-bottom:1px solid var(--border)}
 thead th.r{text-align:right}
@@ -385,9 +399,13 @@ tbody td.c{text-align:center}
     <div class="chart-card"><div class="chart-title">Entradas por Centro de Custo</div><div class="chart-subtitle">Total faturado por obra</div><canvas id="dash-ch-fat-cc"></canvas></div>
     <div class="chart-card"><div class="chart-title">Saídas por Centro de Custo</div><div class="chart-subtitle">Total pago por obra</div><canvas id="dash-ch-pago-cc"></canvas></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-    <div class="chart-card"><div class="chart-title">Faturamento por Mês e Centro de Custo</div><div class="chart-subtitle">Composição mensal por obra</div><canvas id="dash-ch-fat-mes-cc"></canvas></div>
-    <div class="chart-card"><div class="chart-title">Pago por Mês e Centro de Custo</div><div class="chart-subtitle">Composição mensal por obra</div><canvas id="dash-ch-pago-mes-cc"></canvas></div>
+  <div class="tbl-card">
+    <div class="tbl-head"><div class="tbl-title">Faturamento por Mês e Centro de Custo</div><span class="tbl-badge">Entradas por obra · clique em um valor para ver os lançamentos</span></div>
+    <div style="overflow-x:auto;font-size:12px"><table class="tb-mes-cc" id="dash-tb-fat-mes-cc"></table></div>
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-head"><div class="tbl-title">Pago por Mês e Centro de Custo</div><span class="tbl-badge">Saídas por obra · clique em um valor para ver os lançamentos</span></div>
+    <div style="overflow-x:auto;font-size:12px"><table class="tb-mes-cc" id="dash-tb-pago-mes-cc"></table></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
     <div class="chart-card"><div class="chart-title">Entradas por Conta</div><div class="chart-subtitle">Composição do faturamento por conta</div><canvas id="dash-ch-entradas-conta"></canvas></div>
@@ -415,6 +433,22 @@ tbody td.c{text-align:center}
     <div class="kpi-card c-red clickable" onclick="abrirDashAbertosModal('pag')"><div class="kpi-label">A Pagar</div><div class="kpi-val neg" id="dabp-pag">—</div><div class="kpi-sub" id="dabp-pag-n">0 títulos</div></div>
     <div class="kpi-card c-blue"><div class="kpi-label">Saldo em Aberto</div><div class="kpi-val" id="dabp-saldo">—</div><div class="kpi-sub">A Receber − A Pagar</div></div>
     <div class="kpi-card c-gold clickable" onclick="abrirDashAbertosModal('venc')"><div class="kpi-label">Vencidos</div><div class="kpi-val" id="dabp-venc">—</div><div class="kpi-sub" id="dabp-venc-sub">—</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div class="chart-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div><div class="chart-title">A Receber por Ano / Mês</div><div class="chart-subtitle" id="dabp-ch-rec-sub">Por ano de vencimento · clique num ano para abrir os meses</div></div>
+        <div class="seg" data-g="rec"><button class="on" onclick="dabpModo('rec','ano')">Ano</button><button onclick="dabpModo('rec','mes')">Mês</button></div>
+      </div>
+      <canvas id="dabp-ch-rec" height="150"></canvas>
+    </div>
+    <div class="chart-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div><div class="chart-title">A Pagar por Ano / Mês</div><div class="chart-subtitle" id="dabp-ch-pag-sub">Por ano de vencimento · clique num ano para abrir os meses</div></div>
+        <div class="seg" data-g="pag"><button class="on" onclick="dabpModo('pag','ano')">Ano</button><button onclick="dabpModo('pag','mes')">Mês</button></div>
+      </div>
+      <canvas id="dabp-ch-pag" height="150"></canvas>
+    </div>
   </div>
   <div class="tbl-card">
     <div class="tbl-head"><div class="tbl-title">Em Aberto por Centro de Custo</div><span class="tbl-badge" id="dabp-cc-badge">—</span></div>
@@ -1550,6 +1584,7 @@ function renderDashAbertos(){
   const sEl=document.getElementById('dabp-saldo');if(sEl){sEl.textContent=(tR-tP<0?'− ':'')+fmt(tR-tP);sEl.className='kpi-val '+(tR-tP>=0?'pos':'neg');}
   set('dabp-venc',fmt(vR+vP));set('dabp-venc-sub','Receber '+fmt(vR)+' · Pagar '+fmt(vP));
   _dabpRecCache=R;_dabpPagCache=P;
+  renderDabpGraficos();
   // Gráfico mensal
   destroyChart('dabp-ch-mes');
   const el=document.getElementById('dabp-ch-mes');
@@ -1577,6 +1612,42 @@ function renderDashAbertos(){
   const sv=v=>'<span class="'+(v>=0?'val-pos':'val-neg')+'">'+(v<0?'− ':'')+fmt(v)+'</span>';
   tb.innerHTML=nomes.map(c=>{const x=ccs[c];return'<tr><td>'+c+'</td><td class="r">'+fmt(x.r)+'</td><td class="r">'+fmt(x.p)+'</td><td class="r">'+sv(x.r-x.p)+'</td><td class="r">'+(x.vr?fmt(x.vr):'—')+'</td><td class="r">'+(x.vp?fmt(x.vp):'—')+'</td></tr>';}).join('')
     +'<tr style="font-weight:700;background:#f5f5f5"><td>Total</td><td class="r">'+fmt(tR)+'</td><td class="r">'+fmt(tP)+'</td><td class="r">'+sv(tR-tP)+'</td><td class="r">'+fmt(vR)+'</td><td class="r">'+fmt(vP)+'</td></tr>';
+}
+// Gráficos A Receber / A Pagar por Ano ou Mês (respeitam os filtros da seção)
+const _dabpModo={rec:{modo:'ano',ano:null},pag:{modo:'ano',ano:null}};
+function dabpModo(g,modo,ano){_dabpModo[g]={modo,ano:ano==null?null:ano};
+  document.querySelectorAll('.seg[data-g="'+g+'"] button').forEach((b,i)=>b.classList.toggle('on',(i===0)===(modo==='ano')));
+  renderDabpGraficos();}
+function renderDabpGraficos(){
+  [['rec',_dabpRecCache,'#1A7A3C','A Receber'],['pag',_dabpPagCache,'#C0392B','A Pagar']].forEach(([g,arr,cor,nome])=>{
+    const id='dabp-ch-'+g;destroyChart(id);const el=document.getElementById(id);if(!el)return;
+    const st=_dabpModo[g];const fAno=document.getElementById('dabp-ano')?.value||'';
+    const soma=a=>a.reduce((s,r)=>s+(r.valor||0),0);
+    let keys,label,filtro,sub;
+    if(st.modo==='ano'){
+      keys=[...new Set(arr.map(r=>r.ano).filter(x=>x!=null))].sort((a,b)=>a-b);label=k=>String(k);filtro=k=>r=>r.ano===k;
+      sub='Por ano de vencimento · clique num ano para abrir os meses';
+    }else{
+      const anoFoco=st.ano||(fAno?parseInt(fAno):null);
+      const base=anoFoco?arr.filter(r=>r.ano===anoFoco):arr;
+      keys=[...new Set(base.filter(r=>r.ano!=null&&r.mes!=null).map(r=>r.ano*100+r.mes))].sort((a,b)=>a-b);
+      label=k=>MESES_ABR[k%100]+'/'+String(Math.floor(k/100)).slice(2);filtro=k=>r=>r.ano*100+r.mes===k;
+      sub=(anoFoco?'Meses de '+anoFoco:'Todos os meses')+' · clique num mês para ver os títulos';
+    }
+    set(id+'-sub',sub);
+    if(!keys.length)return;
+    const venc=keys.map(k=>soma(arr.filter(filtro(k)).filter(r=>r.status==='Vencido')));
+    const aVencer=keys.map(k=>soma(arr.filter(filtro(k)).filter(r=>r.status!=='Vencido')));
+    const ds=[{label:'A vencer',data:aVencer,backgroundColor:cor,borderRadius:3,stack:'s'}];
+    if(venc.some(v=>v))ds.push({label:'Vencido',data:venc,backgroundColor:'#B7950B',borderRadius:3,stack:'s'});
+    CHARTS[id]=new Chart(el,{type:'bar',data:{labels:keys.map(label),datasets:ds},options:{responsive:true,
+      interaction:{mode:'index',intersect:false},
+      onClick:(evt,els)=>{if(!els.length)return;const k=keys[els[0].index];
+        if(st.modo==='ano'){dabpModo(g,'mes',k);return;}
+        const rows=arr.filter(filtro(k));openDetailModal(nome+' — '+MESES_PT[k%100]+'/'+Math.floor(k/100),rows,COLS_ABERTOS_MODAL,{exportName:nome.replace(' ','')+'_'+Math.floor(k/100)+'_'+(k%100+1)});},
+      plugins:{legend:{display:ds.length>1,position:'bottom'},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmt(ctx.raw),footer:items=>'Total: '+fmt(items.reduce((s,i)=>s+i.raw,0))}}},
+      scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>'R$'+(Math.abs(v)>=1e6?(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mi':(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+' mil')}}}}});
+  });
 }
 function abrirDashAbertosModal(tipo){
   if(tipo==='rec')openDetailModal('Em aberto — A Receber',_dabpRecCache,COLS_ABERTOS_MODAL,{exportName:'EmAberto_AReceber'});
@@ -1674,14 +1745,25 @@ function renderDash(){
   const ccPagoVals=ccPago.map(c=>saidas.filter(r=>r.cc===c).reduce((s,r)=>s+Math.abs(r.valor),0));
   destroyChart('dash-ch-pago-cc');if(ccPago.length&&document.getElementById('dash-ch-pago-cc'))CHARTS['dash-ch-pago-cc']=new Chart(document.getElementById('dash-ch-pago-cc'),{type:'bar',data:{labels:ccPago,datasets:[{label:'Saídas',data:ccPagoVals,backgroundColor:ccPago.map((_,i)=>PAL[i%PAL.length]),borderRadius:3}]},options:{indexAxis:'y',responsive:true,onClick:(evt,els)=>{if(!els.length)return;const cc=ccPago[els[0].index];abrirDrillPorCampo(saidasStr,'cc',cc,'Saídas — '+cc,COLS_SAIDA,'Saidas_'+cc);},plugins:{legend:{display:false},tooltip:tip},scales:{x:yFmt}}});
 
-  const mkStackedCC=(id,rowsStr,ccList,cols,titPrefix,exportPrefix)=>{
-    destroyChart(id);
-    const el=document.getElementById(id);if(!el||!ccList.length)return;
-    const datasets=ccList.map((c,i)=>({label:c,data:sortedKeys.map(k=>rowsStr.filter(r=>r.cc===c&&r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0)),backgroundColor:PAL[i%PAL.length],borderRadius:2}));
-    CHARTS[id]=new Chart(el,{type:'bar',data:{labels,datasets},options:{responsive:true,interaction:{mode:'index',intersect:false},onClick:(evt,els)=>{if(!els.length)return;const el0=els[0];const cc=ccList[el0.datasetIndex];const k=sortedKeys[el0.index];abrirDrillMes(rowsStr,cc,k,titPrefix+' — '+cc+' — '+labels[el0.index],cols,exportPrefix+'_'+cc+'_'+labels[el0.index]);},plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>' '+ctx.dataset.label+': '+fmt(ctx.raw)}}},scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}});
+  // Tabelas Mês × Centro de Custo (substituem os gráficos empilhados) — células abrem os lançamentos
+  const mkTabelaMesCC=(id,tag,rowsStr,ccList,cols,titPrefix,exportPrefix)=>{
+    const tb=document.getElementById(id);if(!tb)return;
+    _dashMesCC[tag]={rowsStr,cols,titPrefix,exportPrefix};
+    if(rowsStr.some(r=>!r.cc))ccList=[...ccList,''];
+    if(!ccList.length||!sortedKeys.length){tb.innerHTML='<tr><td><div class="empty-state"><p>Nenhum dado para os filtros</p></div></td></tr>';return;}
+    const val=(c,k)=>rowsStr.filter(r=>(r.cc||'')===c&&r.data&&r.data.getFullYear()*100+r.data.getMonth()===k).reduce((s,r)=>s+Math.abs(r.valor),0);
+    const M=ccList.map(c=>({c,v:sortedKeys.map(k=>val(c,k))})).map(x=>({...x,t:x.v.reduce((s,v)=>s+v,0)})).sort((a,b)=>b.t-a.t);
+    const n=v=>v?v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'<span style="color:#ccc">—</span>';
+    const esc=s=>String(s).replace(/"/g,'&quot;');
+    let h='<thead><tr><th>Centro de Custo</th>'+labels.map(l=>'<th>'+l+'</th>').join('')+'<th class="col-tot">Total</th></tr></thead><tbody>';
+    M.forEach(x=>{h+='<tr><td title="'+esc(x.c||'Sem centro de custo')+'">'+(x.c||'<em style="color:var(--text3)">(Sem centro de custo)</em>')+'</td>'+x.v.map((v,i)=>'<td class="'+(v?'clk':'')+'"'+(v?' data-t="'+tag+'" data-cc="'+esc(x.c)+'" data-k="'+sortedKeys[i]+'" data-l="'+labels[i]+'" onclick="abrirDashMesCC(this)"':'')+'>'+n(v)+'</td>').join('')+'<td class="col-tot">'+n(x.t)+'</td></tr>';});
+    const tm=sortedKeys.map((_,i)=>M.reduce((s,x)=>s+x.v[i],0));
+    h+='<tr class="tot"><td>Total</td>'+tm.map(v=>'<td>'+n(v)+'</td>').join('')+'<td class="col-tot">'+n(tm.reduce((s,v)=>s+v,0))+'</td></tr></tbody>';
+    tb.innerHTML=h;
   };
-  mkStackedCC('dash-ch-fat-mes-cc',entradasStr,ccFat,COLS_ENTRADA,'Entradas','Entradas');
-  mkStackedCC('dash-ch-pago-mes-cc',saidasStr,ccPago,COLS_SAIDA,'Saídas','Saidas');
+  window._abrirDrillMesDash=abrirDrillMes;
+  mkTabelaMesCC('dash-tb-fat-mes-cc','fat',entradasStr,ccFat,COLS_ENTRADA,'Entradas','Entradas');
+  mkTabelaMesCC('dash-tb-pago-mes-cc','pago',saidasStr,ccPago,COLS_SAIDA,'Saídas','Saidas');
 
   // Entradas / Saídas por Conta (top 10) — para onde está indo o dinheiro
   const mkContaChart=(id,rowsStr,label,color,cols,exportPrefix)=>{
@@ -1697,6 +1779,9 @@ function renderDash(){
   renderDashAbertos();
 }
 let _dashEntradasCache=[],_dashSaidasCache=[],_dashSaldoCache=[];
+const _dashMesCC={};
+function abrirDashMesCC(td){const d=_dashMesCC[td.dataset.t];if(!d)return;const cc=td.dataset.cc,k=parseInt(td.dataset.k),l=td.dataset.l;
+  window._abrirDrillMesDash(d.rowsStr,cc,k,d.titPrefix+' — '+cc+' — '+l,d.cols,d.exportPrefix+'_'+cc+'_'+l);}
 function abrirDashModal(tipo){
   if(tipo==='entradas'){
     openDetailModal('Faturamento Líquido — Entradas',_dashEntradasCache,
