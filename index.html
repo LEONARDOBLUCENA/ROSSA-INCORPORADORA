@@ -183,6 +183,58 @@ tbody td.c{text-align:center}
   .nav-tab{border-left:none;border-bottom:3px solid transparent;padding:10px 14px;white-space:nowrap}
   .nav-tab.active{border-left-color:transparent;border-bottom-color:var(--brand)}
   .prev-summary{grid-template-columns:1fr 1fr}
+  /* Correção raiz: em coluna, o conteúdo precisa esticar na largura da tela (antes ficava do tamanho da maior tabela) */
+  .app-body{align-items:stretch}
+  .main-content{width:100%;min-width:0}
+  .page{max-width:100vw;overflow-x:hidden}
+  /* Barra do topo: botões quebram linha em vez de estourar a tela */
+  nav{height:auto;min-height:56px;flex-wrap:wrap;padding:8px 12px;gap:8px;position:relative}
+  .nav-actions{margin-left:0;flex-wrap:wrap;gap:6px;width:100%}
+  .nav-btn{padding:6px 10px}
+  .sidebar{top:0}
+  .sienge-dropdown{position:fixed;left:8px;right:8px;top:70px;width:auto;max-height:80vh}
+  /* Grades de cards e gráficos definidas inline */
+  .page [style*="grid-template-columns:repeat(4,1fr)"]{grid-template-columns:1fr 1fr!important}
+  .page [style*="grid-template-columns:repeat(3,1fr)"],.page [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  /* Filtros: cada campo ocupa a largura disponível */
+  .filters-bar{padding:10px 12px;gap:8px}
+  .filters-bar .filter-select,.filters-bar .mes-picker,.filters-bar .mes-picker-btn{flex:1 1 150px;min-width:0!important;max-width:100%;width:100%}
+  .filter-select,.filter-input{max-width:100%}
+  .tbl-head{padding:10px 12px}
+  .kpi-card{padding:14px 16px}
+  .kpi-val{font-size:22px}
+  .chart-card{padding:14px 12px}
+  canvas{max-width:100%!important}
+  /* Fluxo de Caixa: primeira coluna fixa mais estreita */
+  #tbl-fluxo col:first-child,#tbl-fc-resumo col:first-child{width:170px!important}
+  #fc-prov-card>div:first-child{flex-basis:100%}
+  #fc-prov-card input[type=date]{width:100%}
+  /* Janelas (detalhe, provisão): ocupam quase a tela toda */
+  .modal-box{width:96%;padding:16px 12px;max-height:90vh}
+  #modal-detail-summary>div{grid-template-columns:1fr!important;flex-direction:column!important}
+  #modal-detail-body{max-height:55vh!important}
+  .modal-box [style*="grid-template-columns:repeat(3,1fr)"]{grid-template-columns:1fr!important;gap:8px!important}
+  /* Menu de abas: quebra em linhas (todas visíveis, sem precisar rolar de lado) */
+  .nav-tabs{flex-wrap:wrap;overflow-x:visible;padding:0 6px}
+  .nav-sep{display:none}
+  .nav-tab{padding:9px 10px;font-size:12px;flex:1 1 auto;text-align:center}
+  /* Rótulo de cada filtro fica em cima do seu campo */
+  .filters-bar .filter-label{flex-basis:100%;margin-top:2px}
+  .filters-bar .btn-ghost{flex:1 1 100%}
+  /* Números nunca quebram linha nas tabelas */
+  table td.r,table th.r{white-space:nowrap}
+  #dash-resumo-mensal td{white-space:nowrap}
+  #modal-prov th{width:auto!important}
+  #modal-prov th:nth-child(4),#modal-prov td:nth-child(4){display:none}
+  #modal-prov td,#modal-prov th{padding-left:6px!important;padding-right:6px!important}
+}
+@media(max-width:480px){
+  .page [style*="grid-template-columns:repeat(4,1fr)"]{grid-template-columns:1fr!important}
+  .sec-title{font-size:19px}
+  .sec-sub{font-size:12px;margin-bottom:14px}
+  .nav-logo{margin-right:0}
+  .kpi-val{font-size:21px}
+  #prov-rec,#prov-pag,#prov-saldo{font-size:19px!important}
 }
 
 /* MULTISELECT MESES */
@@ -659,6 +711,12 @@ const SEED_TITCC={
   '161':'Rossa Commerciale'
 };
 const CHARTS={};
+// Celular: encurta rótulos longos dos gráficos de barra deitada (ajusta a config antes de criar o gráfico)
+if(typeof Chart!=='undefined'&&!Chart.__rotuloCurto){const _Chart=Chart;window.Chart=class extends _Chart{constructor(el,cfg){
+  try{if(window.innerWidth<=700&&cfg&&cfg.options&&cfg.options.indexAxis==='y'){
+    const sc=cfg.options.scales=cfg.options.scales||{};const y=sc.y=sc.y||{};const tk=y.ticks=y.ticks||{};const orig=tk.callback;
+    tk.callback=function(v,i,t){let l=orig?orig.call(this,v,i,t):this.getLabelForValue(v);l=String(l);return l.length>20?l.slice(0,19)+'…':l;};}}catch(e){}
+  super(el,cfg);}};window.Chart.__rotuloCurto=true;}
 const MESES_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MESES_ABR=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const PAL=['#1B6B35','#1A5276','#B7950B','#7D3C98','#C0392B','#784212','#1A6161','#2E4057'];
