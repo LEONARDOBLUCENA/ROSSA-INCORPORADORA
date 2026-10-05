@@ -1306,9 +1306,23 @@ function processFatText(txt){
     return{data,cliente,cc,conta,contaCod,contaCorrente,numeroTitulo,parcela,tipoBaixa,valor,movCaixa,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(r=>r&&(r.valor!==0||r.cc));
   const{out:novosUnicos,dup}=dedupNovos(DATA.fat,novos,dedupKeyFat);
+  // O relatório colado é a versão oficial dos meses que ele cobre: lançamentos que já estavam no BI
+  // nesses meses e não vieram no relatório novo (ex.: título excluído/estornado no Sienge) são removidos,
+  // com confirmação. Meses que não aparecem no relatório colado não são tocados.
+  const mesesRel=new Set(novos.filter(r=>r.ano!=null&&r.mes!=null).map(r=>r.ano*100+r.mes));
+  const chavesRel=new Set(novos.map(dedupKeyFat));
+  const sumiram=DATA.fat.filter(r=>r.ano!=null&&r.mes!=null&&mesesRel.has(r.ano*100+r.mes)&&!chavesRel.has(dedupKeyFat(r)));
+  let removidos=0;
+  if(sumiram.length){
+    const mesesTxt=[...mesesRel].sort().map(k=>MESES_ABR[k%100]+'/'+Math.floor(k/100)).join(', ');
+    const tot=sumiram.reduce((s,r)=>s+Math.abs(r.valor||0),0);
+    const lista=sumiram.slice(0,5).map(r=>'• '+(r.data?r.data.toLocaleDateString('pt-BR'):'—')+' — '+(r.cliente||'—')+' — tít. '+(r.numeroTitulo||'—')+(r.parcela?' parc. '+r.parcela:'')+' — '+fmt(r.valor)).join('\n')+(sumiram.length>5?'\n… e mais '+(sumiram.length-5):'');
+    const ok=confirm('O relatório colado cobre: '+mesesTxt+'.\n\n'+sumiram.length+' lançamento'+(sumiram.length!==1?'s':'')+' que já estava'+(sumiram.length!==1?'m':'')+' no BI nesse período NÃO aparece'+(sumiram.length!==1?'m':'')+' no relatório novo ('+fmt(tot)+'):\n'+lista+'\n\nOK = remover (o período fica igual ao relatório do Sienge)\nCancelar = manter e só adicionar os novos');
+    if(ok){const rm=new Set(sumiram);DATA.fat=DATA.fat.filter(r=>!rm.has(r));removidos=sumiram.length;}
+  }
   DATA.fat=[...DATA.fat,...novosUnicos];
-  setStatus('status-fat',statusComDup(novosUnicos.length,dup,DATA.fat.length),true);
-  renderFatTable();renderArecTable();autoSave();
+  setStatus('status-fat',statusComDup(novosUnicos.length,dup,DATA.fat.length).replace(' — total:',(removidos?' · '+removidos+' removido'+(removidos!==1?'s':'')+' (não estavam no relatório)':'')+' — total:'),true);
+  renderFatTable();renderArecTable();renderDash();renderFluxo();autoSave();
 }
 function limparFat(){DATA.fat=[];renderFatTable();renderArecTable();setStatus('status-fat','',null);autoSave();}
 function renderFatTable(){
