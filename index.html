@@ -569,7 +569,7 @@ tbody td.c{text-align:center}
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
     <div class="kpi-card c-green clickable" onclick="abrirFluxoKpiModal('ent')"><div class="kpi-label">Total Entradas</div><div class="kpi-val pos" id="fc-kpi-ent">—</div><div class="kpi-sub">Realizado (caixa), no período filtrado</div></div>
     <div class="kpi-card c-red clickable" onclick="abrirFluxoKpiModal('sai')"><div class="kpi-label">Total Saídas</div><div class="kpi-val neg" id="fc-kpi-sai">—</div><div class="kpi-sub">Realizado (caixa), no período filtrado</div></div>
-    <div class="kpi-card c-blue"><div class="kpi-label">Saldo de Caixa Atual</div><div class="kpi-val" id="fc-kpi-saldo">—</div><div class="kpi-sub">Caixa Inicial + Entradas − Saídas (realizado)</div></div>
+    <div class="kpi-card c-blue"><div class="kpi-label">Saldo de Caixa Atual</div><div class="kpi-val" id="fc-kpi-saldo">—</div><div class="kpi-sub" id="fc-kpi-saldo-sub">Bancos + Caixa (espécie), realizado</div></div>
     <div class="kpi-card c-gold"><div class="kpi-label">Saldo Projetado</div><div class="kpi-val" id="fc-kpi-proj">—</div><div class="kpi-sub" id="fc-kpi-proj-sub">Fim do horizonte, com A Receber e A Pagar</div></div>
   </div>
   <div class="tbl-card" id="fc-prov-card" style="padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -610,7 +610,7 @@ tbody td.c{text-align:center}
     </div>
   </div>
   <div class="tbl-card" id="fc-caixa-card">
-    <div class="tbl-head"><div class="tbl-title">Caixa Inicial</div><span class="tbl-badge">Saldo inicial do caixa</span></div>
+    <div class="tbl-head"><div class="tbl-title">Saldo Conferido</div><span class="tbl-badge">Ponto de partida do saldo: bancos e dinheiro em espécie no fim de um mês</span></div>
     <div id="fc-caixa-campos" style="padding:14px 18px"></div>
   </div>
 </div>
@@ -1975,7 +1975,15 @@ function renderFluxo(){
   const NC=cols.length;
   const colAno=cols.map(c=>Math.floor(c.k/100)),colMes=cols.map(c=>c.k%100);
   const isProj=cols.map(c=>c.part==='P');
-  const ci=parseFloat(DATA.caixaInicial['_total']||0)||0;
+  // Saldo de referência: saldo conferido no FIM de um mês, separado em Bancos e Caixa (espécie).
+  // Os demais meses são calculados para frente e para trás a partir dele. Sem referência, usa o
+  // antigo Caixa Inicial (_total) no início do período, todo como banco.
+  const CI=DATA.caixaInicial=DATA.caixaInicial||{};
+  if(CI._refMes===undefined){CI._refMes=202607;CI._refBancos=474046.83;CI._refEspecie=0;} // informado: bancos em 31/08/2026
+  const refMes=(CI._refMes!==''&&CI._refMes!=null)?parseInt(CI._refMes):null;
+  const refB=refMes!=null?(parseFloat(CI._refBancos)||0):(parseFloat(CI._total)||0);
+  const refE=refMes!=null?(parseFloat(CI._refEspecie)||0):0;
+  const ci=refB+refE;
   const theadR=document.getElementById('thead-fc-resumo'),tbodyR=document.getElementById('tbody-fc-resumo');
   // KPIs e caches do realizado (não mudam com a projeção)
   const realEnt=L.filter(x=>!x.proj&&x.sec==='ENT'),realSai=L.filter(x=>!x.proj&&x.sec==='SAI');
@@ -2030,11 +2038,24 @@ function renderFluxo(){
   });
   if(Object.keys(totGrupo).length>0)rows+=spacer+'<tr style="background:#f8b4b4;font-weight:700"><td '+tdSB('#f8b4b4')+'>Total Saídas</td>'+tSai.map((v,i)=>cell('T:SAI',i,v)).join('')+totCell(soma(tSai),'#f8b4b4')+'</tr>';
   const rv=tEnt.map((v,i)=>v+tSai[i]),rt=soma(rv);
-  const saldo=[];let acc=ci;rv.forEach(v=>{acc+=v;saldo.push(acc);});
+  // Bancos × Caixa (espécie): lançamento na conta corrente "CAIXA" é espécie; o resto (e toda a provisão) é banco.
+  // Saque bancário: sai do banco e entra no caixa em espécie (não muda o total).
+  const esp=r=>String((r&&r.contaCorrente)||'').trim().toUpperCase()==='CAIXA';
+  const z=()=>Array(NC).fill(0);const entB=z(),saiB=z(),entE=z(),saiE=z(),saq=z();
+  L.forEach(x=>{const i=idxOf(x);if(i==null)return;const e=!x.proj&&esp(x.r);
+    if(x.sec==='ENT'){(e?entE:entB)[i]+=x.valor;cellAdd((e?'E':'B')+':ENT|'+colKeys[i],x);}
+    else{(e?saiE:saiB)[i]+=x.valor;cellAdd((e?'E':'B')+':SAI|'+colKeys[i],x);}});
+  movInt.forEach(r=>{if(!/^saque/i.test(String(r.conta||'').trim()))return;const k=kOf(r);if(k==null)return;const i=colIdx[k+'R'];if(i==null)return;saq[i]+=Math.abs(r.valor||0);cellAdd('SQ|'+colKeys[i],{sec:'INT',conta:r.conta,k,valor:r.valor,origem:'Saque (banco → espécie)',r});});
+  const fB=entB.map((v,i)=>v+saiB[i]-saq[i]),fE=entE.map((v,i)=>v+saiE[i]+saq[i]);
+  const bRef=refMes!=null?cols.filter(c=>c.k<=refMes).length:0;
+  const saldoPor=(f,ref)=>f.map((_,j)=>{let s=ref;if(j>=bRef){for(let c=bRef;c<=j;c++)s+=f[c];}else{for(let c=j+1;c<bRef;c++)s-=f[c];}return s;});
+  const saldoB=saldoPor(fB,refB),saldoE=saldoPor(fE,refE);
+  const saldo=saldoB.map((v,i)=>v+saldoE[i]);
+  const saldoIni=saldo[0]-rv[0];
   const cor=v=>v>=0?'#1B6B35':'#C0392B',corS=v=>v>=0?'#A9DFBF':'#F1948A';
   rows+=
     '<tr style="border-top:2px solid #bbb;font-weight:700;background:#f0f0f0"><td style="'+SD+'#f0f0f0;padding:6px 12px;font-size:11px">Resultado do Período</td>'+rv.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+cor(v)+';'+(isProj[i]?PROJ_BG:'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+cor(rt)+'">'+f2(rt)+'</td></tr>'+
-    '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Caixa Inicial</td>'+colKeys.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(ci):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(ci)+'</td></tr>'+
+    '<tr style="background:#EAF4FB;font-weight:600"><td style="'+SD+'#EAF4FB;padding:6px 12px;font-size:11px">Saldo Inicial</td>'+colKeys.map((_,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:#1a5276">'+(i===0?f2(saldoIni):'')+'</td>').join('')+'<td class="r" style="padding:4px 7px;background:#d6eaf8;font-size:10px;color:#1a5276">'+f2(saldoIni)+'</td></tr>'+
     '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+corS(v)+';'+(isProj[i]?'background:#22618c':'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+corS(saldo[saldo.length-1])+'">'+f2(saldo[saldo.length-1])+'</td></tr>';
   // Bloco informativo: movimentações entre contas (não somam em nada)
   if(movInt.length){
@@ -2052,12 +2073,27 @@ function renderFluxo(){
   if(theadR&&tbodyR){
     const cgR=document.getElementById('colgroup-fc-resumo');if(cgR)cgR.innerHTML=colsHtml;
     theadR.innerHTML='<tr><th style="text-align:left;padding:8px 12px;position:sticky;left:0;background:#f5f5f5">Resumo</th>'+thCols(false)+'<th class="r" style="padding:5px 9px;background:#ececec">Total</th></tr>';
-    const rSai=tSai.map(v=>Math.abs(v));
+    const tot=a=>'<td class="r" style="padding:4px 7px;background:#f4f4f4;font-size:10px">'+f2(soma(a))+'</td>';
+    const lin=(nome,cor,key,vals,neg)=>'<tr><td style="'+SD+'#fff;padding:4px 12px 4px 22px;font-size:11px;color:'+cor+'">'+nome+'</td>'+vals.map((v,i)=>cell(key,i,neg?-Math.abs(v):v)).join('')+tot(vals.map(v=>neg?-Math.abs(v):v))+'</tr>';
+    const cab=(nome,bg,cor)=>'<tr style="background:'+bg+'"><td style="'+SD+bg+';padding:5px 12px;font-size:11px;font-weight:700;color:'+cor+'">'+nome+'</td><td colspan="'+(NC+1)+'" style="background:'+bg+'"></td></tr>';
+    const linSaldo=(nome,vals,bg,corTxt)=>'<tr style="background:'+bg+';font-weight:700"><td style="'+SD+bg+';padding:5px 12px;font-size:11px;color:'+corTxt+'">'+nome+'</td>'+vals.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+(v>=0?'#1B6B35':'#C0392B')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;font-size:10px;color:'+(vals[vals.length-1]>=0?'#1B6B35':'#C0392B')+'">'+f2(vals[vals.length-1])+'</td></tr>';
     tbodyR.innerHTML=
-      '<tr style="background:#D5F5E3"><td style="'+SD+'#D5F5E3;padding:5px 12px;font-size:11px;font-weight:600;color:#1B6B35">Entradas</td>'+tEnt.map((v,i)=>cell('T:ENT',i,v)).join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(soma(tEnt))+'</td></tr>'+
-      '<tr style="background:#FADBD8"><td style="'+SD+'#FADBD8;padding:5px 12px;font-size:11px;font-weight:600;color:#C0392B">Saídas</td>'+rSai.map((v,i)=>cell('T:SAI',i,v)).join('')+'<td class="r" style="padding:4px 7px;background:#f4f4f4">'+f2(soma(rSai))+'</td></tr>'+
-      '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo de Caixa</td>'+saldo.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+corS(v)+';'+(isProj[i]?'background:#22618c':'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+corS(saldo[saldo.length-1])+'">'+f2(saldo[saldo.length-1])+'</td></tr>';
+      cab('BANCOS','#EAF2F8','#1A5276')+
+      lin('Entradas','#1B6B35','B:ENT',entB)+
+      lin('Saídas','#C0392B','B:SAI',saiB,true)+
+      lin('Saques para o caixa (espécie)','#5D6D7E','SQ',saq,true)+
+      linSaldo('Saldo Bancos',saldoB,'#D6EAF8','#1A5276')+
+      cab('CAIXA (ESPÉCIE)','#FEF5E7','#9A6B00')+
+      lin('Entradas','#1B6B35','E:ENT',entE)+
+      lin('Saídas','#C0392B','E:SAI',saiE,true)+
+      lin('Saques recebidos do banco','#5D6D7E','SQ',saq)+
+      linSaldo('Saldo Caixa (espécie)',saldoE,'#FCE9C8','#9A6B00')+
+      '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo Total</td>'+saldo.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+corS(v)+';'+(isProj[i]?'background:#22618c':'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+corS(saldo[saldo.length-1])+'">'+f2(saldo[saldo.length-1])+'</td></tr>';
   }
+  // KPI Saldo atual = saldo total no último mês realizado (Bancos + Espécie)
+  let lastR=-1;cols.forEach((c,i)=>{if(c.part==='R')lastR=i;});
+  if(lastR>=0){const sA=saldo[lastR];const kS2=document.getElementById('fc-kpi-saldo');if(kS2){kS2.textContent=(sA<0?'− ':'')+fmt(sA);kS2.className='kpi-val '+(sA>=0?'':'neg');}
+    set('fc-kpi-saldo-sub','Bancos '+(saldoB[lastR]<0?'− ':'')+fmt(saldoB[lastR])+' · Espécie '+(saldoE[lastR]<0?'− ':'')+fmt(saldoE[lastR]));}
   renderProvisao();
   // KPI Saldo Projetado
   const temProj=isProj.some(Boolean);
@@ -2133,6 +2169,9 @@ function abrirFluxoCelula(td){
   if(key.startsWith('T:'))nome=key==='T:ENT'?'Total Entradas':'Total Saídas';
   else if(key.startsWith('G:')){const g=FLUXO_GRUPOS.find(g=>g.id===key.slice(2));nome='Total '+(g?g.nome:'');}
   else if(key.startsWith('I|'))nome=key.slice(2)+' (mov. entre contas)';
+  else if(key==='B:ENT')nome='Bancos — Entradas';else if(key==='B:SAI')nome='Bancos — Saídas';
+  else if(key==='E:ENT')nome='Caixa (espécie) — Entradas';else if(key==='E:SAI')nome='Caixa (espécie) — Saídas';
+  else if(key==='SQ')nome='Saques (banco → espécie)';
   else nome=key.slice(key.indexOf('|')+1);
   const part=k.slice(-1);
   const per=MESES_PT[ck%100]+'/'+Math.floor(ck/100)+(part==='P'?' (Provisão)':part==='R'?' (Realizado)':'');
@@ -2176,12 +2215,20 @@ function abrirFluxoCelulaModal(el){
 }
 function renderCaixaInicialCampos(){
   const container=document.getElementById('fc-caixa-campos');if(!container)return;
-  const val=DATA.caixaInicial['_total']||'';
-  container.innerHTML='<div style="display:flex;flex-direction:column;gap:6px;padding:4px 0;max-width:280px">'
-    +'<input type="number" value="'+val+'" placeholder="0,00" step="0.01"'
-    +' onchange="DATA.caixaInicial[\'_total\']=parseFloat(this.value)||0;renderFluxo();renderProjecao();autoSave()"'
-    +' style="border:1px solid var(--brand);background:#fff;padding:7px 12px;font-family:\'DM Sans\',sans-serif;font-size:14px;font-weight:600;color:var(--text);outline:none;text-align:right;width:100%">'
-    +'</div>';
+  const CI=DATA.caixaInicial=DATA.caixaInicial||{};
+  const ks=[...new Set([...DATA.csv,...DATA.fat].filter(r=>r.ano!=null&&r.mes!=null).map(r=>r.ano*100+r.mes))];
+  const hoje=new Date(),atual=hoje.getFullYear()*100+hoje.getMonth();
+  const prim=ks.length?Math.min(...ks):atual;const antes=prim%100===0?(Math.floor(prim/100)-1)*100+11:prim-1;
+  const opts=[antes,...ks.filter(k=>k<atual).sort((a,b)=>a-b)];
+  const sel=CI._refMes!=null&&CI._refMes!==''?parseInt(CI._refMes):'';
+  const inp='border:1px solid var(--brand);background:#fff;padding:7px 12px;font-family:\'DM Sans\',sans-serif;font-size:14px;font-weight:600;color:var(--text);outline:none;text-align:right;width:100%';
+  const lab='font-size:11px;color:var(--text3);margin-bottom:3px';
+  container.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;max-width:720px">'
+    +'<div><div style="'+lab+'">Saldo conferido no fim de</div><select class="filter-select" style="width:100%" onchange="DATA.caixaInicial._refMes=this.value?parseInt(this.value):\'\';renderFluxo();autoSave()">'
+    +opts.map(k=>'<option value="'+k+'"'+(k===sel?' selected':'')+'>'+MESES_PT[k%100]+'/'+Math.floor(k/100)+'</option>').join('')+'</select></div>'
+    +'<div><div style="'+lab+'">Saldo Bancos (contas + aplicações)</div><input type="number" step="0.01" value="'+(CI._refBancos??'')+'" placeholder="0,00" onchange="DATA.caixaInicial._refBancos=parseFloat(this.value)||0;renderFluxo();autoSave()" style="'+inp+'"></div>'
+    +'<div><div style="'+lab+'">Saldo Caixa (dinheiro em espécie)</div><input type="number" step="0.01" value="'+(CI._refEspecie??'')+'" placeholder="0,00" onchange="DATA.caixaInicial._refEspecie=parseFloat(this.value)||0;renderFluxo();autoSave()" style="'+inp+'"></div>'
+    +'</div><div style="font-size:11px;color:var(--text3);margin-top:8px">Os saldos dos outros meses são calculados a partir deste ponto. Lançamentos na conta corrente "CAIXA" contam como espécie; saques bancários saem do banco e entram no caixa em espécie.</div>';
 }
 // Caixa Inicial dedicado da aba Projeção — usado diretamente como base do Saldo Acumulado
 // (independente do Caixa Inicial do Fluxo de Caixa Geral, que reconstrói o saldo pelo histórico)
