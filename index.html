@@ -555,7 +555,7 @@ tbody td.c{text-align:center}
 
 <div class="page" id="page-fluxo">
   <div class="sec-title">Fluxo de Caixa Geral</div>
-  <div class="sec-sub">Realizado até o mês atual + A Receber e A Pagar por vencimento (colunas <span style="background:#E9ECEF;padding:0 5px;border-radius:3px;color:#5D6D7E;font-weight:600">provisão</span>) — o mês em andamento abre em Realizado e Provisão; mês fechado mostra só o realizado</div>
+  <div class="sec-sub">A partir de Julho/2026 · Realizado até o mês atual + A Receber e A Pagar por vencimento (colunas <span style="background:#E9ECEF;padding:0 5px;border-radius:3px;color:#5D6D7E;font-weight:600">provisão</span>) — o mês em andamento abre em Realizado e Provisão; mês fechado mostra só o realizado</div>
   <div class="filters-bar">
     <span class="filter-label">Filtrar</span>
     <select class="filter-select" id="fc-obra" onchange="renderFluxo()" style="min-width:150px"><option value="">Todas as obras</option></select>
@@ -1882,7 +1882,7 @@ document.addEventListener('click',()=>{const d=document.getElementById('sienge-d
 function updateFluxoFilters(){
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
   fillSelect('fc-obra',obras,v=>v,v=>v);
-  fillSelect('fc-ano',[...new Set([...DATA.csv,...DATA.fat,...DATA.arec,...DATA.pagar].map(r=>r.ano).filter(x=>x!=null))].sort(),v=>v,v=>v);
+  fillSelect('fc-ano',[...new Set([...DATA.csv,...DATA.fat,...DATA.arec,...DATA.pagar].map(r=>r.ano).filter(x=>x!=null&&x>=Math.floor(FLUXO_INICIO/100)))].sort(),v=>v,v=>v);
   fillSelect('est-obra',obras,v=>v,v=>v,'Selecione a obra');
   
   
@@ -1924,6 +1924,9 @@ function grupoSaida(conta){
   return'OUT';                                            // ex.: 10199 Cancelamento de Contrato de Venda
 }
 const _codNum=c=>{const m=String(c).match(/^\s*(\d+)/);return m?m[1]:'999999999';};
+// Início do Fluxo de Caixa Geral: Julho/2026 (ano*100+mês, mês 0-based → 202606). Meses anteriores não aparecem.
+const FLUXO_INICIO=202606;
+const fluxoInicioOk=r=>r&&r.ano!=null&&r.mes!=null&&(r.ano*100+r.mes)>=FLUXO_INICIO;
 let _fluxoCells={};
 function renderFluxo(){
   const obraSel=document.getElementById('fc-obra')?.value||'';
@@ -1940,10 +1943,10 @@ function renderFluxo(){
   const obraOk=r=>!obraSel||ccMatch(r.cc||'',obraSel);
   const anoOk=k=>!anoSel||String(Math.floor(k/100))===anoSel;
   // Realizado
-  const dadosTodos=DATA.csv.filter(r=>obraOk(r)&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa!==false);
+  const dadosTodos=DATA.csv.filter(r=>fluxoInicioOk(r)&&obraOk(r)&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa!==false);
   const dados=dadosTodos.filter(r=>!isMovEntreContas(r));
   const movInt=dadosTodos.filter(isMovEntreContas);
-  const dadosFat=DATA.fat.filter(r=>obraOk(r)&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa===true);
+  const dadosFat=DATA.fat.filter(r=>fluxoInicioOk(r)&&obraOk(r)&&(!anoSel||String(r.ano)===anoSel)&&r.movCaixa===true);
   // Lançamentos unificados: {sec:'ENT'|'SAI', conta, k, valor(com sinal), rec(origem)}
   const L=[];
   const kOf=r=>(r.ano!=null&&r.mes!=null)?r.ano*100+r.mes:null;
@@ -2222,9 +2225,9 @@ function abrirFluxoCelulaModal(el){
 function renderCaixaInicialCampos(){
   const container=document.getElementById('fc-caixa-campos');if(!container)return;
   const CI=DATA.caixaInicial=DATA.caixaInicial||{};
-  const ks=[...new Set([...DATA.csv,...DATA.fat].filter(r=>r.ano!=null&&r.mes!=null).map(r=>r.ano*100+r.mes))];
+  const ks=[...new Set([...DATA.csv,...DATA.fat].filter(fluxoInicioOk).map(r=>r.ano*100+r.mes))];
   const hoje=new Date(),atual=hoje.getFullYear()*100+hoje.getMonth();
-  const prim=ks.length?Math.min(...ks):atual;const antes=prim%100===0?(Math.floor(prim/100)-1)*100+11:prim-1;
+  const prim=FLUXO_INICIO;const antes=prim%100===0?(Math.floor(prim/100)-1)*100+11:prim-1; // fim de Junho/2026 = saldo inicial de Julho
   const opts=[antes,...ks.filter(k=>k<atual).sort((a,b)=>a-b)];
   const mesSel=v=>(v!=null&&v!=='')?parseInt(v):(CI._refMes!=null&&CI._refMes!==''?parseInt(CI._refMes):'');
   const selB=mesSel(CI._refMesB),selE=mesSel(CI._refMesE);
