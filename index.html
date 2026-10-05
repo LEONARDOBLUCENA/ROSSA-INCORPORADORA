@@ -2093,9 +2093,9 @@ function renderFluxo(){
       lin('Saques para o caixa (espécie)','#5D6D7E','SQ',saq,true)+
       linSaldo('Saldo Bancos',saldoB,'#D6EAF8','#1A5276',refMesB,bRefB)+
       cab('CAIXA (ESPÉCIE)','#FEF5E7','#9A6B00')+
+      lin('Saques recebidos do banco','#5D6D7E','SQ',saq)+
       lin('Entradas','#1B6B35','E:ENT',entE)+
       lin('Saídas','#C0392B','E:SAI',saiE,true)+
-      lin('Saques recebidos do banco','#5D6D7E','SQ',saq)+
       linSaldo('Saldo Caixa (espécie)',saldoE,'#FCE9C8','#9A6B00',refMesE,bRefE)+
       '<tr style="background:#1a5276;font-weight:700"><td style="'+SD+'#1a5276;padding:6px 12px;font-size:11px;color:#fff">Saldo Total</td>'+saldo.map((v,i)=>'<td class="r" style="padding:4px 6px;font-size:10px;color:'+corS(v)+';'+(isProj[i]?'background:#22618c':'')+'">'+f2(v)+'</td>').join('')+'<td class="r" style="padding:4px 7px;color:'+corS(saldo[saldo.length-1])+'">'+f2(saldo[saldo.length-1])+'</td></tr>';
   }
