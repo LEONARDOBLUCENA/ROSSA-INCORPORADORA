@@ -566,12 +566,6 @@ tbody td.c{text-align:center}
     <select class="filter-select" id="fc-horiz" onchange="renderFluxo()"><option value="6">6 meses</option><option value="12" selected>12 meses</option><option value="24">24 meses</option><option value="36">36 meses</option><option value="60">60 meses</option><option value="">Tudo</option></select>
     <button class="btn-ghost" onclick="document.getElementById('fc-obra').value='';document.getElementById('fc-ano').value='';document.getElementById('fc-aberto').value='1';document.getElementById('fc-horiz').value='12';renderFluxo()">✕ Limpar</button>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
-    <div class="kpi-card c-green clickable" onclick="abrirFluxoKpiModal('ent')"><div class="kpi-label">Total Entradas</div><div class="kpi-val pos" id="fc-kpi-ent">—</div><div class="kpi-sub">Realizado (caixa), no período filtrado</div></div>
-    <div class="kpi-card c-red clickable" onclick="abrirFluxoKpiModal('sai')"><div class="kpi-label">Total Saídas</div><div class="kpi-val neg" id="fc-kpi-sai">—</div><div class="kpi-sub">Realizado (caixa), no período filtrado</div></div>
-    <div class="kpi-card c-blue"><div class="kpi-label">Saldo de Caixa Atual</div><div class="kpi-val" id="fc-kpi-saldo">—</div><div class="kpi-sub" id="fc-kpi-saldo-sub">Bancos + Caixa (espécie), realizado</div></div>
-    <div class="kpi-card c-gold"><div class="kpi-label">Saldo Projetado</div><div class="kpi-val" id="fc-kpi-proj">—</div><div class="kpi-sub" id="fc-kpi-proj-sub">Fim do horizonte, com A Receber e A Pagar</div></div>
-  </div>
   <div class="tbl-card" id="fc-prov-card" style="padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     <div style="flex:1;min-width:220px">
       <div class="tbl-title" style="font-size:15px">Provisão no Período</div>
