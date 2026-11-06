@@ -738,6 +738,20 @@ const CHARTS={};
 // Movimentações entre contas da própria Rossa (tesouraria): Transferência, Resgate de Aplicação, Aplicação, Saque Bancário.
 // Não são despesa nem receita — só trocam o dinheiro de lugar (Caixa Inicial = conta corrente + aplicações).
 // Ficam fora de Entradas/Saídas, Resultado e Saldo; aparecem à parte (aba Saídas e bloco informativo no Fluxo).
+// Regras de caixa (correção 06/11/2026, conciliação bancária jun–out/2026):
+// (a) Recebimento sem "Tipo de Baixa" (crédito avulso lançado direto no banco do Sienge: depósito, Pix sem título,
+//     devolução de boleto) é dinheiro que entrou na conta → conta como caixa, salvo REAPROPFIN.
+// (b) A API do Sienge devolve o mesmo "Saque Bancário" duas vezes: na conta de origem e numa conta MUTUO/MUTUO3.
+//     A cópia MUTUO que tem gêmea (mesma data e valor em outra conta) é marcada como não-caixa.
+function fatSemTipoEhCaixa(r){const cc=String((r&&r.contaCorrente)||'').trim();return !String((r&&r.tipoBaixa)||'').trim()&&!!cc&&!/REAPROPFIN/i.test(cc);}
+function normalizarRegrasCaixa(){
+  (DATA.fat||[]).forEach(r=>{if(r.movCaixa!==true&&fatSemTipoEhCaixa(r)){r.movCaixa=true;r._movCaixaAuto=true;}});
+  const ehSaque=r=>/^saque/i.test(String(r.conta||'').trim());const ehMutuo=r=>/^mutuo/i.test(String(r.contaCorrente||'').trim());
+  const dia=r=>r.data instanceof Date&&!isNaN(r.data)?r.data.getFullYear()+'-'+r.data.getMonth()+'-'+r.data.getDate():'';
+  const chave=r=>dia(r)+'|'+Math.round(Math.abs(r.valor||0)*100);
+  const reais=new Set();(DATA.csv||[]).forEach(r=>{if(ehSaque(r)&&!ehMutuo(r))reais.add(chave(r));});
+  (DATA.csv||[]).forEach(r=>{if(ehSaque(r)&&ehMutuo(r)&&reais.has(chave(r))&&r.movCaixa!==false){r.movCaixa=false;r._saqueDuplicado=true;}});
+}
 function isMovEntreContas(r){const c=String((r&&r.conta)||'').trim();if(!c||/^\d/.test(c))return false;return /^(transfer|resgate|aplica|saque)/i.test(c);}
 // Celular: encurta rótulos longos dos gráficos de barra deitada (ajusta a config antes de criar o gráfico)
 if(typeof Chart!=='undefined'&&!Chart.__rotuloCurto){const _Chart=Chart;window.Chart=class extends _Chart{constructor(el,cfg){
@@ -1173,7 +1187,7 @@ async function sienceSyncAll(){
   if(csvS)csvS.value=start;if(csvE)csvE.value=end;
   const arecS=document.getElementById('sienge-arec-start'),arecE=document.getElementById('sienge-arec-end');
   if(arecS)arecS.value=start;if(arecE)arecE.value=end;
-  renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();renderDash();renderFluxo();renderProjecao();autoSave();
+  normalizarRegrasCaixa();renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();renderDash();renderFluxo();renderProjecao();autoSave();
 }
 
 // ── DEDUPLICAÇÃO NO COLAR (paste-import) ────────────────────────────────────
@@ -1225,7 +1239,7 @@ function removerDuplicadosExistentes(){
     +'Remover agora? Fica mantida a 1ª ocorrência de cada um; as repetições são excluídas.';
   if(!confirm(resumo))return;
   DATA.csv=csvR.manter;DATA.fat=fatR.manter;DATA.arec=arecR.manter;DATA.pagar=pagarR.manter;
-  renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();
+  normalizarRegrasCaixa();renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();
   autoSave();
   alert(total+' lançamento'+(total!==1?'s':'')+' duplicado'+(total!==1?'s':'')+' removido'+(total!==1?'s':'')+' com sucesso.');
 }
@@ -1292,7 +1306,7 @@ function processFatText(txt){
     // a mesma chave de duplicidade e eram descartados indevidamente. Ver correção de 08/09/2026.
     const parcela=fixEncoding(findColKey(r,['NumeroDaParcela','Numero Parcela','NumeroParcela','Parcela','Parc']).value);
     const valor=Math.abs(parseBRNum(findColKey(r,['ValorLiquido','Liquido','Líquido','valorliquido']).value));
-    const movCaixa=tipoBaixa.toUpperCase()==='RECEBIMENTO';
+    const movCaixa=tipoBaixa.toUpperCase()==='RECEBIMENTO'||(!tipoBaixa.trim()&&!!String(contaCorrente||'').trim()&&!/REAPROPFIN/i.test(contaCorrente));
     return{data,cliente,cc,conta,contaCod,contaCorrente,numeroTitulo,parcela,tipoBaixa,valor,movCaixa,mes:data?data.getMonth():null,ano:data?data.getFullYear():null};
   }).filter(r=>r&&(r.valor!==0||r.cc));
   const{out:novosUnicos,dup}=dedupNovos(DATA.fat,novos,dedupKeyFat);
@@ -1666,6 +1680,7 @@ function abrirDashAbertosModal(tipo){
 }
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDash(){
+  normalizarRegrasCaixa();
   const obras=[...new Set(DATA.csv.map(r=>r.cc).filter(Boolean))].sort();
   const anos=[...new Set(DATA.csv.map(r=>r.ano).filter(x=>x!=null))].sort();
   const contas=[...new Set([...DATA.csv.filter(r=>!isMovEntreContas(r)).map(r=>r.conta),...DATA.fat.map(r=>r.conta)].filter(Boolean))].sort();
@@ -1919,6 +1934,7 @@ const FLUXO_INICIO=202606;
 const fluxoInicioOk=r=>r&&r.ano!=null&&r.mes!=null&&(r.ano*100+r.mes)>=FLUXO_INICIO;
 let _fluxoCells={};
 function renderFluxo(){
+  normalizarRegrasCaixa();
   const obraSel=document.getElementById('fc-obra')?.value||'';
   const anoSel=document.getElementById('fc-ano')?.value||'';
   const incluirAberto=(document.getElementById('fc-aberto')?.value||'1')==='1';
@@ -2660,7 +2676,7 @@ async function jbinLoad(){
     }else{
       DATA._cleanup2025Done=true;
     }
-    renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();setJbinStatus('ok');
+    normalizarRegrasCaixa();renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();setJbinStatus('ok');
     if(seedNovos)autoSave();
   }catch(e){console.error(e);setJbinStatus('error');}
 }
@@ -2688,7 +2704,7 @@ function restoreJSON(input){
       DATA.titCC=d.titCC||{};
       DATA.orcamentoObra=d.orcamentoObra||{};
       DATA._cleanup2025Done=d._cleanup2025Done||false;
-      renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();
+      normalizarRegrasCaixa();renderCSVTable();renderFatTable();renderArecTable();renderPagarTable();renderTitCCTable();renderEstoqueTable();updateFluxoFilters();renderDash();renderFluxo();renderProjecao();renderCaixaInicialCampos();
       autoSave();
       alert('Backup restaurado: '+DATA.csv.length+' contas pagas, '+DATA.fat.length+' entradas, '+DATA.arec.length+' a receber, '+DATA.pagar.length+' a pagar, '+DATA.estoque.length+' unidades.');
     }catch(err){
